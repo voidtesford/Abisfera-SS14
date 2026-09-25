@@ -1,0 +1,14 @@
+ent-ClothingEyesNightVisionGoggles = night vision goggles
+    .desc = Now you can see in the dark!
+ent-ClothingEyesNightVisionGogglesSyndie = syndicate night vision goggles
+    .desc = A high-tech pair of night vision goggles. Has medical analysis technology.
+ent-ClothingEyesNightVisionGogglesNukie = syndicate night vision goggles
+    .desc = A high-tech pair of night vision goggles. Has medical analysis technology.
+    .suffix = NukeOps
+ent-ClothingEyesThermalVisionGoggles = thermal vision goggles
+    .desc = Now you can see everyone!
+ent-ClothingEyesThermalVisionGogglesSyndie = thermal vision goggles
+    .desc = A high-tech pair of thermal goggles.
+ent-ClothingEyesThermalVisionGogglesNukie = thermal vision goggles
+    .desc = A high-tech pair of thermal goggles.
+    .suffix = NukeOps

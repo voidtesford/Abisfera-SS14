@@ -1,0 +1,17 @@
+ent-CollideFloorTrap = { "" }
+    .desc = { "" }
+ent-CollideFloorTrapSpawn = floor trap spawn
+    .desc = { ent-CollideFloorTrap.desc }
+ent-FloorTrapExplosion = explosion floor trap
+    .desc = { ent-CollideFloorTrap.desc }
+ent-FloorTrapEMP = EMP floor trap
+    .desc = { ent-CollideFloorTrap.desc }
+ent-SpawnFloorTrapCarp = { ent-CollideFloorTrapSpawn }
+    .suffix = Carp
+    .desc = { ent-CollideFloorTrapSpawn.desc }
+ent-SpawnFloorTrapBear = { ent-CollideFloorTrapSpawn }
+    .suffix = Bear
+    .desc = { ent-CollideFloorTrapSpawn.desc }
+ent-SpawnFloorTrapKangaroo = { ent-CollideFloorTrapSpawn }
+    .suffix = Kangaroo
+    .desc = { ent-CollideFloorTrapSpawn.desc }
