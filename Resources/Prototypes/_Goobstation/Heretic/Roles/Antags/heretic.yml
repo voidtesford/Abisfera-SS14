@@ -17,5 +17,5 @@
   objective: roles-antag-heretic-description
   requirements:
   - !type:OverallPlaytimeRequirement
-    time: 54000 # 15h
+    time: 36000 # 10h
   guides: [ Heretics ]

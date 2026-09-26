@@ -3,7 +3,7 @@
   mapName: 'NGT Кластер'
   mapPath: /Maps/_CorvaxGoob/Stations/Cluster/corvax_cluster.yml
   minPlayers: 0
-  maxPlayers: 25
+  maxPlayers: 50
   stations:
     Cluster:
       stationProto: StandardNanotrasenStation

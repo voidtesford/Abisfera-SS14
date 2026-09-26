@@ -27,7 +27,7 @@
   id: Reach
   mapName: 'Reach'
   mapPath: /Maps/_Goobstation/reach.yml
-  minPlayers: 0
+  minPlayers: 60
   maxPlayers: 10
   stations:
     Reach:
