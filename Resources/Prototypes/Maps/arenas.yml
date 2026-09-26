@@ -23,7 +23,7 @@
   id: dm01-entryway
   mapName: DM01 Entryway
   mapPath: /Maps/_Goobstation/Nonstations/dm01-entryway.yml #goobstation - no more shitty deathmatch in a dark
-  minPlayers: 0
+  minPlayers: 50
   stations:
     dm01-entryway:
       stationProto: StandardStationArena

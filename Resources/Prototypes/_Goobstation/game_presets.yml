@@ -38,7 +38,7 @@
     - changeling
   name: changeling-gamemode-title
   description: changeling-gamemode-description
-  showInVote: false
+  showInVote: true
   rules:
     - Changeling
     - SubGamemodesRule
@@ -127,7 +127,7 @@
   id: Blob
   alias:
   - blab
-  name: blob-title
+  name: Blob
   description: blob-description
   showInVote: false
   rules:
@@ -190,7 +190,7 @@
     - turbulence
   name: secretplus-low-title
   description: secretplus-low-description
-  showInVote: true
+  showInVote: false
   rules:
     - SecretPlusLow
 
@@ -202,7 +202,7 @@
     - entropy
   name: secretplus-mid-title
   description: secretplus-mid-description
-  showInVote: true
+  showInVote: false
   rules:
     - SecretPlusMid
 
@@ -227,7 +227,7 @@
     - survivalnew
   name: survivalplus-title
   description: survivalplus-description
-  showInVote: true
+  showInVote: false
   rules:
     - SecretPlusRampingMid
 
@@ -238,7 +238,7 @@
   - ayylmao
   name: abductors-title
   description: abductors-description
-  showInVote: false
+  showInVote: true
   minPlayers: 20
   rules:
   - DuoAbductorRoundstart

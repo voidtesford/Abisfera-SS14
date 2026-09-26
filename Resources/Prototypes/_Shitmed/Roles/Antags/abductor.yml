@@ -24,7 +24,7 @@
   guides: [ Abductors ]
   requirements:
   - !type:OverallPlaytimeRequirement
-    time: 180000 #50 hours
+    time: 54000 #15 hours
   - !type:DepartmentTimeRequirement
     department: Security
     time: 10800 #3 hours

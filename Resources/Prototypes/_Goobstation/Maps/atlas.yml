@@ -40,7 +40,7 @@
   id: Atlas
   mapName: Atlas
   mapPath: /Maps/_Goobstation/atlas.yml
-  minPlayers: 5
+  minPlayers: 55
   maxPlayers: 20
   stations:
     Atlas:

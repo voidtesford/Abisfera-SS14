@@ -1,6 +1,8 @@
 - type: gameMapPool
   id: CorvaxMapPool
   maps:
+  - CorvaxMaus
+ 
   # Highpop 55+
   - CorvaxAstra
   #- CorvaxAvrite

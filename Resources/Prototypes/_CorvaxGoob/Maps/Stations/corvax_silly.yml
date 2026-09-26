@@ -4,7 +4,7 @@
   mapPath: /Maps/_CorvaxGoob/Stations/Silly/corvax_silly.yml
   maxRandomOffset: 0
   randomRotation: false
-  minPlayers: 0
+  minPlayers: 50
   maxPlayers: 25
   stations:
     CorvaxSilly:
