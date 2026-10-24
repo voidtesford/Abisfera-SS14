@@ -10,3 +10,7 @@ ent-ProperKungFuHammerStrike = нисходящий удар когтей
     .desc = { "" }
 ent-ProperKungFuHammerUpStrike = восходящий удар когтей
     .desc = { "" }
+ent-ProperKungFuInstinctAura = аура волчьего чутья
+    .desc = { "" }
+ent-ProperKungFuInstinctClawSlash = контрудар волчьего чутья
+    .desc = { "" }

@@ -19,6 +19,7 @@ public sealed partial class ProperKungFuComponent : Component
         "ActionProperKungFuWolfDance",
         "ActionProperKungFuClawWhirlwind",
         "ActionProperKungFuHammer",
+        "ActionProperKungFuWolfInstinct",
     };
 
     /// <summary>

@@ -201,3 +201,51 @@
       sprite: _CorvaxGoob/Effects/proper_kung_fu_hammer.rsi
       state: hammer_strike_up
       offset: 0, 0.35
+
+# Wolf Instinct: white-red aura around the user for the counter stance (attached to the user, deleted with the stance).
+- type: entity
+  id: ProperKungFuInstinctAura
+  name: wolf instinct aura
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_instinct.rsi
+      state: instinct_aura
+      offset: 0, -0.15
+  - type: PointLight
+    color: "#FF3030"
+    radius: 2.5
+    energy: 1.8
+  - type: TimedDespawn
+    # Safety net; the stance removes it as soon as it ends.
+    lifetime: 10
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Instinct counter: a bright three-claw slash over the attacker, turned to a random angle every hit.
+- type: entity
+  id: ProperKungFuInstinctClawSlash
+  name: wolf instinct counter slash
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_claw.rsi
+      state: claw_scratch
+      scale: 1.6, 1.6
+  - type: PointLight
+    color: "#FF5050"
+    radius: 2
+    energy: 2.5
+  - type: TimedDespawn
+    lifetime: 0.5
+  - type: Tag
+    tags:
+    - HideContextMenu

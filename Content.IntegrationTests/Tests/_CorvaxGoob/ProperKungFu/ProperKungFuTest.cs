@@ -95,7 +95,7 @@ public sealed class ProperKungFuTest
             Assert.That(entMan.TryGetComponent<MartialArtsKnowledgeComponent>(user, out var knowledge));
             Assert.That(knowledge!.MartialArtsForm, Is.EqualTo(MartialArtsForms.ProperKungFu));
             Assert.That(entMan.TryGetComponent<ProperKungFuComponent>(user, out var kungFu));
-            Assert.That(kungFu!.ActionEntities, Has.Count.EqualTo(3));
+            Assert.That(kungFu!.ActionEntities, Has.Count.EqualTo(4));
             Assert.That(entMan.Deleted(book), "The manual should be consumed");
 
             var actionUid = kungFu.ActionEntities[0];
@@ -842,7 +842,7 @@ public sealed class ProperKungFuTest
         await server.WaitAssertion(() =>
         {
             var kungFu = entMan.GetComponent<ProperKungFuComponent>(user);
-            Assert.That(kungFu.ActionEntities, Has.Count.EqualTo(3));
+            Assert.That(kungFu.ActionEntities, Has.Count.EqualTo(4));
             foreach (var uid in kungFu.ActionEntities)
             {
                 var id = entMan.GetComponent<MetaDataComponent>(uid).EntityPrototype!.ID;
@@ -1031,6 +1031,236 @@ public sealed class ProperKungFuTest
         {
             var moved = xformSys.GetWorldPosition(gripTarget).X - kickStart.X;
             Assert.That(moved, Is.EqualTo(3f).Within(0.4f), $"Normal 3 tile knockback, moved {moved}");
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    [Test]
+    public async Task WolfInstinctTest()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var map = await pair.CreateTestMap();
+
+        var entMan = server.ResolveDependency<IEntityManager>();
+        var tileDefs = server.ResolveDependency<ITileDefinitionManager>();
+        var mapSys = entMan.System<SharedMapSystem>();
+        var actions = entMan.System<ActionsSystem>();
+        var hands = entMan.System<SharedHandsSystem>();
+        var xformSys = entMan.System<SharedTransformSystem>();
+        var combat = entMan.System<SharedCombatModeSystem>();
+        var melee = entMan.System<SharedMeleeWeaponSystem>();
+        var throwing = entMan.System<Content.Shared.Throwing.ThrowingSystem>();
+        var guns = entMan.System<Content.Shared.Weapons.Ranged.Systems.SharedGunSystem>();
+
+        EntityUid user = default;
+        EntityUid attacker = default;
+        EntityUid attacker2 = default;
+        EntityUid thrower = default;
+        EntityUid shooter = default;
+        EntityUid farShooter = default;
+        EntityUid gun = default;
+        EntityUid item = default;
+        Entity<ActionComponent> instinct = default;
+        Vector2 attackerStart = default;
+        Vector2 attacker2Start = default;
+        var ultBefore = 0f;
+
+        void Cast()
+        {
+            actions.ClearCooldown(instinct.AsNullable());
+            actions.PerformAction(user, instinct, predicted: false);
+        }
+
+        void MoveUser(float x, float y)
+        {
+            xformSys.SetCoordinates(user, new EntityCoordinates(map.Grid, x, y));
+        }
+
+        await server.WaitPost(() =>
+        {
+            var tile = new Tile(tileDefs["Plating"].TileId);
+            for (var x = -4; x <= 16; x++)
+            for (var y = -13; y <= 3; y++)
+            {
+                mapSys.SetTile(map.Grid.Owner, map.Grid.Comp, new Vector2i(x, y), tile);
+            }
+
+            user = SpawnMob(entMan, new EntityCoordinates(map.Grid, 0.5f, 0.5f));
+            attacker = SpawnMob(entMan, new EntityCoordinates(map.Grid, 1.5f, 0.5f));
+            attacker2 = SpawnMob(entMan, new EntityCoordinates(map.Grid, -0.5f, 0.5f));
+            thrower = SpawnMob(entMan, new EntityCoordinates(map.Grid, 4.5f, -3.5f));
+            shooter = SpawnMob(entMan, new EntityCoordinates(map.Grid, 6.5f, -7.5f));
+            farShooter = SpawnMob(entMan, new EntityCoordinates(map.Grid, 12.5f, -11.5f));
+            gun = entMan.SpawnEntity("WeaponPistolViper", new EntityCoordinates(map.Grid, 6.5f, -7.5f));
+            Assert.That(hands.TryPickupAnyHand(shooter, gun), Is.True);
+            combat.SetInCombatMode(attacker, true);
+            combat.SetInCombatMode(attacker2, true);
+
+            var book = entMan.SpawnEntity("ProperKungFuManual", new EntityCoordinates(map.Grid, 0.5f, 0.5f));
+            Assert.That(hands.TryPickupAnyHand(user, book), Is.True);
+            entMan.EventBus.RaiseLocalEvent(book, new UseInHandEvent(user));
+        });
+
+        await server.WaitRunTicks(5);
+
+        // ---- Melee: parry, two-palm counter, several counters per stance ----
+        await server.WaitAssertion(() =>
+        {
+            var kungFu = entMan.GetComponent<ProperKungFuComponent>(user);
+            Assert.That(kungFu.ActionEntities, Has.Count.EqualTo(4));
+            foreach (var uid in kungFu.ActionEntities)
+            {
+                if (entMan.GetComponent<MetaDataComponent>(uid).EntityPrototype!.ID == "ActionProperKungFuWolfInstinct")
+                    instinct = (uid, entMan.GetComponent<ActionComponent>(uid));
+            }
+
+            Assert.That(instinct.Owner.IsValid(), "Wolf Instinct is granted with the art");
+            Assert.That(instinct.Comp.UseDelay, Is.EqualTo(TimeSpan.FromSeconds(30)), "30 s cooldown");
+
+            ultBefore = kungFu.UltimateCharge;
+            actions.PerformAction(user, instinct, predicted: false);
+            Assert.That(entMan.HasComponent<WolfInstinctStanceComponent>(user), "Counter stance is on");
+            Assert.That(entMan.GetComponent<WolfInstinctStanceComponent>(user).Aura, Is.Not.Null, "Aura is shown");
+
+            attackerStart = xformSys.GetWorldPosition(attacker);
+            var weapon = entMan.GetComponent<MeleeWeaponComponent>(attacker);
+            melee.AttemptLightAttack(attacker, attacker, weapon, user);
+        });
+
+        await server.WaitRunTicks(2);
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(entMan.GetComponent<DamageableComponent>(user).TotalDamage.Float(), Is.EqualTo(0f), "The parried punch does no damage");
+            Assert.That(PartDamage(entMan, attacker, BodyPartType.Chest, "Slash"), Is.EqualTo(25f).Within(0.5f), "25 Slash into the chest");
+            Assert.That(PartDamage(entMan, attacker, BodyPartType.Head, "Slash"), Is.LessThanOrEqualTo(0f), "Nothing on the head");
+            Assert.That(entMan.GetComponent<StaminaComponent>(attacker).StaminaDamage, Is.EqualTo(75f).Within(3f), "75 stamina damage");
+            Assert.That(entMan.GetComponent<ProperKungFuComponent>(user).UltimateCharge - ultBefore, Is.EqualTo(5f).Within(0.01f), "+5 ult per counter");
+
+            // A second attacker in the same stance is countered too.
+            attacker2Start = xformSys.GetWorldPosition(attacker2);
+            var weapon = entMan.GetComponent<MeleeWeaponComponent>(attacker2);
+            melee.AttemptLightAttack(attacker2, attacker2, weapon, user);
+        });
+
+        await server.WaitRunTicks(20);
+
+        await server.WaitAssertion(() =>
+        {
+            var moved = xformSys.GetWorldPosition(attacker).X - attackerStart.X;
+            Assert.That(moved, Is.EqualTo(3f).Within(0.4f), $"Thrown back 3 tiles, moved {moved}");
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(attacker), Is.False, "but stays on their feet");
+
+            Assert.That(entMan.GetComponent<DamageableComponent>(user).TotalDamage.Float(), Is.EqualTo(0f), "Second punch parried too");
+            Assert.That(PartDamage(entMan, attacker2, BodyPartType.Chest, "Slash"), Is.EqualTo(25f).Within(0.5f), "Second counter");
+            var moved2 = attacker2Start.X - xformSys.GetWorldPosition(attacker2).X;
+            Assert.That(moved2, Is.EqualTo(3f).Within(0.4f), $"Second attacker thrown the other way, moved {moved2}");
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(attacker2), Is.False);
+            Assert.That(entMan.GetComponent<ProperKungFuComponent>(user).UltimateCharge - ultBefore, Is.EqualTo(10f).Within(0.01f), "+5 for each counter");
+        });
+
+        // The stance runs out after 3 s.
+        await server.WaitRunTicks(75);
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(entMan.HasComponent<WolfInstinctStanceComponent>(user), Is.False, "Stance ends after 3 s");
+        });
+
+        // ---- Thrown objects: no damage, flies back twice as fast ----
+        var thrownSpeed = 0f;
+        await server.WaitPost(() =>
+        {
+            MoveUser(0.5f, -3.5f);
+            Cast();
+            item = entMan.SpawnEntity("CombatKnife", new EntityCoordinates(map.Grid, 3.7f, -3.5f));
+            throwing.TryThrow(item, new Vector2(-4f, 0f), 8f, thrower, pushbackRatio: 0f, recoil: false, playSound: false);
+            thrownSpeed = entMan.GetComponent<Robust.Shared.Physics.Components.PhysicsComponent>(item).LinearVelocity.Length();
+        });
+
+        var reflectedSpeed = 0f;
+        var reflectedX = 0f;
+        for (var i = 0; i < 30 && reflectedSpeed == 0f; i++)
+        {
+            await server.WaitRunTicks(1);
+            await server.WaitPost(() =>
+            {
+                if (entMan.TryGetComponent<Content.Shared.Throwing.ThrownItemComponent>(item, out var thrown) && thrown.Thrower == user)
+                {
+                    var velocity = entMan.GetComponent<Robust.Shared.Physics.Components.PhysicsComponent>(item).LinearVelocity;
+                    reflectedSpeed = velocity.Length();
+                    reflectedX = velocity.X;
+                }
+            });
+        }
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(thrownSpeed, Is.GreaterThan(1f), "The test throw moves");
+            Assert.That(entMan.GetComponent<DamageableComponent>(user).TotalDamage.Float(), Is.EqualTo(0f), "Thrown object does no damage");
+            Assert.That(reflectedSpeed, Is.EqualTo(thrownSpeed * 2f).Within(thrownSpeed * 0.3f), $"Reflected at double speed: {thrownSpeed} -> {reflectedSpeed}");
+            Assert.That(reflectedX, Is.GreaterThan(0f), "back toward the thrower");
+            Assert.That(entMan.HasComponent<WolfInstinctStanceComponent>(user), "The stance continues after a reflection");
+        });
+
+        await server.WaitRunTicks(15);
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(entMan.GetComponent<DamageableComponent>(thrower).TotalDamage.Float(), Is.GreaterThan(0f), "The reflected knife hits the thrower");
+        });
+
+        // ---- Gun within 8 tiles: dash, knockdown, gun knocked out, hard grab, no damage ----
+        await server.WaitPost(() =>
+        {
+            entMan.RemoveComponent<WolfInstinctStanceComponent>(user);
+            MoveUser(0.5f, -7.5f);
+            Cast();
+            var bullet = entMan.SpawnEntity("BulletPistol", new EntityCoordinates(map.Grid, 5.7f, -7.5f));
+            guns.ShootProjectile(bullet, new Vector2(-1f, 0f), Vector2.Zero, gun, shooter, 20f);
+        });
+
+        await server.WaitRunTicks(20);
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(entMan.GetComponent<DamageableComponent>(user).TotalDamage.Float(), Is.GreaterThan(0f), "The bullet still hurts");
+            var gap = xformSys.GetWorldPosition(shooter) - xformSys.GetWorldPosition(user);
+            Assert.That(gap.Length(), Is.LessThan(1.5f), $"Dashed to the shooter, gap {gap}");
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(shooter), "Shooter knocked down");
+            Assert.That(hands.EnumerateHeld(shooter).Contains(gun), Is.False, "Gun knocked out of the hands");
+            var puller = entMan.GetComponent<PullerComponent>(user);
+            var pullable = entMan.GetComponent<PullableComponent>(shooter);
+            Assert.That(puller.Pulling, Is.EqualTo(shooter), "Grabbed");
+            Assert.That(puller.GrabStage, Is.EqualTo(GrabStage.Hard), "Hard grab (user side)");
+            Assert.That(pullable.GrabStage, Is.EqualTo(GrabStage.Hard), "Hard grab (target side)");
+            Assert.That(entMan.GetComponent<DamageableComponent>(shooter).TotalDamage.Float(), Is.EqualTo(0f), "No damage to the shooter");
+            Assert.That(entMan.HasComponent<WolfInstinctStanceComponent>(user), Is.False, "A gun dash ends the stance");
+
+            entMan.System<PullingSystem>().TryStopPull(shooter, pullable, user);
+        });
+
+        // ---- Gun further than 8 tiles: dash 8 tiles and miss ----
+        var missStart = Vector2.Zero;
+        await server.WaitPost(() =>
+        {
+            MoveUser(0.5f, -11.5f);
+            missStart = new Vector2(0.5f, -11.5f);
+            Cast();
+            var bullet = entMan.SpawnEntity("BulletPistol", new EntityCoordinates(map.Grid, 11.7f, -11.5f));
+            guns.ShootProjectile(bullet, new Vector2(-1f, 0f), Vector2.Zero, gun, farShooter, 20f);
+        });
+
+        await server.WaitRunTicks(40);
+
+        await server.WaitAssertion(() =>
+        {
+            var pos = xformSys.GetWorldPosition(user);
+            var moved = pos.X - missStart.X;
+            Assert.That(moved, Is.EqualTo(8f).Within(0.3f), $"Dashed the full 8 tiles, moved {moved}");
+            Assert.That(pos.Y, Is.EqualTo(missStart.Y).Within(0.2f), "straight at the shooter");
+            Assert.That(entMan.GetComponent<PullerComponent>(user).Pulling, Is.Null, "Missed, nobody grabbed");
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(farShooter), Is.False, "Far shooter untouched");
         });
 
         await pair.CleanReturnAsync();

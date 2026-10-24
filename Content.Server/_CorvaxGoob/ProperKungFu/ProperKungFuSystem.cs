@@ -94,6 +94,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         SubscribeLocalEvent<ProperKungFuComponent, ClawWhirlwindActionEvent>(OnClawWhirlwind);
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuWolfGripPerformedEvent>(OnWolfGrip);
         SubscribeLocalEvent<ProperKungFuComponent, HammerActionEvent>(OnHammer);
+        InitializeWolfInstinct();
     }
 
     private void OnStartup(Entity<ProperKungFuComponent> ent, ref ComponentStartup args)
@@ -430,6 +431,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         UpdateWhirlwind(now);
         UpdateWolfGripMarks(now);
         UpdateHammerMarks(now);
+        UpdateWolfInstinct(now);
 
         var marks = EntityQueryEnumerator<ProperKungFuClawMarkComponent>();
         while (marks.MoveNext(out var uid, out var mark))

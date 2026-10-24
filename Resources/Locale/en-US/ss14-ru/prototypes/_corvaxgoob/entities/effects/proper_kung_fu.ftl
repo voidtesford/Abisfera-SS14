@@ -10,3 +10,7 @@ ent-ProperKungFuHammerStrike = hammer claw strike
     .desc = { "" }
 ent-ProperKungFuHammerUpStrike = rising claw strike
     .desc = { "" }
+ent-ProperKungFuInstinctAura = wolf instinct aura
+    .desc = { "" }
+ent-ProperKungFuInstinctClawSlash = wolf instinct counter slash
+    .desc = { "" }

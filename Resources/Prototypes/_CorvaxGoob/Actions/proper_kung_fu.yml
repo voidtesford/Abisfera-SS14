@@ -151,3 +151,52 @@
       gibSound:
         path: /Audio/Effects/gib1.ogg
       gibBloodSpill: 40
+
+- type: entity
+  parent: BaseAction
+  id: ActionProperKungFuWolfInstinct
+  name: Wolf Instinct
+  description: For 3 seconds you take a counter stance. Every melee attack on you is parried and answered with a two-palm strike into the attacker's chest (25 Slash, 75 stamina damage); they fly back 3 tiles but stay on their feet. If a gun hurts you, you dash at the shooter up to 8 tiles and, if you reach them, knock them down, knock the gun out of their hands and take them into a hard grab without hurting them; a shooter further away is missed. Thrown objects don't hurt you and fly back at the thrower twice as fast.
+  components:
+  - type: Action
+    useDelay: 30
+    itemIconStyle: BigAction
+    icon:
+      sprite: _CorvaxGoob/Interface/Actions/proper_kung_fu.rsi
+      state: wolf_instinct
+  - type: InstantAction
+    event: !type:WolfInstinctActionEvent
+      duration: 3
+      cancelMeleeDamage: true
+      allowMultipleCounters: true
+      counterDamage:
+        types:
+          Slash: 25
+      counterStaminaDamage: 75
+      counterKnockbackDistance: 3
+      counterKnockbackSpeed: 10
+      counterEffect: ProperKungFuInstinctClawSlash
+      counterSound:
+        path: /Audio/Weapons/boxingpunch1.ogg
+      dashRange: 8
+      dashSpeed: 24
+      dashReach: 1.5
+      shooterKnockdownTime: 3
+      gunEndsStance: true
+      dashHitSound:
+        path: /Audio/Weapons/genhit2.ogg
+      afterimageEffect: ProperKungFuDashAfterimage
+      blockThrownDamage: true
+      reflectSpeedMultiplier: 2
+      reflectSound:
+        path: /Audio/Weapons/punchmiss.ogg
+      auraEffect: ProperKungFuInstinctAura
+      # Loud ringing stomp: a heavy metal slam plus a long clang (stock sounds).
+      stanceSound:
+        path: /Audio/Effects/metal_slam5.ogg
+        params:
+          volume: 6
+      stanceRingSound:
+        path: /Audio/Effects/clang.ogg
+        params:
+          volume: 4
