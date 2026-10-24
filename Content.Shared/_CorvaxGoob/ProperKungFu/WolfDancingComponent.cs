@@ -6,7 +6,7 @@ using Robust.Shared.Serialization;
 namespace Content.Shared._CorvaxGoob.ProperKungFu;
 
 /// <summary>
-/// Present on an entity while it performs the Wolf Dance movement (roll, then angled dash).
+/// Present on an entity while it performs the Wolf Dance movement (a straight flying kick).
 /// Its presence is networked so the client also blocks movement input (no prediction fight).
 /// The movement state itself is only used by the server.
 /// </summary>
@@ -17,13 +17,13 @@ public sealed partial class WolfDancingComponent : Component
     public EntityUid Target;
 
     /// <summary>
-    /// Whirlwind variant: the target was hit by Claw Whirlwind, so it's one straight dash and the hard kick.
+    /// Whirlwind variant: the target was hit by Claw Whirlwind, so it's the hard kick and a longer knockback.
     /// </summary>
     [ViewVariables]
     public bool WhirlwindVariant;
 
     [ViewVariables]
-    public WolfDancePhase Phase = WolfDancePhase.Roll;
+    public WolfDancePhase Phase = WolfDancePhase.Dash;
 
     [ViewVariables]
     public TimeSpan PhaseStart;
@@ -62,11 +62,9 @@ public sealed partial class WolfDancingComponent : Component
 [Serializable, NetSerializable]
 public enum WolfDancePhase : byte
 {
-    /// <summary>Forward roll/somersault toward the target.</summary>
-    Roll,
-    /// <summary>Angled dash into the target.</summary>
+    /// <summary>Straight flying kick, feet first, into the target.</summary>
     Dash,
-    /// <summary>The roundhouse kick connects (or is blocked).</summary>
+    /// <summary>The kick connects (or is blocked), then the user drops to the floor.</summary>
     Kick,
     /// <summary>The move was interrupted or missed, reset the visuals.</summary>
     Cancel,

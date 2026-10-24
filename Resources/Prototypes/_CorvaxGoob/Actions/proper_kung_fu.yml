@@ -2,7 +2,7 @@
   parent: BaseAction
   id: ActionProperKungFuWolfDance
   name: Wolf Dance
-  description: Roll forward toward a target up to 5 tiles away, dash into it at an angle and finish with a roundhouse kick that knocks them down and sends them flying. A held shield blocks the kick but gets knocked out of the hands. Right after a Claw Series the kick hits much harder and sends the target further, but only knocks them down. Right after a Claw Whirlwind it is a single fast straight dash instead of the roll, the target flies 5 tiles, but you fall too.
+  description: Leap feet first in a straight flying kick into a target up to 5 tiles away. The kick knocks them down and sends them flying, and you land on the floor after it. A held shield blocks the kick but gets knocked out of the hands. Right after a Claw Series the kick hits much harder and sends the target further, but only knocks them down. Right after a Claw Whirlwind the flying kick is faster and the target flies 5 tiles.
   components:
   - type: Action
     useDelay: 20
@@ -26,10 +26,9 @@
       knockbackDistance: 3
       knockbackSpeed: 10
       maxRange: 5.5
-      rollDuration: 0.45
-      dashDuration: 0.25
-      rollFraction: 0.45
-      sideOffset: 0.75
+      # One straight flying kick, feet first; the user lands on the floor after it in every variant.
+      dashDuration: 0.35
+      userKnockdownTime: 1.5
       kickRange: 1.5
       # Kick on a target marked by Claw Series in the last 2 s.
       synergyDamage:
@@ -38,7 +37,7 @@
       synergyKnockbackDistance: 5
       synergyKnockdownTime: 2
       # Kick on a target hit by Claw Whirlwind in the last 2 s (wins over the Claw Series mark):
-      # one straight dash, target flies 5 tiles and falls, the user falls too.
+      # a faster flying kick, the target flies 5 tiles and falls.
       whirlwindSynergyDamage:
         types:
           Blunt: 15
@@ -46,8 +45,7 @@
       whirlwindKnockbackDistance: 5
       whirlwindDashDuration: 0.2
       whirlwindKnockdownTime: 2
-      whirlwindUserKnockdownTime: 1.5
-      # Only the kick (stock hit_kick) and the shield block make a sound; no roll / dash / miss whooshes.
+      # Only the kick (stock hit_kick) and the shield block make a sound; no flight / miss whooshes.
       hitSound:
         path: /Audio/Effects/hit_kick.ogg
       blockedSound:

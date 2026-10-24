@@ -43,29 +43,10 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
     public float StopDistance = 0.8f;
 
     /// <summary>
-    /// Duration of phase 1, the forward roll.
+    /// Duration of the straight flying kick (feet first) into the target.
     /// </summary>
     [DataField]
-    public TimeSpan RollDuration = TimeSpan.FromSeconds(0.45);
-
-    /// <summary>
-    /// Duration of phase 2, the angled dash ending with the kick.
-    /// </summary>
-    [DataField]
-    public TimeSpan DashDuration = TimeSpan.FromSeconds(0.25);
-
-    /// <summary>
-    /// Part of the total travel distance covered by the roll (0-1). The dash covers the rest.
-    /// </summary>
-    [DataField]
-    public float RollFraction = 0.45f;
-
-    /// <summary>
-    /// How far (tiles) the roll drifts to the side, so the dash comes into the target at an angle.
-    /// Automatically reduced for short distances and when a wall is in the way.
-    /// </summary>
-    [DataField]
-    public float SideOffset = 0.75f;
+    public TimeSpan DashDuration = TimeSpan.FromSeconds(0.35);
 
     /// <summary>
     /// The kick only lands if the target is within this distance (tiles) when the dash ends.
@@ -134,7 +115,7 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
     public float WhirlwindKnockbackDistance = 5f;
 
     /// <summary>
-    /// Duration of the single straight dash of the Whirlwind variant (no roll).
+    /// Duration of the flying kick of the Whirlwind variant.
     /// </summary>
     [DataField]
     public TimeSpan WhirlwindDashDuration = TimeSpan.FromSeconds(0.2);
@@ -143,16 +124,16 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
     public TimeSpan WhirlwindKnockdownTime = TimeSpan.FromSeconds(2);
 
     /// <summary>
-    /// Duration of the near-instant straight dash right after the Hammer's Wolf Grip synergy (no roll, normal kick).
+    /// Duration of the near-instant flying kick right after the Hammer's Wolf Grip synergy (normal kick).
     /// </summary>
     [DataField]
     public TimeSpan HammerDashDuration = TimeSpan.FromSeconds(0.08);
 
     /// <summary>
-    /// The user falls after the Whirlwind variant connects.
+    /// The user lands on the floor after every flying kick (hit, blocked or missed), in every variant.
     /// </summary>
     [DataField]
-    public TimeSpan WhirlwindUserKnockdownTime = TimeSpan.FromSeconds(1.5);
+    public TimeSpan UserKnockdownTime = TimeSpan.FromSeconds(1.5);
 
     /// <summary>
     /// Speed of the shield flying out of the target's hands when the kick is blocked.

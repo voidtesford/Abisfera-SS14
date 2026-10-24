@@ -10,8 +10,8 @@ using Robust.Shared.Animations;
 namespace Content.Client._CorvaxGoob.ProperKungFu;
 
 /// <summary>
-/// Plays the sprite animation of each Wolf Dance phase: a full forward roll, a forward lean during the dash
-/// and a quick lean back for the high kick. The actual movement is done (and networked) by the server.
+/// Plays the sprite animation of the Wolf Dance flying kick: the sprite tips over to fly feet first in a straight
+/// line, the feet hit, then the user drops to the floor. The actual movement is done (and networked) by the server.
 /// </summary>
 public sealed class WolfDanceAnimationSystem : EntitySystem
 {
@@ -21,6 +21,11 @@ public sealed class WolfDanceAnimationSystem : EntitySystem
     [Dependency] private readonly SpriteSystem _sprite = default!;
 
     private const string AnimationKey = "wolf-dance";
+
+    /// <summary>
+    /// How high (tiles) the sprite rises in the middle of the leap.
+    /// </summary>
+    private const float LeapHeight = 0.25f;
 
     public override void Initialize()
     {
@@ -39,23 +44,21 @@ public sealed class WolfDanceAnimationSystem : EntitySystem
         if (_animation.HasRunningAnimation(player, AnimationKey))
             _animation.Stop((uid, player), AnimationKey);
 
-        var rest = TryComp<RotationVisualsComponent>(uid, out var rotationVisuals)
-            ? rotationVisuals.VerticalRotation
-            : Angle.Zero;
+        TryComp<RotationVisualsComponent>(uid, out var rotationVisuals);
+        var rest = rotationVisuals?.VerticalRotation ?? Angle.Zero;
+        var lying = rotationVisuals?.HorizontalRotation ?? Angle.FromDegrees(90);
 
-        // Rolling to the right on screen is a clockwise (negative) rotation.
-        var sign = ev.Direction.X > 0.05f || MathF.Abs(ev.Direction.X) <= 0.05f ? -1.0 : 1.0;
+        // Feet first: flying to the right on screen the head points left (counter-clockwise, positive).
+        var sign = ev.Direction.X < -0.05f ? -1.0 : 1.0;
+        var pose = rest + Angle.FromDegrees(90 * sign);
 
         switch (ev.Phase)
         {
-            case WolfDancePhase.Roll:
-                Play(uid, player, RollAnimation(rest, sign, ev.Duration));
-                break;
             case WolfDancePhase.Dash:
-                Play(uid, player, DashAnimation(rest, sign, ev.Duration));
+                Play(uid, player, FlightAnimation(rest, pose, ev.Duration));
                 break;
             case WolfDancePhase.Kick:
-                Play(uid, player, KickAnimation(rest, sign, ev.Duration));
+                Play(uid, player, LandingAnimation(pose, lying, ev.Duration));
                 break;
             case WolfDancePhase.Cancel:
                 RestoreRotation(uid, sprite, rotationVisuals, rest);
@@ -73,6 +76,8 @@ public sealed class WolfDanceAnimationSystem : EntitySystem
     /// </summary>
     private void RestoreRotation(EntityUid uid, SpriteComponent sprite, RotationVisualsComponent? visuals, Angle rest)
     {
+        _sprite.SetOffset((uid, sprite), Vector2.Zero);
+
         if (visuals != null
             && _appearance.TryGetData<RotationState>(uid, RotationVisuals.RotationState, out var state)
             && state == RotationState.Horizontal)
@@ -84,9 +89,14 @@ public sealed class WolfDanceAnimationSystem : EntitySystem
         _sprite.SetRotation((uid, sprite), rest);
     }
 
-    private static RobustAnimation RollAnimation(Angle rest, double sign, float duration)
+    /// <summary>
+    /// Tips over into the feet-first pose right away and holds it for the whole straight flight, with a small hop.
+    /// The instant dash after Hammer plays the same pose, just much shorter.
+    /// </summary>
+    private static RobustAnimation FlightAnimation(Angle rest, Angle pose, float duration)
     {
         var length = MathF.Max(duration, 0.05f);
+        var tip = MathF.Min(0.08f, length * 0.3f);
         return new RobustAnimation
         {
             Length = TimeSpan.FromSeconds(length),
@@ -100,13 +110,50 @@ public sealed class WolfDanceAnimationSystem : EntitySystem
                     KeyFrames =
                     {
                         new AnimationTrackProperty.KeyFrame(rest, 0f),
-                        new AnimationTrackProperty.KeyFrame(rest + Angle.FromDegrees(120 * sign), length / 3f),
-                        new AnimationTrackProperty.KeyFrame(rest + Angle.FromDegrees(240 * sign), length / 3f),
-                        new AnimationTrackProperty.KeyFrame(rest + Angle.FromDegrees(360 * sign), length / 3f),
-                        new AnimationTrackProperty.KeyFrame(rest, 0f),
+                        new AnimationTrackProperty.KeyFrame(pose, tip),
+                        new AnimationTrackProperty.KeyFrame(pose, length - tip),
                     },
                 },
-                // Tuck down a bit while rolling over the floor.
+                new AnimationTrackComponentProperty
+                {
+                    ComponentType = typeof(SpriteComponent),
+                    Property = nameof(SpriteComponent.Offset),
+                    InterpolationMode = AnimationInterpolationMode.Linear,
+                    KeyFrames =
+                    {
+                        new AnimationTrackProperty.KeyFrame(Vector2.Zero, 0f),
+                        new AnimationTrackProperty.KeyFrame(new Vector2(0f, LeapHeight), length * 0.4f),
+                        new AnimationTrackProperty.KeyFrame(new Vector2(0f, LeapHeight * 0.6f), length * 0.6f),
+                    },
+                },
+            },
+        };
+    }
+
+    /// <summary>
+    /// The feet connect, then the user drops flat onto the floor (ends at the lying angle, since the server
+    /// knocks the user down right after the kick).
+    /// </summary>
+    private static RobustAnimation LandingAnimation(Angle pose, Angle lying, float duration)
+    {
+        var length = MathF.Max(duration, 0.1f);
+        return new RobustAnimation
+        {
+            Length = TimeSpan.FromSeconds(length),
+            AnimationTracks =
+            {
+                new AnimationTrackComponentProperty
+                {
+                    ComponentType = typeof(SpriteComponent),
+                    Property = nameof(SpriteComponent.Rotation),
+                    InterpolationMode = AnimationInterpolationMode.Linear,
+                    KeyFrames =
+                    {
+                        new AnimationTrackProperty.KeyFrame(pose, 0f),
+                        new AnimationTrackProperty.KeyFrame(pose, length * 0.35f),
+                        new AnimationTrackProperty.KeyFrame(lying, length * 0.65f),
+                    },
+                },
                 new AnimationTrackComponentProperty
                 {
                     ComponentType = typeof(SpriteComponent),
@@ -114,86 +161,9 @@ public sealed class WolfDanceAnimationSystem : EntitySystem
                     InterpolationMode = AnimationInterpolationMode.Cubic,
                     KeyFrames =
                     {
-                        new AnimationTrackProperty.KeyFrame(Vector2.Zero, 0f),
-                        new AnimationTrackProperty.KeyFrame(new Vector2(0f, -0.15f), length / 2f),
-                        new AnimationTrackProperty.KeyFrame(Vector2.Zero, length / 2f),
-                    },
-                },
-            },
-        };
-    }
-
-    private static RobustAnimation DashAnimation(Angle rest, double sign, float duration)
-    {
-        var length = MathF.Max(duration, 0.05f);
-        var lean = rest + Angle.FromDegrees(30 * sign);
-        return new RobustAnimation
-        {
-            Length = TimeSpan.FromSeconds(length),
-            AnimationTracks =
-            {
-                new AnimationTrackComponentProperty
-                {
-                    ComponentType = typeof(SpriteComponent),
-                    Property = nameof(SpriteComponent.Rotation),
-                    InterpolationMode = AnimationInterpolationMode.Linear,
-                    KeyFrames =
-                    {
-                        new AnimationTrackProperty.KeyFrame(rest, 0f),
-                        new AnimationTrackProperty.KeyFrame(lean, length * 0.3f),
-                        new AnimationTrackProperty.KeyFrame(lean, length * 0.7f),
-                    },
-                },
-                // Low, fast lunge.
-                new AnimationTrackComponentProperty
-                {
-                    ComponentType = typeof(SpriteComponent),
-                    Property = nameof(SpriteComponent.Offset),
-                    InterpolationMode = AnimationInterpolationMode.Linear,
-                    KeyFrames =
-                    {
-                        new AnimationTrackProperty.KeyFrame(Vector2.Zero, 0f),
-                        new AnimationTrackProperty.KeyFrame(new Vector2(0f, 0.12f), length * 0.5f),
-                        new AnimationTrackProperty.KeyFrame(Vector2.Zero, length * 0.5f),
-                    },
-                },
-            },
-        };
-    }
-
-    private static RobustAnimation KickAnimation(Angle rest, double sign, float duration)
-    {
-        var length = MathF.Max(duration, 0.1f);
-        // Lean back while the leg swings up into the high roundhouse kick, then recover.
-        var leanBack = rest + Angle.FromDegrees(-35 * sign);
-        return new RobustAnimation
-        {
-            Length = TimeSpan.FromSeconds(length),
-            AnimationTracks =
-            {
-                new AnimationTrackComponentProperty
-                {
-                    ComponentType = typeof(SpriteComponent),
-                    Property = nameof(SpriteComponent.Rotation),
-                    InterpolationMode = AnimationInterpolationMode.Linear,
-                    KeyFrames =
-                    {
-                        new AnimationTrackProperty.KeyFrame(rest + Angle.FromDegrees(30 * sign), 0f),
-                        new AnimationTrackProperty.KeyFrame(leanBack, length * 0.2f),
-                        new AnimationTrackProperty.KeyFrame(leanBack, length * 0.4f),
-                        new AnimationTrackProperty.KeyFrame(rest, length * 0.4f),
-                    },
-                },
-                new AnimationTrackComponentProperty
-                {
-                    ComponentType = typeof(SpriteComponent),
-                    Property = nameof(SpriteComponent.Offset),
-                    InterpolationMode = AnimationInterpolationMode.Linear,
-                    KeyFrames =
-                    {
-                        new AnimationTrackProperty.KeyFrame(Vector2.Zero, 0f),
-                        new AnimationTrackProperty.KeyFrame(new Vector2(0f, 0.08f), length * 0.3f),
-                        new AnimationTrackProperty.KeyFrame(Vector2.Zero, length * 0.7f),
+                        new AnimationTrackProperty.KeyFrame(new Vector2(0f, LeapHeight * 0.6f), 0f),
+                        new AnimationTrackProperty.KeyFrame(new Vector2(0f, LeapHeight * 0.6f), length * 0.35f),
+                        new AnimationTrackProperty.KeyFrame(Vector2.Zero, length * 0.65f),
                     },
                 },
             },

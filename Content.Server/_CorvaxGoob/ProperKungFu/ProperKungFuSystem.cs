@@ -52,10 +52,14 @@ public sealed partial class ProperKungFuSystem : EntitySystem
     [Dependency] private readonly MobStateSystem _mobState = default!;
     [Dependency] private readonly SharedContainerSystem _container = default!;
     [Dependency] private readonly IGameTiming _timing = default!;
-    [Dependency] private readonly IRobustRandom _random = default!;
     [Dependency] private readonly IPrototypeManager _proto = default!;
     [Dependency] private readonly MovementSpeedModifierSystem _movementSpeed = default!;
     [Dependency] private readonly PullingSystem _pulling = default!;
+
+    /// <summary>
+    /// Where the Blunt of every special move except Hammer lands. Only Hammer targets the head.
+    /// </summary>
+    private const TargetBodyPart SkillTargetPart = TargetBodyPart.Chest;
 
     private const string WolfDanceMove = "WolfDance";
     private const string ClawSeriesMove = "ClawSeries";
@@ -193,7 +197,8 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             && standing.CurrentState != StandingState.Standing)
             return;
 
-        var targetPart = TryComp<TargetingComponent>(ent, out var targeting) ? targeting.Target : (TargetBodyPart?) null;
+        // Only Hammer goes for the head: the combo bonus always lands on the torso.
+        var targetPart = SkillTargetPart;
         var damage = new DamageSpecifier();
         damage.DamageDict.Add(proto.DamageType, proto.ExtraDamage);
         _damageable.TryChangeDamage(target, damage, origin: ent, targetPart: targetPart);
@@ -274,11 +279,11 @@ public sealed partial class ProperKungFuSystem : EntitySystem
 
         var travel = MathF.Max(0f, distance - args.StopDistance);
 
-        // Right after Claw Whirlwind: no roll, no angle, one fast straight dash. The mark is consumed now,
-        // so it can't run out mid-dash.
+        // Right after Claw Whirlwind: a faster flying kick that hits harder. The mark is consumed now,
+        // so it can't run out mid-flight.
         var whirlwind = TryConsumeWhirlwindMark(user, target);
 
-        // Right after the Hammer's Wolf Grip synergy: an instant straight dash with the normal kick.
+        // Right after the Hammer's Wolf Grip synergy: an instant flying kick with the normal kick effects.
         var hammer = !whirlwind && TryConsumeHammerMark(user, target);
         if (hammer)
             RemComp<ProperKungFuSlidingComponent>(user); // cut the backflip short
@@ -290,32 +295,18 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             return;
         }
 
-        if (whirlwind || hammer)
-        {
-            var straight = EnsureComp<WolfDancingComponent>(user);
-            straight.Target = target;
-            straight.Event = args;
-            straight.Map = userCoords.MapId;
-            straight.WhirlwindVariant = whirlwind;
-            straight.MaxDashLength = travel + args.ChaseDistance;
-            straight.AfterimagesSpawned = 0;
-            StartPhase(user, straight, WolfDancePhase.Dash, userCoords.Position, userCoords.Position + direction * travel,
-                whirlwind ? args.WhirlwindDashDuration : args.HammerDashDuration);
-            return;
-        }
-
-        var start = userCoords.Position;
-        var rollEnd = PlanRoll(user, userCoords.MapId, start, direction, travel, args);
-
+        // Every variant is one straight flying kick; only its speed differs.
         var dancing = EnsureComp<WolfDancingComponent>(user);
         dancing.Target = target;
         dancing.Event = args;
         dancing.Map = userCoords.MapId;
-        dancing.WhirlwindVariant = false;
-        dancing.MaxDashLength = Vector2.Distance(rollEnd, targetCoords.Position) - args.StopDistance + args.ChaseDistance;
+        dancing.WhirlwindVariant = whirlwind;
+        dancing.MaxDashLength = travel + args.ChaseDistance;
         dancing.AfterimagesSpawned = 0;
-        StartPhase(user, dancing, WolfDancePhase.Roll, start, rollEnd, args.RollDuration);
-
+        var duration = whirlwind ? args.WhirlwindDashDuration
+            : hammer ? args.HammerDashDuration
+            : args.DashDuration;
+        StartPhase(user, dancing, WolfDancePhase.Dash, userCoords.Position, userCoords.Position + direction * travel, duration);
     }
 
     private bool TryConsumeWhirlwindMark(EntityUid user, EntityUid target)
@@ -327,29 +318,6 @@ public sealed partial class ProperKungFuSystem : EntitySystem
 
         RemComp(target, mark);
         return true;
-    }
-
-    /// <summary>
-    /// Picks where the forward roll ends: part of the way to the target, drifted to one side so the following
-    /// dash comes in at an angle. Walls shorten the roll / cancel the side drift.
-    /// </summary>
-    private Vector2 PlanRoll(EntityUid user, MapId map, Vector2 start, Vector2 direction, float travel, WolfDanceActionEvent args)
-    {
-        var forward = direction * travel * Math.Clamp(args.RollFraction, 0f, 1f);
-        var side = MathF.Min(args.SideOffset, travel * 0.35f);
-        var perpendicular = new Vector2(-direction.Y, direction.X);
-
-        // Alternate the side the roll drifts to, fall back to the other side or straight if a wall is in the way.
-        var firstSide = _random.Prob(0.5f) ? 1f : -1f;
-        foreach (var sign in new[] { firstSide, -firstSide, 0f })
-        {
-            var candidate = start + forward + perpendicular * side * sign;
-            if (!IsPathBlocked(user, map, start, candidate, out _))
-                return candidate;
-        }
-
-        IsPathBlocked(user, map, start, start + forward, out var free);
-        return free;
     }
 
     /// <summary>
@@ -494,7 +462,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         var targetValid = !TerminatingOrDeleted(target) && _transform.GetMapId(target) == dancing.Map;
         var current = _transform.GetWorldPosition(user);
 
-        // Phase 2 re-aims every tick at the target's current position, but can't chase further than allowed.
+        // The flying kick re-aims every tick at the target's current position, but can't chase further than allowed.
         if (dancing.Phase == WolfDancePhase.Dash && targetValid)
         {
             var targetPos = _transform.GetWorldPosition(target);
@@ -510,10 +478,8 @@ public sealed partial class ProperKungFuSystem : EntitySystem
 
         var duration = dancing.PhaseDuration.TotalSeconds;
         var t = duration <= 0 ? 1f : (float) Math.Clamp((now - dancing.PhaseStart).TotalSeconds / duration, 0, 1);
-        // Roll: steady tumble with a soft landing. Dash: accelerating lunge.
-        var eased = dancing.Phase == WolfDancePhase.Roll
-            ? 1f - (1f - t) * (1f - t) * 0.5f - (1f - t) * 0.5f
-            : t * t;
+        // Accelerating leap into the target.
+        var eased = t * t;
 
         var desired = Vector2.Lerp(dancing.PhaseFrom, dancing.PhaseTo, eased);
         var hitWall = IsPathBlocked(user, dancing.Map, current, desired, out var free);
@@ -531,18 +497,6 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         if (t < 1f && !hitWall)
             return;
 
-        if (dancing.Phase == WolfDancePhase.Roll && targetValid)
-        {
-            // Phase 2: angled dash from where the roll ended straight into the target.
-            var from = _transform.GetWorldPosition(user);
-            var targetPos = _transform.GetWorldPosition(target);
-            var toTarget = targetPos - from;
-            var len = toTarget.Length();
-            var to = len > 0.01f ? from + toTarget / len * MathF.Max(0f, len - args.StopDistance) : from;
-            StartPhase(user, dancing, WolfDancePhase.Dash, from, to, args.DashDuration);
-            return;
-        }
-
         // End of the dash (or blocked by a wall / target gone): kick if the target is close enough.
         var inRange = targetValid
             && Vector2.Distance(_transform.GetWorldPosition(user), _transform.GetWorldPosition(target)) <= args.KickRange;
@@ -556,6 +510,8 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             return;
         }
 
+        // A missed flying kick still ends on the floor.
+        _stun.TryKnockdown(user, args.UserKnockdownTime, true);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-miss"), user, user, PopupType.SmallCaution);
     }
 
@@ -568,9 +524,15 @@ public sealed partial class ProperKungFuSystem : EntitySystem
     }
 
     /// <summary>
-    /// The roundhouse kick at the end of the Wolf Dance.
+    /// The flying kick at the end of the Wolf Dance. Whatever happens, the user lands on the floor afterwards.
     /// </summary>
     private void DoKick(EntityUid user, EntityUid target, WolfDanceActionEvent args, bool whirlwind = false)
+    {
+        DoKickHit(user, target, args, whirlwind);
+        _stun.TryKnockdown(user, args.UserKnockdownTime, true);
+    }
+
+    private void DoKickHit(EntityUid user, EntityUid target, WolfDanceActionEvent args, bool whirlwind)
     {
         var delta = _transform.GetWorldPosition(target) - _transform.GetWorldPosition(user);
         var direction = delta.LengthSquared() > 0.0001f
@@ -610,7 +572,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         _damageable.TryChangeDamage(target,
             synergy ? args.SynergyDamage : args.Damage,
             origin: user,
-            targetPart: TargetBodyPart.Head,
+            targetPart: SkillTargetPart,
             canMiss: false);
 
         if (synergy)
@@ -656,7 +618,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         _damageable.TryChangeDamage(target,
             args.WhirlwindSynergyDamage,
             origin: user,
-            targetPart: TargetBodyPart.Head,
+            targetPart: SkillTargetPart,
             canMiss: false);
 
         _stun.TryKnockdown(target, args.WhirlwindKnockdownTime, true);
@@ -665,8 +627,6 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             args.WhirlwindKnockbackDistance,
             TimeSpan.FromSeconds(args.WhirlwindKnockbackDistance / MathF.Max(0.1f, args.KnockbackSpeed)),
             dust: false);
-
-        _stun.TryKnockdown(user, args.WhirlwindUserKnockdownTime, true);
 
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-whirlwind-user", ("target", target)), user, user, PopupType.Medium);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-whirlwind-target", ("user", user)), target, target, PopupType.MediumCaution);

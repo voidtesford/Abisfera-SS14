@@ -188,7 +188,7 @@ public sealed partial class ProperKungFuSystem
     }
 
     /// <summary>
-    /// Knee into the jaw: head damage, broken skull, brain trauma, claw burst and the Wolf Dance mark.
+    /// Knee into the jaw: torso damage, broken skull, brain trauma, claw burst and the Wolf Dance mark.
     /// </summary>
     private void DoKnee(EntityUid user, EntityUid target, ClawWhirlwindedComponent held, ClawWhirlwindActionEvent args)
     {
@@ -199,7 +199,8 @@ public sealed partial class ProperKungFuSystem
         _transform.SetWorldRotation(user, direction.ToWorldAngle());
 
         // No shield rule here: the target is already in the air.
-        _damageable.TryChangeDamage(target, args.Damage, origin: user, targetPart: TargetBodyPart.Head, canMiss: false);
+        // The Blunt lands on the torso; the skull fracture and brain trauma below still go to the head.
+        _damageable.TryChangeDamage(target, args.Damage, origin: user, targetPart: SkillTargetPart, canMiss: false);
         InflictHeadTrauma(target, args.BrainTraumaSeverity);
 
         if (args.ImpactEffect is { } effect)

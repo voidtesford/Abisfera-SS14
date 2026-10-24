@@ -44,7 +44,7 @@ public sealed partial class ProperKungFuSystem
 
         var damage = new DamageSpecifier();
         damage.DamageDict.Add(proto.DamageType, proto.ExtraDamage);
-        _damageable.TryChangeDamage(target, damage, origin: ent, targetPart: TargetBodyPart.Chest, canMiss: false);
+        _damageable.TryChangeDamage(target, damage, origin: ent, targetPart: SkillTargetPart, canMiss: false);
 
         BlockBreathing(target, args.BreathBlockTime);
 
@@ -143,7 +143,7 @@ public sealed partial class ProperKungFuSystem
             : _transform.GetWorldRotation(user).ToWorldVec();
         _transform.SetWorldRotation(user, direction.ToWorldAngle());
 
-        _damageable.TryChangeDamage(target, args.GripStrikeDamage, origin: user, targetPart: TargetBodyPart.Chest, canMiss: false);
+        _damageable.TryChangeDamage(target, args.GripStrikeDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
 
         var fraction = args.GripLungDamageFraction;
         InflictPartTrauma(target, TargetBodyPart.Chest, "Blunt",
