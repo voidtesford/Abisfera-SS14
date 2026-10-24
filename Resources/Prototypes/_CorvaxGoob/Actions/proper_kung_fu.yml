@@ -2,7 +2,7 @@
   parent: BaseAction
   id: ActionProperKungFuWolfDance
   name: Wolf Dance
-  description: Roll forward toward a target up to 5 tiles away, dash into it at an angle and finish with a roundhouse kick that knocks them down and sends them flying. A held shield blocks the kick but gets knocked out of the hands. Right after a Claw Series the kick hits much harder and sends the target further, but only knocks them down.
+  description: Roll forward toward a target up to 5 tiles away, dash into it at an angle and finish with a roundhouse kick that knocks them down and sends them flying. A held shield blocks the kick but gets knocked out of the hands. Right after a Claw Series the kick hits much harder and sends the target further, but only knocks them down. Right after a Claw Whirlwind it is a single fast straight dash instead of the roll, the target flies 5 tiles, but you fall too.
   components:
   - type: Action
     useDelay: 20
@@ -37,13 +37,60 @@
           Blunt: 30
       synergyKnockbackDistance: 5
       synergyKnockdownTime: 2
-      rollSound:
-        path: /Audio/Effects/thudswoosh.ogg
-      dashSound:
-        path: /Audio/Weapons/punchmiss.ogg
-      missSound:
-        path: /Audio/Weapons/punchmiss.ogg
+      # Kick on a target hit by Claw Whirlwind in the last 2 s (wins over the Claw Series mark):
+      # one straight dash, target flies 5 tiles and falls, the user falls too.
+      whirlwindSynergyDamage:
+        types:
+          Blunt: 15
+          Slash: 15
+      whirlwindKnockbackDistance: 5
+      whirlwindDashDuration: 0.2
+      whirlwindKnockdownTime: 2
+      whirlwindUserKnockdownTime: 1.5
+      # Only the kick (stock hit_kick) and the shield block make a sound; no roll / dash / miss whooshes.
       hitSound:
-        path: /Audio/_CorvaxGoob/Effects/MartialArts/wolf_dance_kick.ogg
+        path: /Audio/Effects/hit_kick.ogg
       blockedSound:
         path: /Audio/Weapons/block_metal1.ogg
+
+- type: entity
+  parent: BaseAction
+  id: ActionProperKungFuClawWhirlwind
+  name: Claw Whirlwind
+  description: Throw a target within fist reach over yourself, drive your knee into their jaw (breaks the skull and shakes the brain), and they slowly spin up into the air before crashing down. The target can't move for about 2 seconds. Shields don't help. A Wolf Dance right after it becomes a single fast dash that sends the target 5 tiles away, but you fall too.
+  components:
+  - type: Action
+    useDelay: 30
+    itemIconStyle: BigAction
+    icon:
+      sprite: _CorvaxGoob/Interface/Actions/proper_kung_fu.rsi
+      state: claw_whirlwind
+  - type: TargetAction
+    # Client-side hint only; the server checks the user's fist range.
+    range: 1.5
+    interactOnMiss: false
+  - type: EntityTargetAction
+    canTargetSelf: false
+    whitelist:
+      components:
+      - MobState
+    event: !type:ClawWhirlwindActionEvent
+      damage:
+        types:
+          Blunt: 10
+      flipDistance: 0.9
+      flipDuration: 0.5
+      airDuration: 1
+      landHold: 0.5
+      launchHeight: 0.8
+      spins: 2
+      knockdownTime: 2
+      markDuration: 2
+      brainTraumaSeverity: 6
+      impactEffect: ProperKungFuKneeBurst
+      flipSound:
+        path: /Audio/Effects/thudswoosh.ogg
+      kneeSound:
+        path: /Audio/Weapons/genhit2.ogg
+      landSound:
+        path: /Audio/Effects/thudswoosh.ogg

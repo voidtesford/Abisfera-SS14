@@ -1,7 +1,7 @@
 {
   "version": 1,
   "license": "CC-BY-SA-3.0",
-  "copyright": "Wolf paw icon made for Abisfera; based on the wolf art provided by the project owner (pixel-art reduced, palette sampled from the original wolf art)",
+  "copyright": "Wolf paw icon and claw whirlwind icon made for Abisfera; based on the wolf art provided by the project owner (pixel-art reduced, palette sampled from the original wolf art)",
   "size": {
     "x": 32,
     "y": 32
@@ -9,6 +9,9 @@
   "states": [
     {
       "name": "wolf_dance"
+    },
+    {
+      "name": "claw_whirlwind"
     }
   ]
 }

@@ -17,6 +17,7 @@ public sealed partial class ProperKungFuComponent : Component
     public List<EntProtoId> BaseActions = new()
     {
         "ActionProperKungFuWolfDance",
+        "ActionProperKungFuClawWhirlwind",
     };
 
     /// <summary>

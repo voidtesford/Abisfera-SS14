@@ -8,6 +8,7 @@ namespace Content.Shared._CorvaxGoob.ProperKungFu;
 
 /// <summary>
 /// Wolf Dance: forward roll toward the target, an angled dash into it, and a single roundhouse kick.
+/// The roll and the dash are silent (owner's request); only the kick and the shield block make a sound.
 /// </summary>
 public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
 {
@@ -97,15 +98,6 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
     public EntProtoId? ShockwaveEffect = "ProperKungFuShockwaveEffect";
 
     [DataField]
-    public SoundSpecifier? RollSound;
-
-    [DataField]
-    public SoundSpecifier? DashSound;
-
-    [DataField]
-    public SoundSpecifier? MissSound;
-
-    [DataField]
     public SoundSpecifier? HitSound;
 
     [DataField]
@@ -128,6 +120,33 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
     /// </summary>
     [DataField]
     public TimeSpan SynergyKnockdownTime = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// Damage of the kick on a target hit by Claw Whirlwind in the last 2 s (takes priority over the Claw Series mark).
+    /// </summary>
+    [DataField]
+    public DamageSpecifier WhirlwindSynergyDamage = new();
+
+    /// <summary>
+    /// Knockback (tiles) of the Whirlwind variant.
+    /// </summary>
+    [DataField]
+    public float WhirlwindKnockbackDistance = 5f;
+
+    /// <summary>
+    /// Duration of the single straight dash of the Whirlwind variant (no roll).
+    /// </summary>
+    [DataField]
+    public TimeSpan WhirlwindDashDuration = TimeSpan.FromSeconds(0.2);
+
+    [DataField]
+    public TimeSpan WhirlwindKnockdownTime = TimeSpan.FromSeconds(2);
+
+    /// <summary>
+    /// The user falls after the Whirlwind variant connects.
+    /// </summary>
+    [DataField]
+    public TimeSpan WhirlwindUserKnockdownTime = TimeSpan.FromSeconds(1.5);
 
     /// <summary>
     /// Speed of the shield flying out of the target's hands when the kick is blocked.

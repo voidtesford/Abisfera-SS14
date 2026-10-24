@@ -5,8 +5,16 @@ using Content.Goobstation.Shared.MartialArts.Components;
 using Content.Goobstation.Shared.Sprinting;
 using Content.Server.Actions;
 using Content.Server.Atmos.Components;
+using Content.Server.Body.Components;
 using Content.Server.Temperature.Components;
 using Content.Shared._CorvaxGoob.ProperKungFu;
+using Content.Shared._Shitmed.Medical.Surgery.Traumas;
+using Content.Shared._Shitmed.Medical.Surgery.Traumas.Components;
+using Content.Shared._Shitmed.Medical.Surgery.Wounds.Components;
+using Content.Shared.ActionBlocker;
+using Content.Shared.Body.Components;
+using Content.Shared.Body.Part;
+using Content.Shared.Body.Systems;
 using Content.Shared.Actions.Components;
 using Content.Shared.Damage;
 using Content.Shared.Damage.Components;
@@ -78,7 +86,7 @@ public sealed class ProperKungFuTest
             Assert.That(entMan.TryGetComponent<MartialArtsKnowledgeComponent>(user, out var knowledge));
             Assert.That(knowledge!.MartialArtsForm, Is.EqualTo(MartialArtsForms.ProperKungFu));
             Assert.That(entMan.TryGetComponent<ProperKungFuComponent>(user, out var kungFu));
-            Assert.That(kungFu!.ActionEntities, Has.Count.EqualTo(1));
+            Assert.That(kungFu!.ActionEntities, Has.Count.EqualTo(2));
             Assert.That(entMan.Deleted(book), "The manual should be consumed");
 
             var actionUid = kungFu.ActionEntities[0];
@@ -373,6 +381,181 @@ public sealed class ProperKungFuTest
             Assert.That(fistAfter.Animation.Id, Is.EqualTo(baseAnim), "Fist animation restored");
             Assert.That(fistAfter.WideAnimation.Id, Is.EqualTo(baseWide));
             Assert.That(fistAfter.MissAnimation.Id, Is.EqualTo(baseMiss));
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    [Test]
+    public async Task ClawWhirlwindTest()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var map = await pair.CreateTestMap();
+
+        var entMan = server.ResolveDependency<IEntityManager>();
+        var tileDefs = server.ResolveDependency<ITileDefinitionManager>();
+        var mapSys = entMan.System<SharedMapSystem>();
+        var actions = entMan.System<ActionsSystem>();
+        var hands = entMan.System<SharedHandsSystem>();
+        var xformSys = entMan.System<SharedTransformSystem>();
+        var blocker = entMan.System<ActionBlockerSystem>();
+        var body = entMan.System<SharedBodySystem>();
+        var timing = server.ResolveDependency<Robust.Shared.Timing.IGameTiming>();
+
+        EntityUid user = default;
+        EntityUid target = default;
+        EntityUid farTarget = default;
+        EntityUid comboTarget = default;
+        Entity<ActionComponent> whirlwind = default;
+        Entity<ActionComponent> wolfDance = default;
+        Vector2 comboStart = default;
+
+        await server.WaitPost(() =>
+        {
+            var tile = new Tile(tileDefs["Plating"].TileId);
+            for (var x = -3; x <= 22; x++)
+            for (var y = -3; y <= 3; y++)
+            {
+                mapSys.SetTile(map.Grid.Owner, map.Grid.Comp, new Vector2i(x, y), tile);
+            }
+
+            user = SpawnMob(entMan, new EntityCoordinates(map.Grid, 0.5f, 0.5f));
+            target = SpawnMob(entMan, new EntityCoordinates(map.Grid, 1.5f, 0.5f));
+            farTarget = SpawnMob(entMan, new EntityCoordinates(map.Grid, 5.5f, 2.5f));
+            var book = entMan.SpawnEntity("ProperKungFuManual", new EntityCoordinates(map.Grid, 0.5f, 0.5f));
+            Assert.That(hands.TryPickupAnyHand(user, book), Is.True);
+            entMan.EventBus.RaiseLocalEvent(book, new UseInHandEvent(user));
+        });
+
+        await server.WaitRunTicks(5);
+
+        await server.WaitAssertion(() =>
+        {
+            var kungFu = entMan.GetComponent<ProperKungFuComponent>(user);
+            foreach (var uid in kungFu.ActionEntities)
+            {
+                var id = entMan.GetComponent<MetaDataComponent>(uid).EntityPrototype!.ID;
+                if (id == "ActionProperKungFuClawWhirlwind")
+                    whirlwind = (uid, entMan.GetComponent<ActionComponent>(uid));
+                else if (id == "ActionProperKungFuWolfDance")
+                    wolfDance = (uid, entMan.GetComponent<ActionComponent>(uid));
+            }
+
+            Assert.That(whirlwind.Owner.IsValid(), "Claw Whirlwind is granted with the art");
+            Assert.That(whirlwind.Comp.UseDelay, Is.EqualTo(TimeSpan.FromSeconds(30)), "30 s cooldown");
+
+            // Out of fist reach: nothing happens and no cooldown.
+            Assert.That(actions.SetEventTarget(whirlwind, farTarget));
+            actions.PerformAction(user, whirlwind, predicted: false);
+            Assert.That(entMan.HasComponent<ClawWhirlwindedComponent>(farTarget), Is.False, "Fist range is enforced");
+            Assert.That(whirlwind.Comp.Cooldown, Is.Null);
+
+            Assert.That(blocker.CanMove(target), "Free before the move");
+            Assert.That(actions.SetEventTarget(whirlwind, target));
+            actions.PerformAction(user, whirlwind, predicted: false);
+            Assert.That(entMan.HasComponent<ClawWhirlwindedComponent>(target), "Target is grabbed");
+            Assert.That(blocker.CanMove(target), Is.False, "Target can't move during the whirlwind");
+            Assert.That(whirlwind.Comp.Cooldown, Is.Not.Null);
+            var cd = whirlwind.Comp.Cooldown!.Value;
+            Assert.That((cd.End - cd.Start).TotalSeconds, Is.EqualTo(30).Within(0.01));
+            Assert.That(Blunt(entMan.GetComponent<DamageableComponent>(target)), Is.EqualTo(0f), "Knee comes after the throw");
+        });
+
+        // Throw (0.5 s) done, knee landed, now in the air.
+        await server.WaitRunTicks(21);
+
+        await server.WaitAssertion(() =>
+        {
+            var targetX = xformSys.GetWorldPosition(target).X;
+            Assert.That(targetX, Is.LessThan(0.2f), $"Thrown over the user to the other side, x = {targetX}");
+            Assert.That(entMan.GetComponent<ClawWhirlwindedComponent>(target).Phase, Is.EqualTo(ClawWhirlwindPhase.Air));
+            Assert.That(blocker.CanMove(target), Is.False);
+
+            Assert.That(Blunt(entMan.GetComponent<DamageableComponent>(target)), Is.EqualTo(10f).Within(0.5f), "10 Blunt");
+            var head = body.GetBodyChildrenOfType(target, BodyPartType.Head).First().Id;
+            Assert.That(Blunt(entMan.GetComponent<DamageableComponent>(head)), Is.EqualTo(10f).Within(0.5f), "Damage goes to the head");
+
+            var bone = entMan.GetComponent<WoundableComponent>(head).Bone.ContainedEntities.First();
+            Assert.That(entMan.GetComponent<BoneComponent>(bone).BoneSeverity, Is.EqualTo(BoneSeverity.Broken), "Skull is broken");
+
+            var brain = body.GetPartOrgans(head).First(o => entMan.HasComponent<BrainComponent>(o.Id));
+            Assert.That(brain.Component.OrganIntegrity.Float(), Is.LessThan(brain.Component.IntegrityCap.Float()), "Brain trauma");
+            Assert.That(brain.Component.OrganIntegrity.Float(), Is.GreaterThan(0f), "The brain is hurt, not destroyed");
+
+            Assert.That(entMan.HasComponent<ProperKungFuWhirlwindMarkComponent>(target), "Whirlwind mark");
+            Assert.That(entMan.GetComponent<ProperKungFuComponent>(user).UltimateCharge, Is.EqualTo(5f).Within(0.01f), "+5 ult");
+        });
+
+        // 2 s total: landed and released.
+        await server.WaitRunTicks(45);
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(entMan.HasComponent<ClawWhirlwindedComponent>(target), Is.False, "Released after ~2 s");
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(target), "Lands knocked down");
+        });
+
+        await server.WaitRunTicks(75);
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(target), Is.False);
+            Assert.That(blocker.CanMove(target), "Target can move again");
+        });
+
+        // Synergy: Claw Whirlwind, then Wolf Dance from 3 tiles away. Also carries a Claw Series mark: Whirlwind wins.
+        await server.WaitPost(() =>
+        {
+            comboTarget = SpawnMob(entMan, new EntityCoordinates(map.Grid, 11.5f, -2.5f));
+            xformSys.SetWorldPosition(user, xformSys.GetWorldPosition(comboTarget) + new Vector2(-1f, 0f));
+            actions.ClearCooldown(whirlwind.Owner);
+            Assert.That(actions.SetEventTarget(whirlwind, comboTarget));
+            actions.PerformAction(user, whirlwind, predicted: false);
+            Assert.That(entMan.HasComponent<ClawWhirlwindedComponent>(comboTarget));
+        });
+
+        await server.WaitRunTicks(18);
+
+        await server.WaitPost(() =>
+        {
+            Assert.That(entMan.HasComponent<ProperKungFuWhirlwindMarkComponent>(comboTarget));
+            var clawMark = entMan.EnsureComponent<ProperKungFuClawMarkComponent>(comboTarget);
+            clawMark.Marker = user;
+            clawMark.ExpiresAt = timing.CurTime + TimeSpan.FromSeconds(2);
+
+            xformSys.SetWorldPosition(user, xformSys.GetWorldPosition(comboTarget) + new Vector2(-3f, 0f));
+            comboStart = xformSys.GetWorldPosition(comboTarget);
+            actions.ClearCooldown(wolfDance.Owner);
+            Assert.That(actions.SetEventTarget(wolfDance, comboTarget));
+            actions.PerformAction(user, wolfDance, predicted: false);
+
+            Assert.That(entMan.TryGetComponent<WolfDancingComponent>(user, out var dancing));
+            Assert.That(dancing!.Phase, Is.EqualTo(WolfDancePhase.Dash), "No roll: one straight dash");
+            Assert.That(dancing.WhirlwindVariant);
+            Assert.That(entMan.HasComponent<ProperKungFuWhirlwindMarkComponent>(comboTarget), Is.False, "Mark consumed");
+        });
+
+        await server.WaitRunTicks(12);
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(entMan.HasComponent<WolfDancingComponent>(user), Is.False, "Fast dash is over");
+            var damage = entMan.GetComponent<DamageableComponent>(comboTarget);
+            Assert.That(Blunt(damage), Is.EqualTo(25f).Within(0.5f), "10 (knee) + 15 Blunt");
+            Assert.That(damage.Damage.DamageDict["Slash"].Float(), Is.EqualTo(15f).Within(0.5f), "15 Slash");
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(user), "The user falls after the hit");
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(comboTarget), "Target is knocked down");
+            Assert.That(entMan.HasComponent<ProperKungFuClawMarkComponent>(comboTarget), Is.False, "Claw mark consumed too");
+            Assert.That(entMan.HasComponent<ClawWhirlwindedComponent>(comboTarget), Is.False, "The kick takes the target out of the whirlwind");
+        });
+
+        await server.WaitRunTicks(30);
+
+        await server.WaitAssertion(() =>
+        {
+            var moved = xformSys.GetWorldPosition(comboTarget).X - comboStart.X;
+            Assert.That(moved, Is.EqualTo(5f).Within(0.3f), $"Flies 5 tiles, moved {moved}");
         });
 
         await pair.CleanReturnAsync();

@@ -38,7 +38,7 @@ namespace Content.Server._CorvaxGoob.ProperKungFu;
 /// <summary>
 /// Server logic of the "Proper Kung Fu" martial art: grants its actions and performs the special moves.
 /// </summary>
-public sealed class ProperKungFuSystem : EntitySystem
+public sealed partial class ProperKungFuSystem : EntitySystem
 {
     [Dependency] private readonly SharedActionsSystem _actions = default!;
     [Dependency] private readonly AudioSystem _audio = default!;
@@ -87,6 +87,7 @@ public sealed class ProperKungFuSystem : EntitySystem
         SubscribeLocalEvent<ProperKungFuComponent, WolfDanceActionEvent>(OnWolfDance);
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuSpecialHitEvent>(OnSpecialHit);
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuClawSeriesPerformedEvent>(OnClawSeries);
+        SubscribeLocalEvent<ProperKungFuComponent, ClawWhirlwindActionEvent>(OnClawWhirlwind);
     }
 
     private void OnStartup(Entity<ProperKungFuComponent> ent, ref ComponentStartup args)
@@ -271,10 +272,27 @@ public sealed class ProperKungFuSystem : EntitySystem
 
         var travel = MathF.Max(0f, distance - args.StopDistance);
 
+        // Right after Claw Whirlwind: no roll, no angle, one fast straight dash. The mark is consumed now,
+        // so it can't run out mid-dash.
+        var whirlwind = TryConsumeWhirlwindMark(user, target);
+
         // Already in kicking range: no movement needed, kick right away.
         if (travel < 0.3f)
         {
-            DoKick(user, target, args);
+            DoKick(user, target, args, whirlwind);
+            return;
+        }
+
+        if (whirlwind)
+        {
+            var straight = EnsureComp<WolfDancingComponent>(user);
+            straight.Target = target;
+            straight.Event = args;
+            straight.Map = userCoords.MapId;
+            straight.WhirlwindVariant = true;
+            straight.MaxDashLength = travel + args.ChaseDistance;
+            straight.AfterimagesSpawned = 0;
+            StartPhase(user, straight, WolfDancePhase.Dash, userCoords.Position, userCoords.Position + direction * travel, args.WhirlwindDashDuration);
             return;
         }
 
@@ -285,11 +303,22 @@ public sealed class ProperKungFuSystem : EntitySystem
         dancing.Target = target;
         dancing.Event = args;
         dancing.Map = userCoords.MapId;
+        dancing.WhirlwindVariant = false;
         dancing.MaxDashLength = Vector2.Distance(rollEnd, targetCoords.Position) - args.StopDistance + args.ChaseDistance;
         dancing.AfterimagesSpawned = 0;
         StartPhase(user, dancing, WolfDancePhase.Roll, start, rollEnd, args.RollDuration);
 
-        _audio.PlayPvs(args.RollSound, user);
+    }
+
+    private bool TryConsumeWhirlwindMark(EntityUid user, EntityUid target)
+    {
+        if (!TryComp<ProperKungFuWhirlwindMarkComponent>(target, out var mark)
+            || mark.Marker != user
+            || _timing.CurTime >= mark.ExpiresAt)
+            return false;
+
+        RemComp(target, mark);
+        return true;
     }
 
     /// <summary>
@@ -422,6 +451,8 @@ public sealed class ProperKungFuSystem : EntitySystem
             sliding.NextPuff = now + DustPuffInterval;
         }
 
+        UpdateWhirlwind(now);
+
         var marks = EntityQueryEnumerator<ProperKungFuClawMarkComponent>();
         while (marks.MoveNext(out var uid, out var mark))
         {
@@ -499,7 +530,6 @@ public sealed class ProperKungFuSystem : EntitySystem
             var len = toTarget.Length();
             var to = len > 0.01f ? from + toTarget / len * MathF.Max(0f, len - args.StopDistance) : from;
             StartPhase(user, dancing, WolfDancePhase.Dash, from, to, args.DashDuration);
-            _audio.PlayPvs(args.DashSound, user);
             return;
         }
 
@@ -507,15 +537,15 @@ public sealed class ProperKungFuSystem : EntitySystem
         var inRange = targetValid
             && Vector2.Distance(_transform.GetWorldPosition(user), _transform.GetWorldPosition(target)) <= args.KickRange;
 
+        var whirlwindVariant = dancing.WhirlwindVariant;
         StopDance(user, inRange);
 
         if (inRange)
         {
-            DoKick(user, target, args);
+            DoKick(user, target, args, whirlwindVariant);
             return;
         }
 
-        _audio.PlayPvs(args.MissSound, user);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-miss"), user, user, PopupType.SmallCaution);
     }
 
@@ -530,7 +560,7 @@ public sealed class ProperKungFuSystem : EntitySystem
     /// <summary>
     /// The roundhouse kick at the end of the Wolf Dance.
     /// </summary>
-    private void DoKick(EntityUid user, EntityUid target, WolfDanceActionEvent args)
+    private void DoKick(EntityUid user, EntityUid target, WolfDanceActionEvent args, bool whirlwind = false)
     {
         var delta = _transform.GetWorldPosition(target) - _transform.GetWorldPosition(user);
         var direction = delta.LengthSquared() > 0.0001f
@@ -547,6 +577,14 @@ public sealed class ProperKungFuSystem : EntitySystem
         {
             var blockedEv = new ProperKungFuSpecialHitEvent(target, WolfDanceMove, true);
             RaiseLocalEvent(user, ref blockedEv);
+            return;
+        }
+
+        // Claw Whirlwind variant (takes priority over the Claw Series mark, which is consumed as well).
+        if (whirlwind)
+        {
+            RemComp<ProperKungFuClawMarkComponent>(target);
+            DoWhirlwindKick(user, target, direction, args);
             return;
         }
 
@@ -589,6 +627,39 @@ public sealed class ProperKungFuSystem : EntitySystem
         var hitTargetLoc = synergy ? "proper-kung-fu-wolf-dance-synergy-target" : "proper-kung-fu-wolf-dance-hit-target";
         _popup.PopupEntity(Loc.GetString(hitUserLoc, ("target", target)), user, user, PopupType.Medium);
         _popup.PopupEntity(Loc.GetString(hitTargetLoc, ("user", user)), target, target, PopupType.MediumCaution);
+
+        var hitEv = new ProperKungFuSpecialHitEvent(target, WolfDanceMove, false);
+        RaiseLocalEvent(user, ref hitEv);
+    }
+
+    /// <summary>
+    /// Wolf Dance right after Claw Whirlwind: 15 Blunt + 15 Slash, the target flies 5 tiles and falls,
+    /// and the user falls too after the hit.
+    /// </summary>
+    private void DoWhirlwindKick(EntityUid user, EntityUid target, Vector2 direction, WolfDanceActionEvent args)
+    {
+        // The target may still be spinning in the air: the kick takes over.
+        if (HasComp<ClawWhirlwindedComponent>(target))
+            EndWhirlwind(target, landed: false);
+
+        _audio.PlayPvs(args.HitSound, target);
+        _damageable.TryChangeDamage(target,
+            args.WhirlwindSynergyDamage,
+            origin: user,
+            targetPart: TargetBodyPart.Head,
+            canMiss: false);
+
+        _stun.TryKnockdown(target, args.WhirlwindKnockdownTime, true);
+        StartKnockback(target,
+            direction,
+            args.WhirlwindKnockbackDistance,
+            TimeSpan.FromSeconds(args.WhirlwindKnockbackDistance / MathF.Max(0.1f, args.KnockbackSpeed)),
+            dust: false);
+
+        _stun.TryKnockdown(user, args.WhirlwindUserKnockdownTime, true);
+
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-whirlwind-user", ("target", target)), user, user, PopupType.Medium);
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-whirlwind-target", ("user", user)), target, target, PopupType.MediumCaution);
 
         var hitEv = new ProperKungFuSpecialHitEvent(target, WolfDanceMove, false);
         RaiseLocalEvent(user, ref hitEv);

@@ -16,6 +16,12 @@ public sealed partial class WolfDancingComponent : Component
     [ViewVariables]
     public EntityUid Target;
 
+    /// <summary>
+    /// Whirlwind variant: the target was hit by Claw Whirlwind, so it's one straight dash and the hard kick.
+    /// </summary>
+    [ViewVariables]
+    public bool WhirlwindVariant;
+
     [ViewVariables]
     public WolfDancePhase Phase = WolfDancePhase.Roll;
 

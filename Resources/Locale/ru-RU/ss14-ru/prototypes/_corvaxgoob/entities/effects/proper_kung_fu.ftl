@@ -2,3 +2,5 @@ ent-ProperKungFuShockwaveEffect = ударная волна волчьего т�
     .desc = { "" }
 ent-ProperKungFuDashAfterimage = остаточный образ волчьего танца
     .desc = { "" }
+ent-ProperKungFuKneeBurst = коленный удар когтей
+    .desc = { "" }

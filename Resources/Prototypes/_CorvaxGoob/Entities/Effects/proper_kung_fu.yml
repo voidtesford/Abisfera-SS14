@@ -48,9 +48,12 @@
   categories: [ HideSpawnMenu ]
   components:
   - type: Sprite
-    sprite: _CorvaxGoob/Effects/proper_kung_fu_claw.rsi
-    state: claw_scratch
     drawdepth: Effects
+    layers:
+    # Unshaded so dark/unlit floors don't swallow the bright scarlet slashes.
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_claw.rsi
+      state: claw_scratch
 
 # Claw Series finisher (double palm thrust): white-red impact flash on the target.
 - type: entity
@@ -111,3 +114,26 @@
     - map: [ "enum.SprintVisualLayers.Base" ]
       sprite: _Goobstation/Effects/sprinting.rsi
       state: sprint_cloud_small
+
+# Claw Whirlwind knee impact: white-red claw burst, drawn pointing north and rotated along the knee.
+- type: entity
+  id: ProperKungFuKneeBurst
+  name: knee claw burst
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: false
+    sprite: _CorvaxGoob/Effects/proper_kung_fu_knee.rsi
+    layers:
+    - state: knee_burst
+      shader: unshaded
+  - type: PointLight
+    radius: 1.5
+    energy: 1.5
+    color: "#FF6060"
+  - type: TimedDespawn
+    lifetime: 0.32
+  - type: Tag
+    tags:
+    - HideContextMenu
