@@ -63,5 +63,6 @@ public enum MartialArtsForms
     HellRip,
     // CorvaxGoob-ProperKungFu-Start
     ProperKungFu,
+    ProperKungFuPupil,
     // CorvaxGoob-ProperKungFu-End
 }

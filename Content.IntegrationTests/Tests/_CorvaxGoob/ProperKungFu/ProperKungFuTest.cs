@@ -97,7 +97,7 @@ public sealed class ProperKungFuTest
             Assert.That(entMan.TryGetComponent<MartialArtsKnowledgeComponent>(user, out var knowledge));
             Assert.That(knowledge!.MartialArtsForm, Is.EqualTo(MartialArtsForms.ProperKungFu));
             Assert.That(entMan.TryGetComponent<ProperKungFuComponent>(user, out var kungFu));
-            Assert.That(kungFu!.ActionEntities, Has.Count.EqualTo(4));
+            Assert.That(kungFu!.ActionEntities, Has.Count.EqualTo(7));
             Assert.That(entMan.Deleted(book), "The manual should be consumed");
 
             var actionUid = kungFu.ActionEntities[0];
@@ -113,8 +113,8 @@ public sealed class ProperKungFuTest
             Assert.That(action.Comp.Cooldown, Is.Not.Null, "Cooldown should start");
         });
 
-        // Mid-dash (~0.2 s of 0.35 s): moved some of the way along a straight line, not at the target yet.
-        await server.WaitRunTicks(6);
+        // Mid-dash (~0.07 s of 0.12 s): moved some of the way along a straight line, not at the target yet.
+        await server.WaitRunTicks(2);
 
         await server.WaitAssertion(() =>
         {
@@ -125,8 +125,8 @@ public sealed class ProperKungFuTest
             Assert.That(userPos.Y, Is.EqualTo(0.5f).Within(0.05f), "Straight line, no side drift");
         });
 
-        // Flight 0.35 s, ~11 ticks at 30 tps.
-        await server.WaitRunTicks(25);
+        // Flight 0.12 s, ~4 ticks at 30 tps.
+        await server.WaitRunTicks(29);
 
         await server.WaitAssertion(() =>
         {
@@ -184,7 +184,7 @@ public sealed class ProperKungFuTest
             Assert.That(entMan.HasComponent<KnockedDownComponent>(user), Is.False, "The user stays up after a blocked plain dash");
         });
 
-        // The user is still on the floor after the blocked kick (1.5 s).
+        // Let the shield check settle before the next dash.
         await server.WaitRunTicks(50);
 
         // Target escapes during the flight: the kick whiffs.
@@ -198,7 +198,7 @@ public sealed class ProperKungFuTest
             actions.PerformAction(user, action, predicted: false);
         });
 
-        await server.WaitRunTicks(4);
+        await server.WaitRunTicks(1);
 
         await server.WaitPost(() =>
         {
@@ -232,7 +232,7 @@ public sealed class ProperKungFuTest
             actions.PerformAction(user, action, predicted: false);
         });
 
-        await server.WaitRunTicks(4);
+        await server.WaitRunTicks(1);
 
         await server.WaitPost(() =>
         {
@@ -396,7 +396,7 @@ public sealed class ProperKungFuTest
             Assert.That(entMan.HasComponent<KnockedDownComponent>(target), "Synergy kick knocks down");
             Assert.That(entMan.HasComponent<StunnedComponent>(target), Is.False, "Synergy kick must not stun");
             Assert.That(entMan.HasComponent<ProperKungFuClawMarkComponent>(target), Is.False, "Mark is consumed");
-            Assert.That(entMan.HasComponent<KnockedDownComponent>(user), "The user lands on the floor after the synergy kick");
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(user), Is.False, "Wolf Dance never drops the user");
         });
 
         await server.WaitRunTicks(90);
@@ -565,7 +565,7 @@ public sealed class ProperKungFuTest
             actions.PerformAction(user, wolfDance, predicted: false);
 
             Assert.That(entMan.TryGetComponent<WolfDancingComponent>(user, out var dancing));
-            Assert.That(dancing!.Phase, Is.EqualTo(WolfDancePhase.Dash), "One straight flying kick");
+            Assert.That(dancing!.Phase, Is.EqualTo(WolfDancePhase.PassThrough), "Wolf Dance is always a pass-through");
             Assert.That(dancing.WhirlwindVariant);
             Assert.That(entMan.HasComponent<ProperKungFuWhirlwindMarkComponent>(comboTarget), Is.False, "Mark consumed");
         });
@@ -590,7 +590,7 @@ public sealed class ProperKungFuTest
                 TestContext.WriteLine("Wolf Dance after Claw Whirlwind took the head off (random Shitmed dismemberment).");
                 Assert.That(damage.Damage.DamageDict["Slash"].Float(), Is.GreaterThanOrEqualTo(15f), "At least 15 Slash");
             }
-            Assert.That(entMan.HasComponent<KnockedDownComponent>(user), "The user falls after the hit");
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(user), Is.False, "Wolf Dance never drops the user");
             Assert.That(entMan.HasComponent<KnockedDownComponent>(comboTarget), "Target is knocked down");
             Assert.That(entMan.HasComponent<ProperKungFuClawMarkComponent>(comboTarget), Is.False, "Claw mark consumed too");
             Assert.That(entMan.HasComponent<ClawWhirlwindedComponent>(comboTarget), Is.False, "The kick takes the target out of the whirlwind");
@@ -1007,7 +1007,7 @@ public sealed class ProperKungFuTest
         await server.WaitAssertion(() =>
         {
             var kungFu = entMan.GetComponent<ProperKungFuComponent>(user);
-            Assert.That(kungFu.ActionEntities, Has.Count.EqualTo(4));
+            Assert.That(kungFu.ActionEntities, Has.Count.EqualTo(7));
             foreach (var uid in kungFu.ActionEntities)
             {
                 var id = entMan.GetComponent<MetaDataComponent>(uid).EntityPrototype!.ID;
@@ -1087,7 +1087,7 @@ public sealed class ProperKungFuTest
             Assert.That(entMan.GetComponent<ProperKungFuComponent>(user).UltimateCharge, Is.EqualTo(10f).Within(0.01f), "+5 ult");
         });
 
-        // Critical: the skull breaks, the head stays on.
+        // Critical (and not yet 80 damage): just the lying hit, the head stays on.
         await server.WaitPost(() =>
         {
             xformSys.SetWorldPosition(user, xformSys.GetWorldPosition(critTarget) + new Vector2(-1f, 0f));
@@ -1112,11 +1112,8 @@ public sealed class ProperKungFuTest
         {
             Assert.That(entMan.EntityExists(critHead) && !entMan.Deleted(critHead), "The head is not destroyed");
             Assert.That(body.GetBodyChildrenOfType(critTarget, BodyPartType.Head).Select(p => p.Id), Does.Contain(critHead), "The head stays attached");
-            Assert.That(HeadBlunt(critTarget), Is.EqualTo(15f).Within(0.5f), "15 Blunt to the head");
-            var skull = entMan.GetComponent<WoundableComponent>(critHead).Bone.ContainedEntities;
-            Assert.That(skull, Is.Not.Empty, "Head has a skull");
-            foreach (var bone in skull)
-                Assert.That(entMan.GetComponent<BoneComponent>(bone).BoneSeverity, Is.EqualTo(BoneSeverity.Broken), "Skull is broken");
+            // v11: no special crit branch any more, a critical target is lying, so it gets the lying hit.
+            Assert.That(HeadBlunt(critTarget), Is.EqualTo(50f).Within(0.5f), "Lying hit: 50 Blunt to the head");
             AssertHeadOrgans(critTarget, "Crit hit");
             Assert.That(entMan.GetComponent<ProperKungFuComponent>(user).UltimateCharge, Is.EqualTo(15f).Within(0.01f), "+5 ult");
         });
@@ -1172,7 +1169,7 @@ public sealed class ProperKungFuTest
             Assert.That(wolfDance.Comp.Cooldown, Is.Not.Null);
             Assert.That(entMan.HasComponent<ProperKungFuHammerMarkComponent>(gripTarget), Is.False, "Hammer mark consumed");
             Assert.That(entMan.TryGetComponent<WolfDancingComponent>(user, out var dancing), "Dashing");
-            Assert.That(dancing!.Phase, Is.EqualTo(WolfDancePhase.Dash), "Flying kick");
+            Assert.That(dancing!.Phase, Is.EqualTo(WolfDancePhase.PassThrough), "Wolf Dance is always a pass-through");
             Assert.That(dancing.WhirlwindVariant, Is.False);
             Assert.That(dancing.PhaseDuration.TotalSeconds, Is.LessThan(0.1), "Instant dash");
         });
@@ -1190,7 +1187,7 @@ public sealed class ProperKungFuTest
                 Assert.That(dashHead, Is.EqualTo(20f).Within(0.5f), "Only the hammer hit is on the head");
             Assert.That(entMan.HasComponent<StunnedComponent>(gripTarget), "Normal kick stuns");
             Assert.That(entMan.HasComponent<KnockedDownComponent>(gripTarget), "and knocks down");
-            Assert.That(entMan.HasComponent<KnockedDownComponent>(user), "The user lands on the floor after the instant flying kick");
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(user), Is.False, "Wolf Dance never drops the user");
         });
 
         await server.WaitRunTicks(45);
@@ -1345,7 +1342,7 @@ public sealed class ProperKungFuTest
         await server.WaitAssertion(() =>
         {
             var kungFu = entMan.GetComponent<ProperKungFuComponent>(user);
-            Assert.That(kungFu.ActionEntities, Has.Count.EqualTo(4));
+            Assert.That(kungFu.ActionEntities, Has.Count.EqualTo(7));
             foreach (var uid in kungFu.ActionEntities)
             {
                 if (entMan.GetComponent<MetaDataComponent>(uid).EntityPrototype!.ID == "ActionProperKungFuWolfInstinct")

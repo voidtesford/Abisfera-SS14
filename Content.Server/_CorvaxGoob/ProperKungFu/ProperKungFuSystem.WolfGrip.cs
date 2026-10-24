@@ -30,9 +30,9 @@ public sealed partial class ProperKungFuSystem
             || target == ent.Owner
             || TerminatingOrDeleted(target)
             || !_proto.TryIndex(combo.BeingPerformed, out var proto)
-            || proto.MartialArtsForm != MartialArtsForms.ProperKungFu
+            || !IsKungFuComboForm(ent, proto.MartialArtsForm)
             || !TryComp<MartialArtsKnowledgeComponent>(ent, out var knowledge)
-            || knowledge.MartialArtsForm != MartialArtsForms.ProperKungFu
+            || knowledge.MartialArtsForm != proto.MartialArtsForm
             || knowledge.Blocked)
             return;
 
@@ -47,15 +47,17 @@ public sealed partial class ProperKungFuSystem
         var preDamage = TryComp<DamageableComponent>(target, out var targetDamageable)
             ? targetDamageable.TotalDamage.Float()
             : 0f;
-        var finisher = args.FinisherThreshold > 0f
+        var scale = EffectScale(ent);
+        var finisher = !ent.Comp.Pupil && args.FinisherThreshold > 0f
                        && preDamage >= args.FinisherThreshold
+                       && !_mobState.IsDead(target)
                        && !HasComp<ProperKungFuGripSuplexComponent>(target);
 
         var damage = new DamageSpecifier();
         damage.DamageDict.Add(proto.DamageType, proto.ExtraDamage);
-        _damageable.TryChangeDamage(target, damage, origin: ent, targetPart: SkillTargetPart, canMiss: false);
+        DealKungFuDamage(target, damage, origin: ent, targetPart: SkillTargetPart, canMiss: false);
 
-        BlockBreathing(target, args.BreathBlockTime);
+        BlockBreathing(target, args.BreathBlockTime * scale);
 
         // Hard grab (the grab that finished the combo is usually only a soft one).
         TakeIntoHardGrab(ent, target, args.HoldDistance);
@@ -64,9 +66,13 @@ public sealed partial class ProperKungFuSystem
         combo.LastAttacks.Clear();
         Dirty(ent.Owner, combo);
 
-        var mark = EnsureComp<ProperKungFuWolfGripMarkComponent>(target);
-        mark.Marker = ent;
-        mark.ExpiresAt = _timing.CurTime + args.MarkDuration;
+        // The Claw Whirlwind synergy mark; a pupil has no synergies.
+        if (!ent.Comp.Pupil)
+        {
+            var mark = EnsureComp<ProperKungFuWolfGripMarkComponent>(target);
+            mark.Marker = ent;
+            mark.ExpiresAt = _timing.CurTime + args.MarkDuration;
+        }
 
         _audio.PlayPvs(new Robust.Shared.Audio.SoundPathSpecifier("/Audio/Weapons/genhit1.ogg"), target);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-grip-user", ("target", target)), ent, ent, PopupType.Medium);
@@ -159,7 +165,7 @@ public sealed partial class ProperKungFuSystem
             : _transform.GetWorldRotation(user).ToWorldVec();
         _transform.SetWorldRotation(user, direction.ToWorldAngle());
 
-        _damageable.TryChangeDamage(target, args.GripStrikeDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
+        DealKungFuDamage(target, args.GripStrikeDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
 
         var fraction = args.GripLungDamageFraction;
         InflictPartTrauma(target, TargetBodyPart.Chest, "Blunt",

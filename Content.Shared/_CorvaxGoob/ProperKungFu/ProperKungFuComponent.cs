@@ -22,7 +22,25 @@ public sealed partial class ProperKungFuComponent : Component
         "ActionProperKungFuClawWhirlwind",
         "ActionProperKungFuHammer",
         "ActionProperKungFuWolfInstinct",
+        "ActionProperKungFuWolfPack",
+        "ActionProperKungFuKunai",
+        "ActionProperKungFuJoinPack",
     };
+
+    /// <summary>
+    /// A pupil (taught by "Join the Pack"): only the three regular combos, with every non-damage effect scaled by
+    /// <see cref="PupilEffectMultiplier"/>. No skills, passives, finishers, synergies or ultimate.
+    /// </summary>
+    [DataField, AutoNetworkedField]
+    public bool Pupil;
+
+    /// <summary>
+    /// Scale of the non-damage effects of a pupil's Claw Series and Wolf Grip (stun time, knockback, breath block).
+    /// A pupil has none of the master's passives (attack rate, stamina, sprint, gunshot and bleed modifiers,
+    /// the CQC bypass) and no ranged weapon ban.
+    /// </summary>
+    [DataField]
+    public float PupilEffectMultiplier = 0.5f;
 
     /// <summary>
     /// Spawned action entities, removed again when the art is lost.
@@ -196,4 +214,28 @@ public sealed partial class ProperKungFuComponent : Component
 
     [DataField]
     public SoundSpecifier ClawSeriesFinisherFinalSound = new SoundPathSpecifier("/Audio/Weapons/Xeno/alien_claw_flesh3.ogg", AudioParams.Default.WithVolume(4f));
+
+    /// <summary>
+    /// Every finisher (any skill or combo) heals the user by this much, spread over the damage types they have.
+    /// </summary>
+    [DataField]
+    public float FinisherHeal = 25f;
+
+    /// <summary>
+    /// Passive: damage from bullets and other projectiles / hitscan shots is multiplied by this (0.6 = -40%).
+    /// </summary>
+    [DataField]
+    public float GunshotDamageModifier = 0.6f;
+
+    /// <summary>
+    /// Passive: the user's own bleeding (new or growing wounds) is multiplied by this.
+    /// </summary>
+    [DataField]
+    public float OwnBleedModifier = 0.5f;
+
+    /// <summary>
+    /// Passive: bleeding from wounds the user inflicts (fists, skills, combos) is multiplied by this.
+    /// </summary>
+    [DataField]
+    public float DealtBleedModifier = 1.5f;
 }

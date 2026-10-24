@@ -22,7 +22,7 @@ public partial class SharedMartialArtsSystem
     /// </summary>
     private void OnProperKungFuAttackRate(Entity<ProperKungFuComponent> ent, ref GetMeleeAttackRateEvent args)
     {
-        if (args.Weapon != args.User)
+        if (args.Weapon != args.User || ent.Comp.Pupil)
             return;
 
         args.Multipliers *= ent.Comp.UnarmedAttackRateMultiplier;
@@ -34,6 +34,7 @@ public partial class SharedMartialArtsSystem
     private void OnProperKungFuMoveSpeed(Entity<ProperKungFuComponent> ent, ref RefreshMovementSpeedModifiersEvent args)
     {
         if (ent.Comp.LifeStage > ComponentLifeStage.Running
+            || ent.Comp.Pupil
             || !TryComp<SprinterComponent>(ent, out var sprinter)
             || !sprinter.IsSprinting)
             return;

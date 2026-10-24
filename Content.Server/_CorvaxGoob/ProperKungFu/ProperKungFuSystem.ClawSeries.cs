@@ -163,7 +163,7 @@ public sealed partial class ProperKungFuSystem
         if (localPos.LengthSquared() > 0f)
             _melee.DoLunge(user, user, Angle.FromDegrees(60), localPos, ent.Comp.ClawAnimation, Angle.Zero, finisher.Strikes % 2 == 1, predicted: false);
 
-        _damageable.TryChangeDamage(victim, ent.Comp.ClawSeriesFinisherStrikeDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
+        DealKungFuDamage(victim, ent.Comp.ClawSeriesFinisherStrikeDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
         _audio.PlayPvs(ent.Comp.ClawSeriesFinisherStrikeSound, victim);
     }
 
@@ -171,6 +171,7 @@ public sealed partial class ProperKungFuSystem
     {
         var user = ent.Owner;
         var comp = ent.Comp;
+        HealFinisherUser(user);
 
         Spawn(comp.ClawSeriesFinisherCross, _transform.GetMapCoordinates(victim));
         _audio.PlayPvs(comp.ClawSeriesFinisherFinalSound, victim);

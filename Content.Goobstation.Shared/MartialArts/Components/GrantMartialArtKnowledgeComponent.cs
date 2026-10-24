@@ -81,6 +81,18 @@ public sealed partial class GrantProperKungFuComponent : GrantMartialArtKnowledg
 
     public override LocId? LearnMessage { get; set; } = "proper-kung-fu-success-learned";
 }
+
+/// <summary>
+/// Only used in code by "Join the Pack"; there is no pupil manual.
+/// </summary>
+[RegisterComponent]
+public sealed partial class GrantProperKungFuPupilComponent : GrantMartialArtKnowledgeComponent
+{
+    [DataField]
+    public override MartialArtsForms MartialArtsForm { get; set; } = MartialArtsForms.ProperKungFuPupil;
+
+    public override LocId? LearnMessage { get; set; } = "proper-kung-fu-pupil-learned";
+}
 // CorvaxGoob-ProperKungFu-End
 
 [RegisterComponent]

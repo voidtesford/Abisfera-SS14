@@ -492,6 +492,33 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
         return false;
     }
 
+    // CorvaxGoob-ProperKungFu-Start
+    /// <summary>
+    /// Silently teaches Proper Kung Fu to an entity without a manual (used by the Wolf Pack clones).
+    /// </summary>
+    public bool GrantProperKungFu(EntityUid user)
+    {
+        return GrantMartialArt(new GrantProperKungFuComponent { LearnMessage = null }, user);
+    }
+
+    /// <summary>
+    /// Teaches the trimmed pupil form ("Join the Pack"): the three regular combos with halved effects, nothing else.
+    /// </summary>
+    public bool GrantProperKungFuPupil(EntityUid user)
+    {
+        if (!HasComp<ProperKungFuComponent>(user))
+        {
+            var kungFu = Factory.GetComponent<ProperKungFuComponent>();
+            kungFu.Pupil = true;
+            kungFu.BaseActions.Clear();
+            kungFu.BonusStamina = 0f;
+            AddComp(user, kungFu);
+        }
+
+        return GrantMartialArt(new GrantProperKungFuPupilComponent { LearnMessage = null }, user);
+    }
+    // CorvaxGoob-ProperKungFu-End
+
     private bool GrantMartialArt(GrantMartialArtKnowledgeComponent comp, EntityUid user)
     {
         var canPerformComboComponent = EnsureComp<CanPerformComboComponent>(user);
@@ -512,6 +539,10 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
                 break;
             // CorvaxGoob-ProperKungFu-Start
             case MartialArtsForms.ProperKungFu:
+                EnsureComp<ProperKungFuComponent>(user);
+                break;
+            case MartialArtsForms.ProperKungFuPupil:
+                // The pupil component is set up by GrantProperKungFuPupil before this.
                 EnsureComp<ProperKungFuComponent>(user);
                 break;
             // CorvaxGoob-ProperKungFu-End

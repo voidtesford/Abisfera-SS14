@@ -1,0 +1,30 @@
+# Wolf Pack clone brain: the ProperKungFuSystem keeps Target/TargetCoordinates set to the pack's victim and
+# fires the art's skills itself; the HTN only walks up to the victim and punches it.
+- type: htnCompound
+  id: ProperKungFuCloneCompound
+  branches:
+    - preconditions:
+      - !type:KeyExistsPrecondition
+        key: Target
+      tasks:
+        - !type:HTNPrimitiveTask
+          operator: !type:MoveToOperator
+            shutdownState: PlanFinished
+            pathfindInPlanning: true
+            removeKeyOnFinish: false
+            brakeMaxVelocity: null
+            targetKey: TargetCoordinates
+            pathfindKey: TargetPathfind
+            rangeKey: MeleeRange
+        - !type:HTNPrimitiveTask
+          operator: !type:MeleeOperator
+            targetKey: Target
+          preconditions:
+            - !type:KeyExistsPrecondition
+              key: Target
+            - !type:TargetInRangePrecondition
+              targetKey: Target
+              rangeKey: MeleeRange
+    - tasks:
+        - !type:HTNCompoundTask
+          task: IdleCompound

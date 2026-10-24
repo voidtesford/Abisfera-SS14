@@ -126,7 +126,7 @@ public sealed partial class ProperKungFuSystem
             : _transform.GetWorldRotation(user).ToWorldVec();
         _transform.SetWorldRotation(user, direction.ToWorldAngle());
 
-        _damageable.TryChangeDamage(attacker, args.CounterDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
+        DealKungFuDamage(attacker, args.CounterDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
         _stamina.TakeStaminaDamage(attacker, args.CounterStaminaDamage, source: user, immediate: true);
 
         if (TryComp<PullableComponent>(attacker, out var pullable) && pullable.BeingPulled)
@@ -439,6 +439,7 @@ public sealed partial class ProperKungFuSystem
     {
         if (args.FinisherSlashes <= 0
             || TerminatingOrDeleted(attacker)
+            || _mobState.IsDead(attacker)
             || HasComp<ProperKungFuInstinctFinisherComponent>(user)
             || !TryComp<DamageableComponent>(attacker, out var damageable)
             || damageable.TotalDamage.Float() < args.FinisherThreshold)
@@ -519,7 +520,7 @@ public sealed partial class ProperKungFuSystem
                    && now >= finisher.StartTime + args.FinisherSlashInterval * finisher.SlashesDone)
             {
                 finisher.SlashesDone++;
-                _damageable.TryChangeDamage(victim, args.FinisherSlashDamage, origin: uid, targetPart: SkillTargetPart, canMiss: false);
+                DealKungFuDamage(victim, args.FinisherSlashDamage, origin: uid, targetPart: SkillTargetPart, canMiss: false);
                 if (args.FinisherSlashEffect is { } slash)
                 {
                     var fx = SpawnAttachedTo(slash, new EntityCoordinates(victim, Vector2.Zero));
@@ -542,7 +543,9 @@ public sealed partial class ProperKungFuSystem
     /// </summary>
     private void DoInstinctFinisherCross(EntityUid user, EntityUid victim, Vector2 direction, WolfInstinctActionEvent args)
     {
-        _damageable.TryChangeDamage(victim, args.FinisherCrossDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
+        HealFinisherUser(user);
+
+        DealKungFuDamage(victim, args.FinisherCrossDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
 
         if (args.FinisherCrossEffect is { } cross)
             Spawn(cross, _transform.GetMapCoordinates(victim));

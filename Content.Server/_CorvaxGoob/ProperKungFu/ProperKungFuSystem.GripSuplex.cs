@@ -98,7 +98,9 @@ public sealed partial class ProperKungFuSystem
 
     private void LandGripSuplex(EntityUid user, EntityUid target, ProperKungFuWolfGripPerformedEvent args)
     {
-        // Head first: the skull breaks (same as the Hammer crit), then the head and the torso take the impact.
+        HealFinisherUser(user);
+
+        // Head first: the skull breaks, then the head and the torso take the impact.
         InflictPartTrauma(target, TargetBodyPart.Head, "Blunt", (_, _) => null, breakBones: true);
         DealChunkedDamage(user, target, args.FinisherHeadDamage, TargetBodyPart.Head);
         DealChunkedDamage(user, target, args.FinisherTorsoDamage, TargetBodyPart.Chest);

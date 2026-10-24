@@ -560,3 +560,63 @@
   - type: Tag
     tags:
     - HideContextMenu
+
+# Hammer finisher, step 2: the same three claws laid sideways along the strike (rotated in code).
+- type: entity
+  parent: ProperKungFuHammerStrike
+  id: ProperKungFuHammerStrikeHorizontal
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_hammer.rsi
+      state: hammer_strike
+
+# Hammer finisher, step 4: the claws cut diagonally across the head (rotated in code).
+- type: entity
+  parent: ProperKungFuHammerStrikeHorizontal
+  id: ProperKungFuHammerStrikeDiagonal
+  categories: [ HideSpawnMenu ]
+
+# Wolf Pack: white-red smoke puff a clone steps out of.
+- type: entity
+  id: ProperKungFuWolfPackSmoke
+  name: wolf pack smoke
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - sprite: _CorvaxGoob/Effects/proper_kung_fu_smoke.rsi
+      state: smoke_spawn
+  - type: PointLight
+    color: "#FF6060"
+    radius: 1.5
+    energy: 1.5
+  - type: TimedDespawn
+    lifetime: 0.6
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Pack: red smoke puff a clone vanishes in.
+- type: entity
+  parent: ProperKungFuWolfPackSmoke
+  id: ProperKungFuWolfPackVanish
+  name: wolf pack vanish smoke
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - sprite: _CorvaxGoob/Effects/proper_kung_fu_smoke.rsi
+      state: smoke_vanish
+  - type: PointLight
+    color: "#FF2020"
+    radius: 1.5
+    energy: 1.5

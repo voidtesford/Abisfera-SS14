@@ -38,9 +38,9 @@ public sealed partial class ProperKungFuSystem
             || target == ent.Owner
             || TerminatingOrDeleted(target)
             || !_proto.TryIndex(combo.BeingPerformed, out var proto)
-            || proto.MartialArtsForm != MartialArtsForms.ProperKungFu
+            || !IsKungFuComboForm(ent, proto.MartialArtsForm)
             || !TryComp<MartialArtsKnowledgeComponent>(ent, out var knowledge)
-            || knowledge.MartialArtsForm != MartialArtsForms.ProperKungFu
+            || knowledge.MartialArtsForm != proto.MartialArtsForm
             || knowledge.Blocked)
             return;
 
@@ -56,27 +56,40 @@ public sealed partial class ProperKungFuSystem
         // Both thresholds are measured on the target's damage before this combo hits.
         var total = TryComp<DamageableComponent>(target, out var damageable) ? damageable.TotalDamage : FixedPoint2.Zero;
 
-        // 10 Blunt into each arm and the torso; the hands are not touched.
+        // 10 Blunt into each arm and the torso; the hands are not touched. A pupil only hits the torso.
         foreach (var part in PerfectFlowParts)
         {
+            if (ent.Comp.Pupil && part != TargetBodyPart.Chest)
+                continue;
+
             var damage = new DamageSpecifier();
             damage.DamageDict.Add(args.DamageType, args.PartDamage);
-            _damageable.TryChangeDamage(target, damage, origin: user, targetPart: part, canMiss: false);
+            DealKungFuDamage(target, damage, origin: user, targetPart: part, canMiss: false);
         }
 
-        // A battered target gets both arms broken.
-        if (total >= args.FractureThreshold)
+        // A battered target gets both arms broken. A pupil forces no fractures (bones only break from damage as usual).
+        if (!ent.Comp.Pupil && total >= args.FractureThreshold)
         {
             InflictPartTrauma(target, TargetBodyPart.LeftArm, args.DamageType, (_, _) => null, breakBones: true);
             InflictPartTrauma(target, TargetBodyPart.RightArm, args.DamageType, (_, _) => null, breakBones: true);
             _audio.PlayPvs(args.FractureSound, target);
         }
 
-        ApplyPerfectFlowDisorientation(target, args);
-        SpawnPerfectFlowMarks(target, args);
+        // A pupil's Perfect Flow neither disorients nor stuns.
+        if (!ent.Comp.Pupil)
+            ApplyPerfectFlowDisorientation(target, args, args.DisorientTime);
+        if (ent.Comp.Pupil)
+        {
+            if (args.FlashEffect is { } chestFlash)
+                SpawnAttachedTo(chestFlash, new EntityCoordinates(target, PerfectFlowFlashOffsets[2]));
+        }
+        else
+        {
+            SpawnPerfectFlowMarks(target, args);
+        }
         _audio.PlayPvs(args.HitSound, target);
 
-        if (total >= args.FinisherThreshold && !TerminatingOrDeleted(target))
+        if (!ent.Comp.Pupil && total >= args.FinisherThreshold && !TerminatingOrDeleted(target) && !_mobState.IsDead(target))
         {
             DoPerfectFlowFinisher(user, target, args);
         }
@@ -90,9 +103,9 @@ public sealed partial class ProperKungFuSystem
             AddUltimateCharge(ent, ent.Comp.ChargePerCombo);
     }
 
-    private void ApplyPerfectFlowDisorientation(EntityUid target, ProperKungFuPerfectFlowPerformedEvent args)
+    private void ApplyPerfectFlowDisorientation(EntityUid target, ProperKungFuPerfectFlowPerformedEvent args, TimeSpan time)
     {
-        _statusNew.TryUpdateStatusEffectDuration(target, args.DisorientEffect, args.DisorientTime);
+        _statusNew.TryUpdateStatusEffectDuration(target, args.DisorientEffect, time);
 
         if (TryComp<ProperKungFuDisorientedComponent>(target, out var disoriented))
             disoriented.NextStagger = _timing.CurTime + TimeSpan.FromSeconds(disoriented.StaggerInterval.X);
@@ -106,8 +119,8 @@ public sealed partial class ProperKungFuSystem
             frequency = effectComp.JitterFrequency;
         }
 
-        _jitter.DoJitter(target, args.DisorientTime, true, amplitude, frequency);
-        _slurred.DoSlur(target, args.DisorientTime);
+        _jitter.DoJitter(target, time, true, amplitude, frequency);
+        _slurred.DoSlur(target, time);
     }
 
     /// <summary>
@@ -160,6 +173,8 @@ public sealed partial class ProperKungFuSystem
     /// </summary>
     private void DoPerfectFlowFinisher(EntityUid user, EntityUid target, ProperKungFuPerfectFlowPerformedEvent args)
     {
+        HealFinisherUser(user);
+
         var map = _transform.GetMapId(user);
         var userPos = _transform.GetWorldPosition(user);
         var targetPos = _transform.GetWorldPosition(target);
@@ -184,7 +199,7 @@ public sealed partial class ProperKungFuSystem
 
         var kick = new DamageSpecifier();
         kick.DamageDict.Add(args.FinisherDamageType, args.FinisherDamage);
-        _damageable.TryChangeDamage(target, kick, origin: user, targetPart: TargetBodyPart.Head, canMiss: false);
+        DealKungFuDamage(target, kick, origin: user, targetPart: TargetBodyPart.Head, canMiss: false);
 
         if (args.AxeKickEffect is { } axe)
             SpawnAttachedTo(axe, new EntityCoordinates(target, new Vector2(0f, 0.3f)));

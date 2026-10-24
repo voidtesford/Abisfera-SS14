@@ -23,6 +23,13 @@ public sealed partial class WolfDancingComponent : Component
     public bool WhirlwindVariant;
 
     /// <summary>
+    /// Synergy variant (after Claw Series, Claw Whirlwind or the Hammer's Wolf Grip synergy): the same dash through
+    /// the target as the plain dance, but the hit uses that variant's damage and knockback instead of the toss.
+    /// </summary>
+    [ViewVariables]
+    public bool KickVariant;
+
+    /// <summary>
     /// Plain variant (no synergy): a dash through the target, no collision with it, the target is tossed up in place.
     /// </summary>
     [ViewVariables]

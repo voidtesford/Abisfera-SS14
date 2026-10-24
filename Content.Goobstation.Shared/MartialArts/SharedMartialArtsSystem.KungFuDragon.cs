@@ -34,6 +34,11 @@ public abstract partial class SharedMartialArtsSystem
             || !_blocker.CanInteract(ent, null)) // Should be able to interact
             return;
 
+        // CorvaxGoob-ProperKungFu-Start: Proper Kung Fu strikes go straight through the dragon's defensive reflex.
+        if (TryComp<Content.Shared._CorvaxGoob.ProperKungFu.ProperKungFuComponent>(args.User, out var properKungFu) && !properKungFu.Pupil)
+            return;
+        // CorvaxGoob-ProperKungFu-End
+
         args.ModifiersList.Add(ent.Comp.ModifierSet);
 
         // Works for both armed and unarmed attacks

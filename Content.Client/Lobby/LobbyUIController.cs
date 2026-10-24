@@ -176,6 +176,7 @@ public sealed class LobbyUIController : UIController, IOnStateEntered<LobbyState
         {
             _profileEditor.RefreshAntags();
             _profileEditor.RefreshJobs();
+            _profileEditor.RefreshTraits(); // CorvaxGoob-ProperKungFu
         }
     }
 

@@ -105,3 +105,73 @@
       params:
         volume: 4
   canDoWhileProne: false
+
+# "Proper Kung Fu (pupil)", taught by the "Join the Pack" skill: the three regular combos only.
+# Claw Series and Wolf Grip deal the same damage; ProperKungFuSystem halves their other effects (stun, knockback,
+# breath block). The pupil's Perfect Flow is only 10 Blunt to the torso: no arm hits, no disorientation, no forced
+# fractures. No finishers, synergies, skills or ultimate, none of the master's passives (attack rate, stamina,
+# sprint, gunshot/bleed modifiers, CQC bypass) and no ranged weapon ban (the form isn't ProperKungFu).
+- type: martialArt
+  id: ProperKungFuPupil
+  martialArtsForm: ProperKungFuPupil
+  roundstartCombos: ProperKungFuPupilMoves
+
+- type: comboList
+  id: ProperKungFuPupilMoves
+  combos:
+  - ProperKungFuPupilClawSeries
+  - ProperKungFuPupilWolfGrip
+  - ProperKungFuPupilPerfectFlow
+
+- type: combo
+  id: ProperKungFuPupilClawSeries
+  name: proper-kung-fu-claw-series
+  martialArtsForm: ProperKungFuPupil
+  attacks:
+  - Harm
+  - Harm
+  - Harm
+  event: !type:ProperKungFuClawSeriesPerformedEvent
+  extraDamage: 10
+  paralyzeTime: 2
+  canDoWhileProne: false
+
+- type: combo
+  id: ProperKungFuPupilWolfGrip
+  name: proper-kung-fu-wolf-grip
+  martialArtsForm: ProperKungFuPupil
+  attacks:
+  - Harm
+  - Disarm
+  - Grab
+  event: !type:ProperKungFuWolfGripPerformedEvent
+    breathBlockTime: 10
+    markDuration: 2
+    holdDistance: 0.6
+    finisherThreshold: 0
+  extraDamage: 15
+  damageType: Slash
+  canDoWhileProne: false
+
+- type: combo
+  id: ProperKungFuPupilPerfectFlow
+  name: proper-kung-fu-perfect-flow
+  martialArtsForm: ProperKungFuPupil
+  attacks:
+  - Disarm
+  - Harm
+  - Disarm
+  - Harm
+  event: !type:ProperKungFuPerfectFlowPerformedEvent
+    partDamage: 10
+    damageType: Blunt
+    fractureThreshold: 0
+    disorientTime: 0
+    finisherThreshold: 0
+    flashEffect: ProperKungFuFlowFlash
+    flashInterval: 0.1
+    hitSound:
+      path: /Audio/Weapons/punch2.ogg
+      params:
+        volume: 2
+  canDoWhileProne: false

@@ -118,6 +118,7 @@ public sealed partial class ProperKungFuSystem
         held.Landed = false;
         // The threshold is checked on the damage the target had before the whirlwind.
         held.Finisher = args.FinisherThreshold > 0
+            && !_mobState.IsDead(target)
             && TryComp<DamageableComponent>(target, out var damageable)
             && damageable.TotalDamage >= args.FinisherThreshold;
         held.FinisherSlashes = 0;
@@ -222,7 +223,7 @@ public sealed partial class ProperKungFuSystem
 
         // No shield rule here: the target is already in the air.
         // The Blunt lands on the torso; the skull fracture and brain trauma below still go to the head.
-        _damageable.TryChangeDamage(target, args.Damage, origin: user, targetPart: SkillTargetPart, canMiss: false);
+        DealKungFuDamage(target, args.Damage, origin: user, targetPart: SkillTargetPart, canMiss: false);
         InflictHeadTrauma(target, args.BrainTraumaSeverity);
 
         if (args.ImpactEffect is { } effect)
@@ -327,6 +328,8 @@ public sealed partial class ProperKungFuSystem
     private void DoWhirlwindFinisherSlash(EntityUid user, EntityUid target, ClawWhirlwindedComponent held, ClawWhirlwindActionEvent args, bool up)
     {
         held.FinisherSlashes = up ? 1 : 2;
+        if (!up)
+            HealFinisherUser(user);
 
         // In chunks, so the torso doesn't get one giant wound.
         DealChunkedDamage(user, target, args.FinisherSlashDamage, SkillTargetPart);

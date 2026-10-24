@@ -92,6 +92,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         SubscribeLocalEvent<ProperKungFuComponent, WolfDanceActionEvent>(OnWolfDance);
         SubscribeLocalEvent<WolfDancingComponent, PreventCollideEvent>(OnDancingPreventCollide);
         SubscribeLocalEvent<ProperKungFuDanceFinisherComponent, PreventCollideEvent>(OnDanceFinisherPreventCollide);
+        SubscribeLocalEvent<ProperKungFuHammerFinisherComponent, PreventCollideEvent>(OnHammerFinisherPreventCollide);
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuSpecialHitEvent>(OnSpecialHit);
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuClawSeriesPerformedEvent>(OnClawSeries);
         SubscribeLocalEvent<ProperKungFuComponent, ClawWhirlwindActionEvent>(OnClawWhirlwind);
@@ -99,6 +100,10 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuPerfectFlowPerformedEvent>(OnPerfectFlow);
         SubscribeLocalEvent<ProperKungFuComponent, HammerActionEvent>(OnHammer);
         InitializeWolfInstinct();
+        InitializePassives();
+        InitializeWolfPack();
+        InitializeKunai();
+        InitializeJoinPack();
     }
 
     private void OnStartup(Entity<ProperKungFuComponent> ent, ref ComponentStartup args)
@@ -109,8 +114,8 @@ public sealed partial class ProperKungFuSystem : EntitySystem
                 ent.Comp.ActionEntities.Add(action);
         }
 
-        // Passive +stamina. Attack rate and sprint speed are applied by SharedMartialArtsSystem.ProperKungFu.
-        if (TryComp<StaminaComponent>(ent, out var stamina))
+        // Passive +stamina (zero for a pupil). Attack rate and sprint speed are applied by SharedMartialArtsSystem.ProperKungFu.
+        if (!ent.Comp.Pupil && TryComp<StaminaComponent>(ent, out var stamina))
         {
             stamina.CritThreshold += ent.Comp.BonusStamina;
             ent.Comp.AppliedBonusStamina = ent.Comp.BonusStamina;
@@ -188,9 +193,9 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             || combo.CurrentTarget is not { } target
             || TerminatingOrDeleted(target)
             || !_proto.TryIndex(combo.BeingPerformed, out var proto)
-            || proto.MartialArtsForm != MartialArtsForms.ProperKungFu
+            || !IsKungFuComboForm(ent, proto.MartialArtsForm)
             || !TryComp<MartialArtsKnowledgeComponent>(ent, out var knowledge)
-            || knowledge.MartialArtsForm != MartialArtsForms.ProperKungFu
+            || knowledge.MartialArtsForm != proto.MartialArtsForm
             || knowledge.Blocked)
             return;
 
@@ -207,15 +212,17 @@ public sealed partial class ProperKungFuSystem : EntitySystem
 
         // Finisher threshold is measured before the combo bonus lands.
         var preDamage = TryComp<DamageableComponent>(target, out var preDamageable) ? preDamageable.TotalDamage.Float() : 0f;
-        var finisher = ent.Comp.ClawSeriesFinisherThreshold > 0f && preDamage >= ent.Comp.ClawSeriesFinisherThreshold
+        var scale = EffectScale(ent);
+        var finisher = !ent.Comp.Pupil && ent.Comp.ClawSeriesFinisherThreshold > 0f && preDamage >= ent.Comp.ClawSeriesFinisherThreshold
+                       && !_mobState.IsDead(target)
                        && !HasComp<ProperKungFuSeriesFinisherComponent>(ent);
 
         var damage = new DamageSpecifier();
         damage.DamageDict.Add(proto.DamageType, proto.ExtraDamage);
-        _damageable.TryChangeDamage(target, damage, origin: ent, targetPart: targetPart);
+        DealKungFuDamage(target, damage, origin: ent, targetPart: targetPart);
 
         // Standing stun: StunnedComponent only, no knockdown and nothing is dropped.
-        _stun.TryStun(target, TimeSpan.FromSeconds(proto.ParalyzeTime), true);
+        _stun.TryStun(target, TimeSpan.FromSeconds(proto.ParalyzeTime * scale), true);
         Spawn(PalmFlashEffect, _transform.GetMapCoordinates(target));
 
         if (TryComp<PullableComponent>(target, out var pullable))
@@ -227,11 +234,15 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             : _transform.GetWorldRotation(ent).ToWorldVec();
 
         // Slides back exactly 3 tiles on its feet, kicking up dust; walls stop it.
-        StartKnockback(target, direction, ClawSeriesKnockback, SlideDuration, dust: true);
+        StartKnockback(target, direction, ClawSeriesKnockback * scale, SlideDuration, dust: true);
 
-        var mark = EnsureComp<ProperKungFuClawMarkComponent>(target);
-        mark.Marker = ent;
-        mark.ExpiresAt = _timing.CurTime + ClawMarkDuration;
+        // The Wolf Dance synergy mark; a pupil has no synergies.
+        if (!ent.Comp.Pupil)
+        {
+            var mark = EnsureComp<ProperKungFuClawMarkComponent>(target);
+            mark.Marker = ent;
+            mark.ExpiresAt = _timing.CurTime + ClawMarkDuration;
+        }
 
         _audio.PlayPvs(new SoundPathSpecifier("/Audio/Weapons/genhit3.ogg"), target);
 
@@ -249,8 +260,28 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             AddUltimateCharge(ent, ent.Comp.ChargePerCombo);
     }
 
+    /// <summary>
+    /// The Proper Kung Fu combo forms: the full art and the pupil one.
+    /// </summary>
+    private static bool IsKungFuComboForm(Entity<ProperKungFuComponent> ent, MartialArtsForms form)
+    {
+        return ent.Comp.Pupil ? form == MartialArtsForms.ProperKungFuPupil : form == MartialArtsForms.ProperKungFu;
+    }
+
+    /// <summary>
+    /// Scale of the non-damage effects of a combo: 1 for the art, halved for a pupil.
+    /// </summary>
+    private static float EffectScale(Entity<ProperKungFuComponent> ent)
+    {
+        return ent.Comp.Pupil ? ent.Comp.PupilEffectMultiplier : 1f;
+    }
+
     public void AddUltimateCharge(Entity<ProperKungFuComponent> ent, float amount)
     {
+        // Wolf Pack clones and pupils never charge anything.
+        if (ent.Comp.Pupil || HasComp<ProperKungFuCloneComponent>(ent))
+            return;
+
         var newCharge = Math.Clamp(ent.Comp.UltimateCharge + amount, 0f, ent.Comp.MaxUltimateCharge);
         if (MathHelper.CloseTo(newCharge, ent.Comp.UltimateCharge))
             return;
@@ -296,8 +327,6 @@ public sealed partial class ProperKungFuSystem : EntitySystem
 
         _transform.SetWorldRotation(user, direction.ToWorldAngle());
 
-        var travel = MathF.Max(0f, distance - args.StopDistance);
-
         // Right after Claw Whirlwind: a faster flying kick that hits harder. The mark is consumed now,
         // so it can't run out mid-flight.
         var whirlwind = TryConsumeWhirlwindMark(user, target);
@@ -307,34 +336,16 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         if (hammer)
             RemComp<ProperKungFuSlidingComponent>(user); // cut the backflip short
 
-        // CorvaxGoob-ProperKungFu-Start: no synergy -> a fast dash through the target that tosses it up in place.
-        if (!whirlwind && !hammer && !HasFreshClawMark(user, target))
-        {
-            StartPassThrough(user, target, userCoords, direction, distance, args);
-            return;
-        }
-        // CorvaxGoob-ProperKungFu-End
-
-        // Already in kicking range: no movement needed, kick right away.
-        if (travel < 0.3f)
-        {
-            DoKick(user, target, args, whirlwind);
-            return;
-        }
-
-        // Every variant is one straight flying kick; only its speed differs.
-        var dancing = EnsureComp<WolfDancingComponent>(user);
-        dancing.Target = target;
-        dancing.Event = args;
-        dancing.Map = userCoords.MapId;
-        dancing.WhirlwindVariant = whirlwind;
-        dancing.MaxDashLength = travel + args.ChaseDistance;
-        dancing.AfterimagesSpawned = 0;
+        // CorvaxGoob-ProperKungFu-Start: every variant is the same fast dash through the target and the user never
+        // falls; the synergies (Claw Series / Claw Whirlwind / Hammer grip) only change what the hit does to the victim.
+        var kickVariant = whirlwind || hammer || HasFreshClawMark(user, target);
         var duration = whirlwind ? args.WhirlwindDashDuration
             : hammer ? args.HammerDashDuration
-            : args.DashDuration;
-        StartPhase(user, dancing, WolfDancePhase.Dash, userCoords.Position, userCoords.Position + direction * travel, duration);
+            : kickVariant ? args.DashDuration
+            : args.PassThroughDashDuration;
+        StartPassThrough(user, target, userCoords, direction, distance, args, kickVariant, whirlwind, duration);
     }
+    // CorvaxGoob-ProperKungFu-End
 
     private bool TryConsumeWhirlwindMark(EntityUid user, EntityUid target)
     {
@@ -459,10 +470,14 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         UpdateWhirlwind(now);
         UpdateWolfGripMarks(now);
         UpdateHammerMarks(now);
+        UpdateHammerFinishers(now);
+        UpdateBleedBoosts();
         UpdateWolfInstinct(now);
         UpdatePerfectFlow(now);
         UpdateClawSeriesFinishers(now);
         UpdateGripSuplexes(now);
+        UpdateWolfPack(now);
+        UpdateKunai(now);
 
         var marks = EntityQueryEnumerator<ProperKungFuClawMarkComponent>();
         while (marks.MoveNext(out var uid, out var mark))
@@ -493,7 +508,6 @@ public sealed partial class ProperKungFuSystem : EntitySystem
 
         var target = dancing.Target;
         var targetValid = !TerminatingOrDeleted(target) && _transform.GetMapId(target) == dancing.Map;
-        var current = _transform.GetWorldPosition(user);
 
         if (dancing.PassThrough)
         {
@@ -501,58 +515,10 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             return;
         }
 
-        // The flying kick re-aims every tick at the target's current position, but can't chase further than allowed.
-        if (dancing.Phase == WolfDancePhase.Dash && targetValid)
-        {
-            var targetPos = _transform.GetWorldPosition(target);
-            var toTarget = targetPos - dancing.PhaseFrom;
-            var len = toTarget.Length();
-            if (len > 0.01f)
-            {
-                var dir = toTarget / len;
-                var dashLength = Math.Clamp(len - args.StopDistance, 0f, MathF.Max(0f, dancing.MaxDashLength));
-                dancing.PhaseTo = dancing.PhaseFrom + dir * dashLength;
-            }
-        }
-
-        var duration = dancing.PhaseDuration.TotalSeconds;
-        var t = duration <= 0 ? 1f : (float) Math.Clamp((now - dancing.PhaseStart).TotalSeconds / duration, 0, 1);
-        // Accelerating leap into the target.
-        var eased = t * t;
-
-        var desired = Vector2.Lerp(dancing.PhaseFrom, dancing.PhaseTo, eased);
-        var hitWall = IsPathBlocked(user, dancing.Map, current, desired, out var free);
-        _transform.SetWorldPosition(user, hitWall ? free : desired);
-
-        if (args.AfterimageEffect != null
-            && dancing.AfterimagesSpawned < args.Afterimages
-            && now >= dancing.NextAfterimage)
-        {
-            SpawnAfterimage(user, dancing.Map, hitWall ? free : desired, args.AfterimageEffect.Value);
-            dancing.AfterimagesSpawned++;
-            dancing.NextAfterimage = now + args.AfterimageInterval;
-        }
-
-        if (t < 1f && !hitWall)
-            return;
-
-        // End of the dash (or blocked by a wall / target gone): kick if the target is close enough.
-        var inRange = targetValid
-            && Vector2.Distance(_transform.GetWorldPosition(user), _transform.GetWorldPosition(target)) <= args.KickRange;
-
-        var whirlwindVariant = dancing.WhirlwindVariant;
-        StopDance(user, inRange);
-
-        if (inRange)
-        {
-            DoKick(user, target, args, whirlwindVariant);
-            return;
-        }
-
-        // A missed flying kick still ends on the floor.
-        _stun.TryKnockdown(user, args.UserKnockdownTime, true);
-        _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-miss"), user, user, PopupType.SmallCaution);
+        // CorvaxGoob-ProperKungFu-Start: the old flying kick is gone, every variant is the dash through the target.
+        StopDance(user, false);
     }
+    // CorvaxGoob-ProperKungFu-End
 
     private void StopDance(EntityUid user, bool kicking)
     {
@@ -563,24 +529,10 @@ public sealed partial class ProperKungFuSystem : EntitySystem
     }
 
     /// <summary>
-    /// The flying kick at the end of the Wolf Dance. Whatever happens, the user lands on the floor afterwards.
+    /// The synergy Wolf Dance hit, landed as the user dashes through the target (no kick pose, the user stays up).
     /// </summary>
-    private void DoKick(EntityUid user, EntityUid target, WolfDanceActionEvent args, bool whirlwind = false)
+    private bool DoKickHit(EntityUid user, EntityUid target, WolfDanceActionEvent args, bool whirlwind, Vector2 direction)
     {
-        DoKickHit(user, target, args, whirlwind);
-        _stun.TryKnockdown(user, args.UserKnockdownTime, true);
-    }
-
-    private void DoKickHit(EntityUid user, EntityUid target, WolfDanceActionEvent args, bool whirlwind)
-    {
-        var delta = _transform.GetWorldPosition(target) - _transform.GetWorldPosition(user);
-        var direction = delta.LengthSquared() > 0.0001f
-            ? Vector2.Normalize(delta)
-            : _transform.GetWorldRotation(user).ToWorldVec();
-
-        _transform.SetWorldRotation(user, direction.ToWorldAngle());
-        SendAnimation(user, WolfDancePhase.Kick, 0.3f, direction);
-
         if (args.ShockwaveEffect is { } shockwave)
             Spawn(shockwave, _transform.GetMapCoordinates(target));
 
@@ -588,7 +540,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         {
             var blockedEv = new ProperKungFuSpecialHitEvent(target, WolfDanceMove, true);
             RaiseLocalEvent(user, ref blockedEv);
-            return;
+            return false;
         }
 
         // Claw Whirlwind variant (takes priority over the Claw Series mark, which is consumed as well).
@@ -596,7 +548,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         {
             RemComp<ProperKungFuClawMarkComponent>(target);
             DoWhirlwindKick(user, target, direction, args);
-            return;
+            return true;
         }
 
         // Claw Series synergy: a fresh mark from this user turns the kick into a harder finisher without the stun.
@@ -608,7 +560,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             RemComp(target, mark);
 
         _audio.PlayPvs(args.HitSound, target);
-        _damageable.TryChangeDamage(target,
+        DealKungFuDamage(target,
             synergy ? args.SynergyDamage : args.Damage,
             origin: user,
             targetPart: SkillTargetPart,
@@ -643,11 +595,12 @@ public sealed partial class ProperKungFuSystem : EntitySystem
 
         var hitEv = new ProperKungFuSpecialHitEvent(target, WolfDanceMove, false);
         RaiseLocalEvent(user, ref hitEv);
+        return true;
     }
 
     /// <summary>
-    /// Wolf Dance right after Claw Whirlwind: 15 Blunt + 15 Slash, the target flies 5 tiles and falls,
-    /// and the user falls too after the hit.
+    /// Wolf Dance right after Claw Whirlwind: 15 Blunt + 15 Slash, the target flies 5 tiles and falls.
+    /// The user stays on their feet.
     /// </summary>
     private void DoWhirlwindKick(EntityUid user, EntityUid target, Vector2 direction, WolfDanceActionEvent args)
     {
@@ -656,7 +609,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             EndWhirlwind(target, landed: false);
 
         _audio.PlayPvs(args.HitSound, target);
-        _damageable.TryChangeDamage(target,
+        DealKungFuDamage(target,
             args.WhirlwindSynergyDamage,
             origin: user,
             targetPart: SkillTargetPart,

@@ -38,23 +38,27 @@ public sealed partial class ProperKungFuSystem
                && _timing.CurTime < mark.ExpiresAt;
     }
 
-    private void StartPassThrough(EntityUid user, EntityUid target, MapCoordinates userCoords, Vector2 direction, float distance, WolfDanceActionEvent args)
+    private void StartPassThrough(EntityUid user, EntityUid target, MapCoordinates userCoords, Vector2 direction, float distance,
+        WolfDanceActionEvent args, bool kickVariant, bool whirlwind, TimeSpan duration)
     {
         var dancing = EnsureComp<WolfDancingComponent>(user);
         dancing.Target = target;
         dancing.Event = args;
         dancing.Map = userCoords.MapId;
-        dancing.WhirlwindVariant = false;
+        dancing.WhirlwindVariant = whirlwind;
+        dancing.KickVariant = kickVariant;
         dancing.PassThrough = true;
         dancing.PassHit = false;
-        // The finisher looks at the damage from before the dance.
-        dancing.FinisherPending = args.FinisherPasses > 0
+        // The finisher looks at the damage from before the dance; only the plain variant has one, never on the dead.
+        dancing.FinisherPending = !kickVariant
+                                  && args.FinisherPasses > 0
+                                  && !_mobState.IsDead(target)
                                   && TryComp<DamageableComponent>(target, out var damageable)
                                   && damageable.TotalDamage >= args.FinisherThreshold;
         dancing.MaxDashLength = distance + args.PassThroughDistance + args.ChaseDistance;
         dancing.AfterimagesSpawned = 0;
         StartPhase(user, dancing, WolfDancePhase.PassThrough, userCoords.Position,
-            userCoords.Position + direction * (distance + args.PassThroughDistance), args.PassThroughDashDuration);
+            userCoords.Position + direction * (distance + args.PassThroughDistance), duration);
 
         // Drop an already existing contact with the target, so the dash goes through it.
         _physics.RegenerateContacts(user);
@@ -95,6 +99,7 @@ public sealed partial class ProperKungFuSystem
         var hitWall = IsPathBlocked(user, dancing.Map, current, desired, out var free);
         var position = hitWall ? free : desired;
         _transform.SetWorldPosition(user, position);
+        var stepFrom = current;
         _physics.SetLinearVelocity(user, Vector2.Zero);
 
         if (args.AfterimageEffect != null
@@ -112,11 +117,13 @@ public sealed partial class ProperKungFuSystem
         // The hit lands as the user passes through the target.
         if (!dancing.PassHit && targetValid)
         {
-            var rel = _transform.GetWorldPosition(target) - position;
-            if (Vector2.Dot(rel, dashDir) <= 0.25f && rel.Length() <= args.KickRange)
+            // Swept along this tick's step: the fast dash can cover more than the kick range in one tick.
+            var targetPos = _transform.GetWorldPosition(target);
+            var rel = targetPos - position;
+            if (Vector2.Dot(rel, dashDir) <= 0.25f && DistanceToSegment(targetPos, stepFrom, position) <= args.KickRange)
             {
                 dancing.PassHit = true;
-                dancing.PassLanded = DoPassThroughHit(user, target, dashDir, args);
+                dancing.PassLanded = DoDanceHit(user, target, dashDir, dancing, args);
             }
         }
 
@@ -128,7 +135,7 @@ public sealed partial class ProperKungFuSystem
             && Vector2.Distance(position, _transform.GetWorldPosition(target)) <= args.KickRange)
         {
             hit = true;
-            dancing.PassLanded = DoPassThroughHit(user, target, dashDir, args);
+            dancing.PassLanded = DoDanceHit(user, target, dashDir, dancing, args);
         }
 
         var finisher = hit && dancing.PassLanded && dancing.FinisherPending && targetValid;
@@ -143,8 +150,32 @@ public sealed partial class ProperKungFuSystem
         if (!hit)
             _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-miss"), user, user, PopupType.SmallCaution);
 
-        if (args.PlainUserFalls)
+        // The user stays on their feet in every variant (PlainUserFalls is kept only as an opt-in for the plain one).
+        if (args.PlainUserFalls && !dancing.KickVariant)
             _stun.TryKnockdown(user, args.UserKnockdownTime, true);
+    }
+
+    private static float DistanceToSegment(Vector2 point, Vector2 a, Vector2 b)
+    {
+        var ab = b - a;
+        var lengthSq = ab.LengthSquared();
+        if (lengthSq < 0.0001f)
+            return Vector2.Distance(point, a);
+
+        var t = Math.Clamp(Vector2.Dot(point - a, ab) / lengthSq, 0f, 1f);
+        return Vector2.Distance(point, a + ab * t);
+    }
+
+    /// <summary>
+    /// The plain dance tosses the target up; the synergy variants hit with their own damage and knockback
+    /// (along the dash, so the target flies on past the user).
+    /// </summary>
+    private bool DoDanceHit(EntityUid user, EntityUid target, Vector2 dashDir, WolfDancingComponent dancing, WolfDanceActionEvent args)
+    {
+        if (!dancing.KickVariant)
+            return DoPassThroughHit(user, target, dashDir, args);
+
+        return DoKickHit(user, target, args, dancing.WhirlwindVariant, dashDir);
     }
 
     /// <summary>
@@ -164,7 +195,7 @@ public sealed partial class ProperKungFuSystem
         }
 
         _audio.PlayPvs(args.HitSound, target);
-        _damageable.TryChangeDamage(target, args.Damage, origin: user, targetPart: SkillTargetPart, canMiss: false);
+        DealKungFuDamage(target, args.Damage, origin: user, targetPart: SkillTargetPart, canMiss: false);
 
         // Tossed straight up on the spot: no knockback. Stunned now, knocked down on landing (2 s in total).
         RemComp<ProperKungFuSlidingComponent>(target);
@@ -323,7 +354,7 @@ public sealed partial class ProperKungFuSystem
     /// </summary>
     private void DoFinisherPassHit(EntityUid user, EntityUid victim, Vector2 direction, WolfDanceActionEvent args)
     {
-        _damageable.TryChangeDamage(victim, args.FinisherPassDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
+        DealKungFuDamage(victim, args.FinisherPassDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
         var coords = _transform.GetMapCoordinates(victim);
         if (args.ShockwaveEffect is { } shockwave)
             Spawn(shockwave, coords);
@@ -341,6 +372,8 @@ public sealed partial class ProperKungFuSystem
     /// </summary>
     private void DoDanceFinisherStrike(EntityUid user, EntityUid victim, ProperKungFuDanceFinisherComponent finisher, WolfDanceActionEvent args)
     {
+        HealFinisherUser(user);
+
         foreach (var part in args.FinisherFinalParts)
         {
             DealChunkedDamage(user, victim, args.FinisherFinalDamage, part);
@@ -383,7 +416,7 @@ public sealed partial class ProperKungFuSystem
         var chunk = damage / hits;
         for (var i = 0; i < hits; i++)
         {
-            _damageable.TryChangeDamage(target, chunk, origin: user, targetPart: part, canMiss: false);
+            DealKungFuDamage(target, chunk, origin: user, targetPart: part, canMiss: false);
         }
     }
 

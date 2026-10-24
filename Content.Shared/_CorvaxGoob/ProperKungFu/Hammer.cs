@@ -9,9 +9,10 @@ namespace Content.Shared._CorvaxGoob.ProperKungFu;
 
 /// <summary>
 /// "Hammer" (Молот): one sweeping downward claw strike into the head of a target within fist reach.
-/// Priority of the variants: target in crit (the skull breaks, the head stays on) > Wolf Grip synergy (backflip, then an instant
-/// Wolf Dance) > Wolf Dance mark (body hit and a knockback) > target already lying (forced sleep and a much harder
-/// hit) > the base hit (knockdown). The crit, grip, lying and base variants also hurt the eyes and the brain.
+/// Priority of the variants: Wolf Grip synergy (backflip, then an instant Wolf Dance) > Wolf Dance mark (body hit and
+/// a knockback) > finisher (a living target with at least 80 damage: four strikes in a row) > target already lying
+/// (forced sleep and a much harder hit) > the base hit (knockdown). The grip, lying and base variants also hurt the
+/// eyes and the brain. The skull is never broken.
 /// </summary>
 public sealed partial class HammerActionEvent : EntityTargetActionEvent
 {
@@ -110,6 +111,81 @@ public sealed partial class HammerActionEvent : EntityTargetActionEvent
     /// </summary>
     [DataField]
     public TimeSpan DanceKnockdownTime = TimeSpan.FromSeconds(1.5);
+
+    /// <summary>
+    /// Finisher: a living target with at least this much total damage (before the hit).
+    /// </summary>
+    [DataField]
+    public float FinisherThreshold = 80f;
+
+    /// <summary>
+    /// Finisher step 1: the normal downward Hammer strike, but only this much damage to the head (no trauma or sleep).
+    /// </summary>
+    [DataField]
+    public DamageSpecifier FinisherFirstDamage = new();
+
+    /// <summary>
+    /// Finisher step 2: a straight strike into the torso with a horizontal claw swipe.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier FinisherStraightDamage = new();
+
+    [DataField]
+    public float FinisherStraightKnockback = 2f;
+
+    /// <summary>
+    /// Finisher step 3: after a front flip towards the target, another normal Hammer strike into the torso.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier FinisherFlipDamage = new();
+
+    /// <summary>
+    /// Finisher step 4: a spinning strike with a diagonal claw swipe into the head.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier FinisherSpinDamage = new();
+
+    /// <summary>
+    /// Finisher step 4: the target flies off spinning and lands this many tiles away from the user.
+    /// </summary>
+    [DataField]
+    public float FinisherFinalDistance = 5f;
+
+    [DataField]
+    public float FinisherKnockbackSpeed = 10f;
+
+    [DataField]
+    public TimeSpan FinisherKnockdownTime = TimeSpan.FromSeconds(3);
+
+    [DataField]
+    public TimeSpan FinisherStraightDelay = TimeSpan.FromSeconds(0.35);
+
+    [DataField]
+    public TimeSpan FinisherFlipDelay = TimeSpan.FromSeconds(0.7);
+
+    [DataField]
+    public TimeSpan FinisherFlipDuration = TimeSpan.FromSeconds(0.35);
+
+    [DataField]
+    public TimeSpan FinisherSpinDelay = TimeSpan.FromSeconds(1.35);
+
+    [DataField]
+    public TimeSpan FinisherSpinDuration = TimeSpan.FromSeconds(0.3);
+
+    [DataField]
+    public float FinisherTossSpins = 1.5f;
+
+    [DataField]
+    public float FinisherTossHeight = 0.6f;
+
+    [DataField]
+    public EntProtoId? FinisherHorizontalEffect = "ProperKungFuHammerStrikeHorizontal";
+
+    [DataField]
+    public EntProtoId? FinisherDiagonalEffect = "ProperKungFuHammerStrikeDiagonal";
+
+    [DataField]
+    public SoundSpecifier? FinisherFinalSound;
 }
 
 /// <summary>
@@ -149,14 +225,21 @@ public sealed class ProperKungFuBackflipEvent : EntityEventArgs
     public float Duration;
 
     /// <summary>
-    /// Direction the user flies (away from the target).
+    /// Direction the user flies (away from the target for the backflip, towards it for the front flip).
     /// </summary>
     public Vector2 Direction;
 
-    public ProperKungFuBackflipEvent(NetEntity user, float duration, Vector2 direction)
+    /// <summary>
+    /// A front flip towards the target (Hammer finisher) instead of a backflip away from it. Flying the same way,
+    /// both turn the same way, so the client animation is shared.
+    /// </summary>
+    public bool Front;
+
+    public ProperKungFuBackflipEvent(NetEntity user, float duration, Vector2 direction, bool front = false)
     {
         User = user;
         Duration = duration;
         Direction = direction;
+        Front = front;
     }
 }

@@ -47,7 +47,7 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
     /// Duration of the straight flying kick (feet first) into the target.
     /// </summary>
     [DataField]
-    public TimeSpan DashDuration = TimeSpan.FromSeconds(0.35);
+    public TimeSpan DashDuration = TimeSpan.FromSeconds(0.12);
 
     /// <summary>
     /// The kick only lands if the target is within this distance (tiles) when the dash ends.
@@ -119,7 +119,7 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
     /// Duration of the flying kick of the Whirlwind variant.
     /// </summary>
     [DataField]
-    public TimeSpan WhirlwindDashDuration = TimeSpan.FromSeconds(0.2);
+    public TimeSpan WhirlwindDashDuration = TimeSpan.FromSeconds(0.07);
 
     [DataField]
     public TimeSpan WhirlwindKnockdownTime = TimeSpan.FromSeconds(2);
@@ -128,7 +128,7 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
     /// Duration of the near-instant flying kick right after the Hammer's Wolf Grip synergy (normal kick).
     /// </summary>
     [DataField]
-    public TimeSpan HammerDashDuration = TimeSpan.FromSeconds(0.08);
+    public TimeSpan HammerDashDuration = TimeSpan.FromSeconds(0.03);
 
     /// <summary>
     /// The user lands on the floor after every flying kick (hit, blocked or missed), in every variant.
@@ -153,7 +153,7 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
     /// Plain variant: duration of the fast dash through the target.
     /// </summary>
     [DataField]
-    public TimeSpan PassThroughDashDuration = TimeSpan.FromSeconds(0.35);
+    public TimeSpan PassThroughDashDuration = TimeSpan.FromSeconds(0.12);
 
     /// <summary>
     /// Plain variant: how long the target spends in the air (it lands on the same spot, knocked down).
