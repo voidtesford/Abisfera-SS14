@@ -38,6 +38,31 @@
     breathBlockTime: 10
     markDuration: 2
     holdDistance: 0.6
+    # Finisher (bridge suplex) on a target that already had this much damage before the combo.
+    finisherThreshold: 80
+    finisherDelay: 0.25
+    finisherDuration: 0.55
+    finisherHeight: 0.9
+    finisherBehindDistance: 1
+    finisherHeadDamage:
+      types:
+        Blunt: 25
+    finisherTorsoDamage:
+      types:
+        Blunt: 50
+    finisherKnockdownTime: 4
+    finisherImpactEffects:
+    - ProperKungFuGripSlamCrack
+    - ProperKungFuGripSlamRing
+    - ProperKungFuShockwaveEffect
+    - ProperKungFuDustPuffWhite
+    - ProperKungFuDustPuffRed
+    finisherLiftSound:
+      path: /Audio/Effects/thudswoosh.ogg
+    finisherSound:
+      path: /Audio/Effects/metal_slam1.ogg
+      params:
+        volume: 6
   extraDamage: 15
   damageType: Slash
   canDoWhileProne: false
@@ -65,8 +90,8 @@
     finisherDamageType: Blunt
     behindDistance: 0.8
     spinDuration: 0.35
-    armCutEffect: ProperKungFuFlowArmCuts
-    palmsEffect: ProperKungFuFlowPalms
+    flashEffect: ProperKungFuFlowFlash
+    flashInterval: 0.1
     axeKickEffect: ProperKungFuFlowAxeKick
     afterimageEffect: ProperKungFuFlowAfterimage
     hitSound:

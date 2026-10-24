@@ -9,6 +9,7 @@ using Content.Shared._CorvaxGoob.ProperKungFu;
 using Content.Shared._Shitmed.Body.Organ;
 using Content.Shared._Shitmed.Medical.Surgery.Wounds.Components;
 using Content.Shared.Body.Components;
+using Content.Shared.Damage;
 using Content.Shared._Shitmed.Targeting;
 using Content.Shared.Body.Part;
 using Content.Shared.Mobs.Components;
@@ -28,7 +29,6 @@ public sealed partial class ProperKungFuSystem
 {
     [Dependency] private readonly Content.Shared.StatusEffectNew.StatusEffectsSystem _statusNew = default!;
     [Dependency] private readonly StandingStateSystem _standing = default!;
-    [Dependency] private readonly BloodstreamSystem _bloodstream = default!;
 
     private const string HammerMove = "Hammer";
 
@@ -77,26 +77,16 @@ public sealed partial class ProperKungFuSystem
             : _transform.GetWorldRotation(user).ToWorldVec();
         _transform.SetWorldRotation(user, direction.ToWorldAngle());
 
-        // Priority: crit > lying > Wolf Grip synergy > base hit.
+        // Priority: crit > Wolf Grip synergy > Wolf Dance mark > lying > base hit.
         if (_mobState.IsCritical(target))
-            SpawnHammerEffect(args.ImpactEffect, targetCoords);
-
-        if (_mobState.IsCritical(target) && TryTearHeadApart(user, target, direction, args))
         {
-            RemComp<ProperKungFuWolfGripMarkComponent>(target);
-            FinishHammer(user, target, "proper-kung-fu-hammer-gib-user", "proper-kung-fu-hammer-gib-target", args.HitSound);
-            return;
-        }
-
-        if (_standing.IsDown(target) || HasComp<KnockedDownComponent>(target))
-        {
+            // The skull breaks, but the head stays on.
             SpawnHammerEffect(args.ImpactEffect, targetCoords);
             RemComp<ProperKungFuWolfGripMarkComponent>(target);
-            _damageable.TryChangeDamage(target, args.LyingDamage, origin: user, targetPart: TargetBodyPart.Head, canMiss: false);
-            InflictHammerTrauma(target, args);
-            // After the damage, so the hit itself doesn't wake it up again.
-            _statusNew.TryAddStatusEffectDuration(target, args.SleepStatusEffect, args.SleepTime);
-            FinishHammer(user, target, "proper-kung-fu-hammer-sleep-user", "proper-kung-fu-hammer-sleep-target", args.HitSound);
+            RemComp<ProperKungFuWolfDanceMarkComponent>(target);
+            DealHammerHeadDamage(user, target, args.Damage);
+            InflictHammerTrauma(target, args, breakSkull: true);
+            FinishHammer(user, target, "proper-kung-fu-hammer-crit-user", "proper-kung-fu-hammer-crit-target", args.HitSound);
             return;
         }
 
@@ -109,8 +99,29 @@ public sealed partial class ProperKungFuSystem
             return;
         }
 
+        // Wolf Dance variant: wins over the lying branch, since the dance itself knocks the target down.
+        if (TryConsumeWolfDanceMark(user, target))
+        {
+            SpawnHammerEffect(args.ImpactEffect, targetCoords);
+            DoHammerDanceVariant(user, target, direction, args);
+            FinishHammer(user, target, "proper-kung-fu-hammer-dance-user", "proper-kung-fu-hammer-dance-target", args.HitSound);
+            return;
+        }
+
+        if (_standing.IsDown(target) || HasComp<KnockedDownComponent>(target))
+        {
+            SpawnHammerEffect(args.ImpactEffect, targetCoords);
+            RemComp<ProperKungFuWolfGripMarkComponent>(target);
+            DealHammerHeadDamage(user, target, args.LyingDamage);
+            InflictHammerTrauma(target, args);
+            // After the damage, so the hit itself doesn't wake it up again.
+            _statusNew.TryAddStatusEffectDuration(target, args.SleepStatusEffect, args.SleepTime);
+            FinishHammer(user, target, "proper-kung-fu-hammer-sleep-user", "proper-kung-fu-hammer-sleep-target", args.HitSound);
+            return;
+        }
+
         SpawnHammerEffect(args.ImpactEffect, targetCoords);
-        _damageable.TryChangeDamage(target, args.Damage, origin: user, targetPart: TargetBodyPart.Head, canMiss: false);
+        DealHammerHeadDamage(user, target, args.Damage);
         InflictHammerTrauma(target, args);
         _stun.TryKnockdown(target, args.KnockdownTime, true);
         FinishHammer(user, target, "proper-kung-fu-hammer-user", "proper-kung-fu-hammer-target", args.HitSound);
@@ -134,9 +145,18 @@ public sealed partial class ProperKungFuSystem
     }
 
     /// <summary>
-    /// Eyes and brain lose part of their integrity; the skull itself is not broken by the Hammer.
+    /// Hammer head damage, dealt in small hits: Shitmed only rolls a random dismemberment (and bone/organ traumas)
+    /// when a wound grows by more than 10 at once, so the head can't randomly come off from the Hammer.
     /// </summary>
-    private void InflictHammerTrauma(EntityUid target, HammerActionEvent args)
+    private void DealHammerHeadDamage(EntityUid user, EntityUid target, DamageSpecifier damage)
+    {
+        DealChunkedDamage(user, target, damage, TargetBodyPart.Head);
+    }
+
+    /// <summary>
+    /// Eyes and brain lose part of their integrity; the skull is only broken in the crit variant.
+    /// </summary>
+    private void InflictHammerTrauma(EntityUid target, HammerActionEvent args, bool breakSkull = false)
     {
         var eyes = args.EyeDamageFraction;
         var brain = args.BrainDamageFraction;
@@ -149,37 +169,7 @@ public sealed partial class ProperKungFuSystem
                     return organComp.IntegrityCap * brain;
                 return null;
             },
-            breakBones: false);
-    }
-
-    /// <summary>
-    /// Shitmed: rips the head off the body and gibs it (organs and gore fly out), with a pool of blood.
-    /// </summary>
-    private bool TryTearHeadApart(EntityUid user, EntityUid target, Vector2 direction, HammerActionEvent args)
-    {
-        var head = _body.GetBodyChildrenOfType(target, BodyPartType.Head).FirstOrDefault();
-        if (head == default
-            || !TryComp<WoundableComponent>(head.Id, out var woundable)
-            || woundable.ParentWoundable is not { } parent
-            || !woundable.CanRemove)
-            return false;
-
-        if (TryComp<PullableComponent>(target, out var pullable) && pullable.BeingPulled)
-            _pulling.TryStopPull(target, pullable, user, true);
-
-        _wound.AmputateWoundable(parent, head.Id, woundable);
-
-        // Detached now: blow it apart.
-        if (!TerminatingOrDeleted(head.Id) && TryComp<BodyPartComponent>(head.Id, out var part) && part.Body == null)
-        {
-            _transform.SetCoordinates(head.Id, Transform(target).Coordinates);
-            _body.GibPart(head.Id, part, splatDirection: direction, splatModifier: 2f, splatCone: Angle.FromDegrees(120), gibSoundOverride: args.GibSound);
-        }
-
-        if (args.GibBloodSpill > 0)
-            _bloodstream.TryModifyBloodLevel(target, -args.GibBloodSpill);
-
-        return true;
+            breakBones: breakSkull);
     }
 
     /// <summary>
@@ -191,7 +181,7 @@ public sealed partial class ProperKungFuSystem
         if (TryComp<PullableComponent>(target, out var pullable) && pullable.BeingPulled)
             _pulling.TryStopPull(target, pullable, user, true);
 
-        _damageable.TryChangeDamage(target, args.GripDamage, origin: user, targetPart: TargetBodyPart.Head, canMiss: false);
+        DealHammerHeadDamage(user, target, args.GripDamage);
         InflictHammerTrauma(target, args);
 
         // Backflip: the user flies back away from the target (walls stop it).
@@ -215,8 +205,44 @@ public sealed partial class ProperKungFuSystem
         return true;
     }
 
+    private bool TryConsumeWolfDanceMark(EntityUid user, EntityUid target)
+    {
+        if (!TryComp<ProperKungFuWolfDanceMarkComponent>(target, out var mark))
+            return false;
+
+        var valid = mark.Marker == user && _timing.CurTime < mark.ExpiresAt;
+        if (valid)
+            RemComp(target, mark);
+        return valid;
+    }
+
+    /// <summary>
+    /// Hammer on a Wolf-Dance-marked target: 20 Blunt to the body, an exact 5 tile knockback, landing knocked down.
+    /// No eye/brain trauma and no sleep.
+    /// </summary>
+    private void DoHammerDanceVariant(EntityUid user, EntityUid target, Vector2 direction, HammerActionEvent args)
+    {
+        if (TryComp<PullableComponent>(target, out var pullable) && pullable.BeingPulled)
+            _pulling.TryStopPull(target, pullable, user, true);
+
+        _damageable.TryChangeDamage(target, args.DanceDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
+
+        var slide = TimeSpan.FromSeconds(args.DanceKnockbackDistance / MathF.Max(0.1f, args.DanceKnockbackSpeed));
+        StartKnockback(target, direction, args.DanceKnockbackDistance, slide, dust: true);
+
+        // Stays down as from the dance (a dance knockdown never has more left than this), lands on the floor.
+        _stun.TryKnockdown(target, slide + args.DanceKnockdownTime, true);
+    }
+
     private void UpdateHammerMarks(TimeSpan now)
     {
+        var danceMarks = EntityQueryEnumerator<ProperKungFuWolfDanceMarkComponent>();
+        while (danceMarks.MoveNext(out var uid, out var mark))
+        {
+            if (now >= mark.ExpiresAt)
+                RemCompDeferred(uid, mark);
+        }
+
         var marks = EntityQueryEnumerator<ProperKungFuHammerMarkComponent>();
         while (marks.MoveNext(out var uid, out var mark))
         {

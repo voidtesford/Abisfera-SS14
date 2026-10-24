@@ -66,6 +66,9 @@ public sealed partial class ProperKungFuSystem
         if (stance.Aura is not { } aura || TerminatingOrDeleted(aura))
             stance.Aura = args.AuraEffect is { } auraProto ? SpawnAttachedTo(auraProto, new EntityCoordinates(user, Vector2.Zero)) : null;
 
+        if (args.AuraPulseEffect is { } pulse)
+            SpawnAttachedTo(pulse, new EntityCoordinates(user, Vector2.Zero));
+
         _audio.PlayPvs(args.StanceSound, user);
         _audio.PlayPvs(args.StanceRingSound, user);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-instinct-user"), user, user, PopupType.Medium);
@@ -74,7 +77,12 @@ public sealed partial class ProperKungFuSystem
     private void OnInstinctShutdown(Entity<WolfInstinctStanceComponent> ent, ref ComponentShutdown args)
     {
         if (ent.Comp.Aura is { } aura && !TerminatingOrDeleted(aura))
+        {
             QueueDel(aura);
+
+            if (ent.Comp.Event?.AuraFadeEffect is { } fade && !TerminatingOrDeleted(ent))
+                SpawnAttachedTo(fade, new EntityCoordinates(ent, Vector2.Zero));
+        }
 
         ent.Comp.Aura = null;
     }
@@ -372,9 +380,23 @@ public sealed partial class ProperKungFuSystem
             {
                 var counters = stance.PendingCounters.ToArray();
                 stance.PendingCounters.Clear();
+                var finisher = false;
                 foreach (var attacker in counters)
                 {
+                    // A badly hurt attacker gets the finisher instead, and the stance is over.
+                    if (TryStartInstinctFinisher(uid, attacker, args))
+                    {
+                        finisher = true;
+                        break;
+                    }
+
                     DoInstinctCounter(uid, attacker, args);
+                }
+
+                if (finisher)
+                {
+                    EndInstinct(uid);
+                    continue;
                 }
             }
 
@@ -404,5 +426,137 @@ public sealed partial class ProperKungFuSystem
         }
 
         UpdateInstinctDashes(now);
+        UpdateInstinctFinishers(now);
+    }
+
+    // ---- Finisher ----
+
+    /// <summary>
+    /// The attacker already has <see cref="WolfInstinctActionEvent.FinisherThreshold"/> damage (before anything from
+    /// the counter): lock them, then slash them while both travel forward, closed by a cross strike.
+    /// </summary>
+    private bool TryStartInstinctFinisher(EntityUid user, EntityUid attacker, WolfInstinctActionEvent args)
+    {
+        if (args.FinisherSlashes <= 0
+            || TerminatingOrDeleted(attacker)
+            || HasComp<ProperKungFuInstinctFinisherComponent>(user)
+            || !TryComp<DamageableComponent>(attacker, out var damageable)
+            || damageable.TotalDamage.Float() < args.FinisherThreshold)
+            return false;
+
+        var userCoords = _transform.GetMapCoordinates(user);
+        var victimCoords = _transform.GetMapCoordinates(attacker);
+        if (userCoords.MapId != victimCoords.MapId)
+            return false;
+
+        var delta = victimCoords.Position - userCoords.Position;
+        var direction = delta.LengthSquared() > 0.0001f
+            ? Vector2.Normalize(delta)
+            : _transform.GetWorldRotation(user).ToWorldVec();
+
+        RemComp<ProperKungFuSlidingComponent>(attacker);
+        RemComp<ProperKungFuSlidingComponent>(user);
+        RemComp<ProperKungFuInstinctDashComponent>(user);
+        if (TryComp<PullableComponent>(attacker, out var pullable) && pullable.BeingPulled)
+            _pulling.TryStopPull(attacker, pullable, user, true);
+
+        var now = _timing.CurTime;
+        var finisher = EnsureComp<ProperKungFuInstinctFinisherComponent>(user);
+        finisher.Victim = attacker;
+        finisher.Map = userCoords.MapId;
+        finisher.VictimFrom = victimCoords.Position;
+        finisher.Direction = direction;
+        finisher.UserOffset = userCoords.Position - victimCoords.Position;
+        finisher.StartTime = now;
+        finisher.EndTime = now + args.FinisherSlashInterval * args.FinisherSlashes;
+        finisher.SlashesDone = 0;
+        finisher.Event = args;
+
+        // Locked for the whole sequence: no attacking, no walking away.
+        _stun.TryStun(attacker, finisher.EndTime - now + TimeSpan.FromSeconds(0.1), true);
+        _transform.SetWorldRotation(user, direction.ToWorldAngle());
+
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-instinct-finisher-user", ("target", attacker)), user, user, PopupType.Medium);
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-instinct-finisher-target", ("user", user)), attacker, attacker, PopupType.LargeCaution);
+        return true;
+    }
+
+    private void UpdateInstinctFinishers(TimeSpan now)
+    {
+        var query = EntityQueryEnumerator<ProperKungFuInstinctFinisherComponent, TransformComponent>();
+        while (query.MoveNext(out var uid, out var finisher, out var xform))
+        {
+            var victim = finisher.Victim;
+            if (finisher.Event is not { } args
+                || TerminatingOrDeleted(victim)
+                || xform.MapID != finisher.Map
+                || _transform.GetMapId(victim) != finisher.Map
+                || _container.IsEntityInContainer(uid)
+                || _container.IsEntityInContainer(victim)
+                || _mobState.IsIncapacitated(uid))
+            {
+                RemCompDeferred(uid, finisher);
+                continue;
+            }
+
+            // Both travel forward together; the user keeps its place next to the victim.
+            var total = (finisher.EndTime - finisher.StartTime).TotalSeconds;
+            var t = total <= 0 ? 1f : (float) Math.Clamp((now - finisher.StartTime).TotalSeconds / total, 0, 1);
+            var current = _transform.GetWorldPosition(victim);
+            var desired = finisher.VictimFrom + finisher.Direction * args.FinisherTravelDistance * t;
+            if (IsPathBlocked(victim, finisher.Map, current, desired, out var free))
+            {
+                desired = free;
+                finisher.VictimFrom = free - finisher.Direction * args.FinisherTravelDistance * t; // stop here
+            }
+
+            _transform.SetWorldPosition(victim, desired);
+            _transform.SetWorldPosition(uid, desired + finisher.UserOffset);
+            _physics.SetLinearVelocity(victim, Vector2.Zero);
+            _physics.SetLinearVelocity(uid, Vector2.Zero);
+
+            while (finisher.SlashesDone < args.FinisherSlashes
+                   && now >= finisher.StartTime + args.FinisherSlashInterval * finisher.SlashesDone)
+            {
+                finisher.SlashesDone++;
+                _damageable.TryChangeDamage(victim, args.FinisherSlashDamage, origin: uid, targetPart: SkillTargetPart, canMiss: false);
+                if (args.FinisherSlashEffect is { } slash)
+                {
+                    var fx = SpawnAttachedTo(slash, new EntityCoordinates(victim, Vector2.Zero));
+                    _transform.SetLocalRotation(fx, _instinctRandom.NextAngle());
+                }
+
+                _audio.PlayPvs(args.FinisherSlashSound, victim);
+            }
+
+            if (now < finisher.EndTime || finisher.SlashesDone < args.FinisherSlashes)
+                continue;
+
+            RemCompDeferred(uid, finisher);
+            DoInstinctFinisherCross(uid, victim, finisher.Direction, args);
+        }
+    }
+
+    /// <summary>
+    /// Cross claw strike into the chest that throws the victim back, landing knocked down.
+    /// </summary>
+    private void DoInstinctFinisherCross(EntityUid user, EntityUid victim, Vector2 direction, WolfInstinctActionEvent args)
+    {
+        _damageable.TryChangeDamage(victim, args.FinisherCrossDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
+
+        if (args.FinisherCrossEffect is { } cross)
+            Spawn(cross, _transform.GetMapCoordinates(victim));
+
+        var slide = TimeSpan.FromSeconds(args.FinisherKnockbackDistance / MathF.Max(0.1f, args.FinisherKnockbackSpeed));
+        StartKnockback(victim, direction, args.FinisherKnockbackDistance, slide, dust: true);
+        _stun.TryKnockdown(victim, slide + args.FinisherKnockdownTime, true);
+
+        _audio.PlayPvs(args.FinisherCrossSound, victim);
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-instinct-finisher-cross-user", ("target", victim)), user, user, PopupType.Large);
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-instinct-finisher-cross-target", ("user", user)), victim, victim, PopupType.LargeCaution);
+
+        // +5 ult for the whole finisher.
+        var hitEv = new ProperKungFuSpecialHitEvent(victim, WolfInstinctMove, false);
+        RaiseLocalEvent(user, ref hitEv);
     }
 }

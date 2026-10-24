@@ -22,6 +22,30 @@ public sealed partial class WolfDancingComponent : Component
     [ViewVariables]
     public bool WhirlwindVariant;
 
+    /// <summary>
+    /// Plain variant (no synergy): a dash through the target, no collision with it, the target is tossed up in place.
+    /// </summary>
+    [ViewVariables]
+    public bool PassThrough;
+
+    /// <summary>
+    /// Plain variant: the target was already hit while passing through it.
+    /// </summary>
+    [ViewVariables]
+    public bool PassHit;
+
+    /// <summary>
+    /// Plain variant: the target had enough damage before the dance for the finisher.
+    /// </summary>
+    [ViewVariables]
+    public bool FinisherPending;
+
+    /// <summary>
+    /// Plain variant: the pass hit landed (not blocked by a shield).
+    /// </summary>
+    [ViewVariables]
+    public bool PassLanded;
+
     [ViewVariables]
     public WolfDancePhase Phase = WolfDancePhase.Dash;
 
@@ -68,6 +92,30 @@ public enum WolfDancePhase : byte
     Kick,
     /// <summary>The move was interrupted or missed, reset the visuals.</summary>
     Cancel,
+    /// <summary>Plain variant: a fast upright dash through the target.</summary>
+    PassThrough,
+}
+
+/// <summary>
+/// Plain Wolf Dance: the target is tossed straight up with a flip and lands on the same spot.
+/// </summary>
+[Serializable, NetSerializable]
+public sealed class WolfDanceTossAnimationEvent : EntityEventArgs
+{
+    public NetEntity Target;
+    public float Duration;
+    public float Height;
+    public float Spins;
+    public Vector2 Direction;
+
+    public WolfDanceTossAnimationEvent(NetEntity target, float duration, float height, float spins, Vector2 direction)
+    {
+        Target = target;
+        Duration = duration;
+        Height = height;
+        Spins = spins;
+        Direction = direction;
+    }
 }
 
 /// <summary>

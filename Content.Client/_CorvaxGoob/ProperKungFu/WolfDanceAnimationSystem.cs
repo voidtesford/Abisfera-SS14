@@ -32,6 +32,70 @@ public sealed class WolfDanceAnimationSystem : EntitySystem
         base.Initialize();
 
         SubscribeNetworkEvent<WolfDanceAnimationEvent>(OnAnimation);
+        SubscribeNetworkEvent<WolfDanceTossAnimationEvent>(OnToss);
+    }
+
+    private const string TossKey = "wolf-dance-toss";
+
+    /// <summary>
+    /// Plain Wolf Dance: the target flies straight up with a flip and drops back onto the same spot.
+    /// The server keeps it in place and knocks it down on landing.
+    /// </summary>
+    private void OnToss(WolfDanceTossAnimationEvent ev)
+    {
+        var uid = GetEntity(ev.Target);
+        if (!uid.IsValid() || TerminatingOrDeleted(uid) || !HasComp<SpriteComponent>(uid))
+            return;
+
+        var player = EnsureComp<AnimationPlayerComponent>(uid);
+        if (_animation.HasRunningAnimation(player, TossKey))
+            _animation.Stop((uid, player), TossKey);
+
+        var rest = CompOrNull<RotationVisualsComponent>(uid)?.VerticalRotation ?? Angle.Zero;
+        // Flips backwards, away from the user's dash.
+        var sign = ev.Direction.X >= 0f ? 1.0 : -1.0;
+        _animation.Play((uid, player), TossAnimation(rest, sign, ev.Duration, ev.Height, ev.Spins), TossKey);
+    }
+
+    private static RobustAnimation TossAnimation(Angle rest, double sign, float duration, float height, float spins)
+    {
+        var length = MathF.Max(duration, 0.1f);
+
+        // Quarter turns, so the linear interpolation never takes the short way around.
+        var rotation = new AnimationTrackComponentProperty
+        {
+            ComponentType = typeof(SpriteComponent),
+            Property = nameof(SpriteComponent.Rotation),
+            InterpolationMode = AnimationInterpolationMode.Linear,
+        };
+        var steps = Math.Max(1, (int) MathF.Round(spins * 4f));
+        rotation.KeyFrames.Add(new AnimationTrackProperty.KeyFrame(rest, 0f));
+        for (var i = 1; i <= steps; i++)
+        {
+            rotation.KeyFrames.Add(new AnimationTrackProperty.KeyFrame(rest + Angle.FromDegrees(90 * i * sign), length / steps));
+        }
+
+        // Fast rise, a short hang at the top, quicker drop.
+        var offset = new AnimationTrackComponentProperty
+        {
+            ComponentType = typeof(SpriteComponent),
+            Property = nameof(SpriteComponent.Offset),
+            InterpolationMode = AnimationInterpolationMode.Cubic,
+            KeyFrames =
+            {
+                new AnimationTrackProperty.KeyFrame(Vector2.Zero, 0f),
+                new AnimationTrackProperty.KeyFrame(new Vector2(0f, height * 0.75f), length * 0.25f),
+                new AnimationTrackProperty.KeyFrame(new Vector2(0f, height), length * 0.2f),
+                new AnimationTrackProperty.KeyFrame(new Vector2(0f, height * 0.7f), length * 0.2f),
+                new AnimationTrackProperty.KeyFrame(Vector2.Zero, length * 0.35f),
+            },
+        };
+
+        return new RobustAnimation
+        {
+            Length = TimeSpan.FromSeconds(length),
+            AnimationTracks = { rotation, offset },
+        };
     }
 
     private void OnAnimation(WolfDanceAnimationEvent ev)
@@ -59,6 +123,10 @@ public sealed class WolfDanceAnimationSystem : EntitySystem
                 break;
             case WolfDancePhase.Kick:
                 Play(uid, player, LandingAnimation(pose, lying, ev.Duration));
+                break;
+            case WolfDancePhase.PassThrough:
+                // Upright, a slight forward lean for the whole dash.
+                Play(uid, player, DashLeanAnimation(rest, rest - Angle.FromDegrees(15 * sign), ev.Duration));
                 break;
             case WolfDancePhase.Cancel:
                 RestoreRotation(uid, sprite, rotationVisuals, rest);
@@ -124,6 +192,35 @@ public sealed class WolfDanceAnimationSystem : EntitySystem
                         new AnimationTrackProperty.KeyFrame(Vector2.Zero, 0f),
                         new AnimationTrackProperty.KeyFrame(new Vector2(0f, LeapHeight), length * 0.4f),
                         new AnimationTrackProperty.KeyFrame(new Vector2(0f, LeapHeight * 0.6f), length * 0.6f),
+                    },
+                },
+            },
+        };
+    }
+
+    /// <summary>
+    /// Plain Wolf Dance: a fast upright dash with a small forward lean, back upright at the end.
+    /// </summary>
+    private static RobustAnimation DashLeanAnimation(Angle rest, Angle lean, float duration)
+    {
+        var length = MathF.Max(duration, 0.05f);
+        var tip = MathF.Min(0.06f, length * 0.25f);
+        return new RobustAnimation
+        {
+            Length = TimeSpan.FromSeconds(length),
+            AnimationTracks =
+            {
+                new AnimationTrackComponentProperty
+                {
+                    ComponentType = typeof(SpriteComponent),
+                    Property = nameof(SpriteComponent.Rotation),
+                    InterpolationMode = AnimationInterpolationMode.Linear,
+                    KeyFrames =
+                    {
+                        new AnimationTrackProperty.KeyFrame(rest, 0f),
+                        new AnimationTrackProperty.KeyFrame(lean, tip),
+                        new AnimationTrackProperty.KeyFrame(lean, length - tip * 2),
+                        new AnimationTrackProperty.KeyFrame(rest, tip),
                     },
                 },
             },

@@ -59,6 +59,66 @@ public sealed partial class WolfInstinctActionEvent : InstantActionEvent
     [DataField]
     public EntProtoId? CounterEffect = "ProperKungFuInstinctClawSlash";
 
+    // ---- Melee finisher on a badly hurt attacker ----
+
+    /// <summary>
+    /// An attacker that already has at least this much total damage gets the finisher instead of the palm counter.
+    /// The stance ends right away.
+    /// </summary>
+    [DataField]
+    public float FinisherThreshold = 85f;
+
+    /// <summary>
+    /// Number of claw slashes before the cross strike.
+    /// </summary>
+    [DataField]
+    public int FinisherSlashes = 6;
+
+    [DataField]
+    public TimeSpan FinisherSlashInterval = TimeSpan.FromSeconds(0.2);
+
+    /// <summary>
+    /// Damage of every single claw slash, into the chest.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier FinisherSlashDamage = new();
+
+    /// <summary>
+    /// How far (tiles) the user and the locked victim travel together during the slashes (direction user -> victim).
+    /// </summary>
+    [DataField]
+    public float FinisherTravelDistance = 3f;
+
+    /// <summary>
+    /// The closing cross claw strike, into the chest.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier FinisherCrossDamage = new();
+
+    [DataField]
+    public float FinisherKnockbackDistance = 10f;
+
+    [DataField]
+    public float FinisherKnockbackSpeed = 20f;
+
+    /// <summary>
+    /// The victim lands knocked down for this long.
+    /// </summary>
+    [DataField]
+    public TimeSpan FinisherKnockdownTime = TimeSpan.FromSeconds(3);
+
+    [DataField]
+    public EntProtoId? FinisherSlashEffect = "ProperKungFuInstinctClawSlash";
+
+    [DataField]
+    public EntProtoId? FinisherCrossEffect = "ProperKungFuInstinctFinisherCross";
+
+    [DataField]
+    public SoundSpecifier? FinisherSlashSound;
+
+    [DataField]
+    public SoundSpecifier? FinisherCrossSound;
+
     [DataField]
     public SoundSpecifier? CounterSound;
 
@@ -138,10 +198,22 @@ public sealed partial class WolfInstinctActionEvent : InstantActionEvent
     // ---- Visuals ----
 
     /// <summary>
-    /// White-red aura attached to the user for the stance (the trembling "test me" text is drawn by the client from the stance component).
+    /// Thin white-red ring at the user's feet for the stance (attached to the user, drawn under the mob).
     /// </summary>
     [DataField]
     public EntProtoId? AuraEffect = "ProperKungFuInstinctAura";
+
+    /// <summary>
+    /// Quick expanding ring pulse on activation.
+    /// </summary>
+    [DataField]
+    public EntProtoId? AuraPulseEffect = "ProperKungFuInstinctAuraPulse";
+
+    /// <summary>
+    /// The ring shrinking and fading out when the stance ends.
+    /// </summary>
+    [DataField]
+    public EntProtoId? AuraFadeEffect = "ProperKungFuInstinctAuraFade";
 
     /// <summary>
     /// Loud stomp on activation.

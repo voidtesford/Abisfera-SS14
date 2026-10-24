@@ -27,7 +27,7 @@ public sealed partial class ProperKungFuPerfectFlowPerformedEvent : EntityEventA
     public ProtoId<DamageTypePrototype> DamageType = "Blunt";
 
     /// <summary>
-    /// Total damage of the target (after this combo's damage) from which both arms break.
+    /// Total damage of the target (before this combo's damage) from which both arms break.
     /// </summary>
     [DataField]
     public float FractureThreshold = 50f;
@@ -39,7 +39,7 @@ public sealed partial class ProperKungFuPerfectFlowPerformedEvent : EntityEventA
     public TimeSpan DisorientTime = TimeSpan.FromSeconds(5);
 
     /// <summary>
-    /// Total damage of the target (after this combo's damage) from which the finisher happens.
+    /// Total damage of the target (before this combo's damage) from which the finisher happens.
     /// </summary>
     [DataField]
     public float FinisherThreshold = 80f;
@@ -62,11 +62,18 @@ public sealed partial class ProperKungFuPerfectFlowPerformedEvent : EntityEventA
     [DataField]
     public float SpinDuration = 0.35f;
 
+    /// <summary>
+    /// White-red flash (Claw Series finisher style) played on every hit location in turn:
+    /// left arm, right arm, chest.
+    /// </summary>
     [DataField]
-    public EntProtoId? ArmCutEffect = "ProperKungFuFlowArmCuts";
+    public EntProtoId? FlashEffect = "ProperKungFuFlowFlash";
 
+    /// <summary>
+    /// Delay between two flashes in the sequence, seconds.
+    /// </summary>
     [DataField]
-    public EntProtoId? PalmsEffect = "ProperKungFuFlowPalms";
+    public float FlashInterval = 0.1f;
 
     [DataField]
     public EntProtoId? AxeKickEffect = "ProperKungFuFlowAxeKick";

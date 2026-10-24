@@ -116,6 +116,58 @@ public sealed partial class ClawWhirlwindActionEvent : EntityTargetActionEvent
 
     [DataField]
     public SoundSpecifier? GripSound;
+
+    // CorvaxGoob-ProperKungFu-Start
+    // Plain finisher: a target that already had FinisherThreshold damage gets two huge claw slashes while in the air.
+
+    /// <summary>
+    /// Total damage the target must already have before the whirlwind. 0 or less disables the finisher.
+    /// </summary>
+    [DataField]
+    public float FinisherThreshold = 80f;
+
+    /// <summary>
+    /// Damage of each of the two slashes (ascending, then descending), dealt to the torso.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier FinisherSlashDamage = new();
+
+    /// <summary>
+    /// Time into the air phase of the ascending slash.
+    /// </summary>
+    [DataField]
+    public TimeSpan FinisherUpDelay = TimeSpan.FromSeconds(0.4);
+
+    /// <summary>
+    /// Time into the air phase of the descending slash that slams the target down.
+    /// </summary>
+    [DataField]
+    public TimeSpan FinisherDownDelay = TimeSpan.FromSeconds(0.75);
+
+    [DataField]
+    public TimeSpan FinisherKnockdownTime = TimeSpan.FromSeconds(4);
+
+    [DataField]
+    public EntProtoId? FinisherUpEffect = "ProperKungFuWhirlwindFinisherUp";
+
+    [DataField]
+    public EntProtoId? FinisherDownEffect = "ProperKungFuWhirlwindFinisherDown";
+
+    /// <summary>
+    /// Spawned on the floor under the target when it is slammed down.
+    /// </summary>
+    [DataField]
+    public List<EntProtoId> FinisherImpactEffects = new();
+
+    [DataField]
+    public SoundSpecifier? FinisherUpSound;
+
+    [DataField]
+    public SoundSpecifier? FinisherDownSound;
+
+    [DataField]
+    public SoundSpecifier? FinisherSlamSound;
+    // CorvaxGoob-ProperKungFu-End
 }
 
 [Serializable, NetSerializable]
@@ -165,6 +217,20 @@ public sealed partial class ClawWhirlwindedComponent : Component
 
     [ViewVariables]
     public ClawWhirlwindActionEvent? Event;
+
+    // CorvaxGoob-ProperKungFu-Start
+    /// <summary>
+    /// The target had enough damage before the whirlwind: two huge slashes in the air.
+    /// </summary>
+    [ViewVariables]
+    public bool Finisher;
+
+    /// <summary>
+    /// 0 - none yet, 1 - ascending slash done, 2 - descending slash done.
+    /// </summary>
+    [ViewVariables]
+    public int FinisherSlashes;
+    // CorvaxGoob-ProperKungFu-End
 }
 
 /// <summary>

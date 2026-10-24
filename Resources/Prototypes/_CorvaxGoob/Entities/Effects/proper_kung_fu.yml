@@ -162,6 +162,53 @@
     tags:
     - HideContextMenu
 
+# Wolf Instinct finisher: the Wolf Grip cross claw slash, bigger and brighter, closing the claw series.
+- type: entity
+  parent: ProperKungFuCrossSlash
+  id: ProperKungFuInstinctFinisherCross
+  name: wolf instinct finisher cross
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_cross.rsi
+      state: cross_slash
+      scale: 2.4, 2.4
+  - type: PointLight
+    color: "#FF3030"
+    radius: 3
+    energy: 3.5
+  - type: TimedDespawn
+    lifetime: 0.6
+
+# Plain Wolf Dance finisher: a big white-red flash on the final strike.
+- type: entity
+  parent: ProperKungFuFlowFlash
+  id: ProperKungFuDanceFinisherFlash
+  name: wolf dance finisher flash
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    sprite: Effects/arcs.rsi
+    layers:
+    - state: smash
+      shader: unshaded
+      color: "#FF2A2AE0"
+      scale: 2.2, 2.2
+    - state: smash
+      shader: unshaded
+      color: "#FFFFFFF0"
+      scale: 1.3, 1.3
+  - type: PointLight
+    radius: 3.5
+    energy: 4
+    color: "#FF4040"
+
 # Hammer: one big downward three-claw swipe that ends on the target.
 - type: entity
   id: ProperKungFuHammerStrike
@@ -202,10 +249,11 @@
       state: hammer_strike_up
       offset: 0, 0.35
 
-# Wolf Instinct: white-red aura around the user for the counter stance (attached to the user, deleted with the stance).
+# Claw Whirlwind finisher: the hammer claws, much bigger and brighter, sweeping up through the airborne target.
 - type: entity
-  id: ProperKungFuInstinctAura
-  name: wolf instinct aura
+  parent: ProperKungFuHammerStrike
+  id: ProperKungFuWhirlwindFinisherUp
+  name: huge rising claw slash
   categories: [ HideSpawnMenu ]
   components:
   - type: Sprite
@@ -213,16 +261,119 @@
     noRot: true
     layers:
     - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_hammer.rsi
+      state: hammer_strike_up
+      offset: 0, 0.8
+      scale: 2.2, 2.2
+      color: "#FFE0E0"
+  - type: PointLight
+    color: "#FF4040"
+    radius: 4
+    energy: 4.5
+  - type: TimedDespawn
+    lifetime: 0.4
+
+# Claw Whirlwind finisher: the same huge claws coming back down and driving the target into the floor.
+- type: entity
+  parent: ProperKungFuWhirlwindFinisherUp
+  id: ProperKungFuWhirlwindFinisherDown
+  name: huge falling claw slash
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_hammer.rsi
+      state: hammer_strike
+      offset: 0, 0.8
+      scale: 2.2, 2.2
+      color: "#FFE0E0"
+
+# Claw Whirlwind finisher: a short dark red crack on the floor where the target is slammed down.
+- type: entity
+  id: ProperKungFuWhirlwindSlamCrack
+  name: floor crack
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: FloorObjects
+    noRot: true
+    sprite: Effects/arcs.rsi
+    layers:
+    - state: smash
+      color: "#3A0A0AC0"
+      scale: 1.4, 1.4
+  - type: TimedDespawn
+    lifetime: 1
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Instinct: thin white-red ring at the user's feet for the counter stance (soft red glow, breathing pulse,
+# sparks running around it). Attached to the user and drawn under the mob; deleted with the stance.
+- type: entity
+  id: ProperKungFuInstinctAura
+  name: wolf instinct aura
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: BelowMobs
+    noRot: true
+    layers:
+    - shader: unshaded
       sprite: _CorvaxGoob/Effects/proper_kung_fu_instinct.rsi
-      state: instinct_aura
-      offset: 0, -0.15
+      state: instinct_ring
   - type: PointLight
     color: "#FF3030"
-    radius: 2.5
-    energy: 1.8
+    radius: 1.6
+    energy: 1.2
   - type: TimedDespawn
     # Safety net; the stance removes it as soon as it ends.
     lifetime: 10
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Instinct activation: the ring flashes outward once.
+- type: entity
+  id: ProperKungFuInstinctAuraPulse
+  name: wolf instinct ring pulse
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: BelowMobs
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_instinct.rsi
+      state: instinct_ring_pulse
+  - type: PointLight
+    color: "#FF5050"
+    radius: 2.2
+    energy: 2
+  - type: TimedDespawn
+    lifetime: 0.25
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Instinct stance end: the ring shrinks and fades out.
+- type: entity
+  id: ProperKungFuInstinctAuraFade
+  name: wolf instinct ring fade
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: BelowMobs
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_instinct.rsi
+      state: instinct_ring_fade
+  - type: TimedDespawn
+    lifetime: 0.24
   - type: Tag
     tags:
     - HideContextMenu
@@ -250,47 +401,30 @@
     tags:
     - HideContextMenu
 
-# Perfect Flow: small bright claw cuts on one of the target's arms (spawned on both arms, attached to the target).
+# Perfect Flow: a smaller Claw Series white-red flash, played on the left arm, right arm and chest in turn.
 - type: entity
-  id: ProperKungFuFlowArmCuts
-  name: perfect flow arm cuts
+  parent: ProperKungFuPalmFlash
+  id: ProperKungFuFlowFlash
+  name: perfect flow flash
   categories: [ HideSpawnMenu ]
   components:
   - type: Sprite
     drawdepth: Effects
     noRot: true
+    sprite: Effects/arcs.rsi
     layers:
-    - shader: unshaded
-      sprite: _CorvaxGoob/Effects/proper_kung_fu_flow.rsi
-      state: arm_cuts
-  - type: TimedDespawn
-    lifetime: 0.9
-  - type: Tag
-    tags:
-    - HideContextMenu
-
-# Perfect Flow: two scarlet palm prints on the target's chest.
-- type: entity
-  id: ProperKungFuFlowPalms
-  name: perfect flow palm prints
-  categories: [ HideSpawnMenu ]
-  components:
-  - type: Sprite
-    drawdepth: Effects
-    noRot: true
-    layers:
-    - shader: unshaded
-      sprite: _CorvaxGoob/Effects/proper_kung_fu_flow.rsi
-      state: scarlet_palms
+    - state: smash
+      shader: unshaded
+      color: "#FF2A2AD0"
+      scale: 0.6, 0.6
+    - state: smash
+      shader: unshaded
+      color: "#FFFFFFF0"
+      scale: 0.35, 0.35
   - type: PointLight
-    color: "#FF2A2A"
-    radius: 1.5
-    energy: 1.5
-  - type: TimedDespawn
-    lifetime: 1.2
-  - type: Tag
-    tags:
-    - HideContextMenu
+    radius: 1.1
+    energy: 1.8
+    color: "#FF6060"
 
 # Perfect Flow finisher: a chopping axe-kick arc coming down onto the target's head.
 - type: entity
@@ -333,3 +467,96 @@
     spawnRemainingTrail: false
   - type: TimedDespawn
     lifetime: 1.6
+
+# Claw Series finisher: a solid burgundy double of the user that fades out after its strike.
+- type: entity
+  id: ProperKungFuSeriesClone
+  name: claw series double
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Trail
+    lerpTime: 0.01
+    frequency: 0.01
+    maxParticleAmount: 1
+    lifetime: 1.4
+    alphaLerpAmount: 0.03
+    color: "#800020"
+    shader: unshaded
+    spawnRemainingTrail: false
+  - type: PointLight
+    color: "#800020"
+    radius: 1.5
+    energy: 1.5
+  - type: Tag
+    tags:
+    - HideContextMenu
+  - type: TimedDespawn
+    lifetime: 1.6
+
+# Claw Series finisher: the biggest cross claw slash.
+- type: entity
+  parent: ProperKungFuInstinctFinisherCross
+  id: ProperKungFuSeriesFinisherCross
+  name: claw series finisher cross
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_cross.rsi
+      state: cross_slash
+      scale: 3.2, 3.2
+  - type: PointLight
+    color: "#FF2020"
+    radius: 4
+    energy: 4.5
+  - type: TimedDespawn
+    lifetime: 0.7
+
+# Wolf Grip finisher: white-red ring where the head hits the floor.
+- type: entity
+  id: ProperKungFuGripSlamRing
+  name: suplex impact ring
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_instinct.rsi
+      state: instinct_ring_pulse
+      color: "#FFE0E0"
+      scale: 1.6, 1.6
+  - type: PointLight
+    color: "#FF6060"
+    radius: 2.5
+    energy: 2.5
+  - type: TimedDespawn
+    lifetime: 0.25
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Grip finisher: cracks in the floor under the impact.
+- type: entity
+  id: ProperKungFuGripSlamCrack
+  name: suplex floor crack
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: FloorObjects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: Effects/arcs.rsi
+      state: smash
+      color: "#5A1010D0"
+      scale: 1.2, 1.2
+  - type: TimedDespawn
+    lifetime: 0.9
+  - type: Tag
+    tags:
+    - HideContextMenu

@@ -1,3 +1,5 @@
+using Content.Shared.Damage;
+using Robust.Shared.Audio;
 using Robust.Shared.GameStates;
 using Robust.Shared.Prototypes;
 
@@ -119,4 +121,79 @@ public sealed partial class ProperKungFuComponent : Component
 
     [DataField]
     public TimeSpan UltimateActivationDelay = TimeSpan.FromSeconds(5);
+
+    // Claw Series finisher: a target that already had ClawSeriesFinisherThreshold damage before the combo
+    // gets pushed back by a burgundy double, ten fast claw strikes and a big cross slash that severs an arm and a leg.
+
+    /// <summary>
+    /// Total damage the target must already have (before the Claw Series bonus) for the finisher. 0 disables it.
+    /// </summary>
+    [DataField]
+    public float ClawSeriesFinisherThreshold = 80f;
+
+    /// <summary>
+    /// Wait after the combo (the normal slide back) before the double appears.
+    /// </summary>
+    [DataField]
+    public TimeSpan ClawSeriesFinisherCloneDelay = TimeSpan.FromSeconds(0.5);
+
+    /// <summary>
+    /// Time between the double appearing and its strike.
+    /// </summary>
+    [DataField]
+    public TimeSpan ClawSeriesFinisherCloneWindup = TimeSpan.FromSeconds(0.15);
+
+    /// <summary>
+    /// How long the double's push carries the target back to the user.
+    /// </summary>
+    [DataField]
+    public TimeSpan ClawSeriesFinisherPushDuration = TimeSpan.FromSeconds(0.3);
+
+    /// <summary>
+    /// Distance from the user at which the pushed target stops.
+    /// </summary>
+    [DataField]
+    public float ClawSeriesFinisherPushStop = 1f;
+
+    /// <summary>
+    /// How far behind the target the double appears.
+    /// </summary>
+    [DataField]
+    public float ClawSeriesFinisherCloneOffset = 0.8f;
+
+    [DataField]
+    public EntProtoId ClawSeriesFinisherClone = "ProperKungFuSeriesClone";
+
+    [DataField]
+    public int ClawSeriesFinisherStrikes = 10;
+
+    [DataField]
+    public TimeSpan ClawSeriesFinisherStrikeInterval = TimeSpan.FromSeconds(0.1);
+
+    [DataField]
+    public DamageSpecifier ClawSeriesFinisherStrikeDamage = new() { DamageDict = { ["Slash"] = 2 } };
+
+    [DataField]
+    public DamageSpecifier ClawSeriesFinisherFinalDamage = new() { DamageDict = { ["Slash"] = 100 } };
+
+    [DataField]
+    public float ClawSeriesFinisherKnockback = 3f;
+
+    [DataField]
+    public TimeSpan ClawSeriesFinisherKnockbackDuration = TimeSpan.FromSeconds(0.35);
+
+    [DataField]
+    public TimeSpan ClawSeriesFinisherKnockdownTime = TimeSpan.FromSeconds(3);
+
+    [DataField]
+    public EntProtoId ClawSeriesFinisherCross = "ProperKungFuSeriesFinisherCross";
+
+    [DataField]
+    public SoundSpecifier ClawSeriesFinisherCloneSound = new SoundPathSpecifier("/Audio/Weapons/genhit3.ogg");
+
+    [DataField]
+    public SoundSpecifier ClawSeriesFinisherStrikeSound = new SoundCollectionSpecifier("AlienClaw", AudioParams.Default.WithVolume(-2f));
+
+    [DataField]
+    public SoundSpecifier ClawSeriesFinisherFinalSound = new SoundPathSpecifier("/Audio/Weapons/Xeno/alien_claw_flesh3.ogg", AudioParams.Default.WithVolume(4f));
 }

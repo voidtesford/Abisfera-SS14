@@ -27,6 +27,7 @@ using Robust.Server.GameObjects;
 using Robust.Shared.Containers;
 using Robust.Shared.Map;
 using Robust.Shared.Physics;
+using Robust.Shared.Physics.Events;
 using Robust.Shared.Physics.Systems;
 using Robust.Shared.Player;
 using Robust.Shared.Prototypes;
@@ -89,6 +90,8 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         SubscribeLocalEvent<ProperKungFuComponent, ComponentStartup>(OnStartup);
         SubscribeLocalEvent<ProperKungFuComponent, ComponentShutdown>(OnShutdown);
         SubscribeLocalEvent<ProperKungFuComponent, WolfDanceActionEvent>(OnWolfDance);
+        SubscribeLocalEvent<WolfDancingComponent, PreventCollideEvent>(OnDancingPreventCollide);
+        SubscribeLocalEvent<ProperKungFuDanceFinisherComponent, PreventCollideEvent>(OnDanceFinisherPreventCollide);
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuSpecialHitEvent>(OnSpecialHit);
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuClawSeriesPerformedEvent>(OnClawSeries);
         SubscribeLocalEvent<ProperKungFuComponent, ClawWhirlwindActionEvent>(OnClawWhirlwind);
@@ -201,6 +204,12 @@ public sealed partial class ProperKungFuSystem : EntitySystem
 
         // Only Hammer goes for the head: the combo bonus always lands on the torso.
         var targetPart = SkillTargetPart;
+
+        // Finisher threshold is measured before the combo bonus lands.
+        var preDamage = TryComp<DamageableComponent>(target, out var preDamageable) ? preDamageable.TotalDamage.Float() : 0f;
+        var finisher = ent.Comp.ClawSeriesFinisherThreshold > 0f && preDamage >= ent.Comp.ClawSeriesFinisherThreshold
+                       && !HasComp<ProperKungFuSeriesFinisherComponent>(ent);
+
         var damage = new DamageSpecifier();
         damage.DamageDict.Add(proto.DamageType, proto.ExtraDamage);
         _damageable.TryChangeDamage(target, damage, origin: ent, targetPart: targetPart);
@@ -225,8 +234,16 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         mark.ExpiresAt = _timing.CurTime + ClawMarkDuration;
 
         _audio.PlayPvs(new SoundPathSpecifier("/Audio/Weapons/genhit3.ogg"), target);
-        _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-series-user", ("target", target)), ent, ent, PopupType.Medium);
-        _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-series-target", ("user", ent.Owner)), target, target, PopupType.MediumCaution);
+
+        if (finisher && !TerminatingOrDeleted(target))
+        {
+            StartClawSeriesFinisher(ent, target, direction);
+        }
+        else
+        {
+            _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-series-user", ("target", target)), ent, ent, PopupType.Medium);
+            _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-series-target", ("user", ent.Owner)), target, target, PopupType.MediumCaution);
+        }
 
         if (!ent.Comp.UltimateActive)
             AddUltimateCharge(ent, ent.Comp.ChargePerCombo);
@@ -289,6 +306,14 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         var hammer = !whirlwind && TryConsumeHammerMark(user, target);
         if (hammer)
             RemComp<ProperKungFuSlidingComponent>(user); // cut the backflip short
+
+        // CorvaxGoob-ProperKungFu-Start: no synergy -> a fast dash through the target that tosses it up in place.
+        if (!whirlwind && !hammer && !HasFreshClawMark(user, target))
+        {
+            StartPassThrough(user, target, userCoords, direction, distance, args);
+            return;
+        }
+        // CorvaxGoob-ProperKungFu-End
 
         // Already in kicking range: no movement needed, kick right away.
         if (travel < 0.3f)
@@ -429,11 +454,15 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             sliding.NextPuff = now + DustPuffInterval;
         }
 
+        UpdateWolfDanceTosses(now);
+        UpdateDanceFinishers(now);
         UpdateWhirlwind(now);
         UpdateWolfGripMarks(now);
         UpdateHammerMarks(now);
         UpdateWolfInstinct(now);
         UpdatePerfectFlow(now);
+        UpdateClawSeriesFinishers(now);
+        UpdateGripSuplexes(now);
 
         var marks = EntityQueryEnumerator<ProperKungFuClawMarkComponent>();
         while (marks.MoveNext(out var uid, out var mark))
@@ -465,6 +494,12 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         var target = dancing.Target;
         var targetValid = !TerminatingOrDeleted(target) && _transform.GetMapId(target) == dancing.Map;
         var current = _transform.GetWorldPosition(user);
+
+        if (dancing.PassThrough)
+        {
+            UpdatePassThrough(user, dancing, args, now, targetValid);
+            return;
+        }
 
         // The flying kick re-aims every tick at the target's current position, but can't chase further than allowed.
         if (dancing.Phase == WolfDancePhase.Dash && targetValid)
@@ -599,6 +634,8 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             TimeSpan.FromSeconds(knockback / MathF.Max(0.1f, args.KnockbackSpeed)),
             dust: false);
 
+        MarkWolfDance(user, target);
+
         var hitUserLoc = synergy ? "proper-kung-fu-wolf-dance-synergy-user" : "proper-kung-fu-wolf-dance-hit-user";
         var hitTargetLoc = synergy ? "proper-kung-fu-wolf-dance-synergy-target" : "proper-kung-fu-wolf-dance-hit-target";
         _popup.PopupEntity(Loc.GetString(hitUserLoc, ("target", target)), user, user, PopupType.Medium);
@@ -632,6 +669,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             TimeSpan.FromSeconds(args.WhirlwindKnockbackDistance / MathF.Max(0.1f, args.KnockbackSpeed)),
             dust: false);
 
+        MarkWolfDance(user, target);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-whirlwind-user", ("target", target)), user, user, PopupType.Medium);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-whirlwind-target", ("user", user)), target, target, PopupType.MediumCaution);
 
@@ -675,14 +713,15 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         return true;
     }
 
-    private void SpawnAfterimage(EntityUid user, MapId map, Vector2 pos, EntProtoId proto)
+    private EntityUid SpawnAfterimage(EntityUid user, MapId map, Vector2 pos, EntProtoId proto)
     {
         var effect = Spawn(proto, new MapCoordinates(pos, map));
         if (!TryComp<TrailComponent>(effect, out var trail))
-            return;
+            return effect;
 
         trail.RenderedEntity = user;
         trail.SpawnPosition = pos;
         Dirty(effect, trail);
+        return effect;
     }
 }

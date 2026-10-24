@@ -8,6 +8,7 @@ using Content.Shared.Damage;
 using Content.Shared.Movement.Pulling.Components;
 using Content.Shared.Popups;
 using Content.Shared.Standing;
+using Robust.Shared.Player;
 
 namespace Content.Server._CorvaxGoob.ProperKungFu;
 
@@ -42,6 +43,14 @@ public sealed partial class ProperKungFuSystem
             && standing.CurrentState != StandingState.Standing)
             return;
 
+        // Finisher check uses the damage the target already had before this combo's bonus damage.
+        var preDamage = TryComp<DamageableComponent>(target, out var targetDamageable)
+            ? targetDamageable.TotalDamage.Float()
+            : 0f;
+        var finisher = args.FinisherThreshold > 0f
+                       && preDamage >= args.FinisherThreshold
+                       && !HasComp<ProperKungFuGripSuplexComponent>(target);
+
         var damage = new DamageSpecifier();
         damage.DamageDict.Add(proto.DamageType, proto.ExtraDamage);
         _damageable.TryChangeDamage(target, damage, origin: ent, targetPart: SkillTargetPart, canMiss: false);
@@ -62,6 +71,9 @@ public sealed partial class ProperKungFuSystem
         _audio.PlayPvs(new Robust.Shared.Audio.SoundPathSpecifier("/Audio/Weapons/genhit1.ogg"), target);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-grip-user", ("target", target)), ent, ent, PopupType.Medium);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-grip-target", ("user", ent.Owner)), target, target, PopupType.LargeCaution);
+
+        if (finisher)
+            StartGripSuplex(ent, target, args);
 
         if (!ent.Comp.UltimateActive)
             AddUltimateCharge(ent, ent.Comp.ChargePerCombo);
@@ -115,6 +127,10 @@ public sealed partial class ProperKungFuSystem
     private bool TryConsumeWolfGripMark(EntityUid user, EntityUid target)
     {
         if (!TryComp<ProperKungFuWolfGripMarkComponent>(target, out var mark))
+            return false;
+
+        // Not while it is being carried over the user's back; the mark is renewed when it lands.
+        if (HasComp<ProperKungFuGripSuplexComponent>(target))
             return false;
 
         if (mark.Marker != user || _timing.CurTime >= mark.ExpiresAt)

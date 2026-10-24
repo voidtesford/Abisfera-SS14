@@ -9,9 +9,9 @@ namespace Content.Shared._CorvaxGoob.ProperKungFu;
 
 /// <summary>
 /// "Hammer" (Молот): one sweeping downward claw strike into the head of a target within fist reach.
-/// Priority of the variants: target in crit (the head is torn apart) > target already lying (forced sleep and a
-/// much harder hit) > Wolf Grip synergy (backflip, then an instant Wolf Dance) > the base hit (knockdown).
-/// Every variant except the crit one also hurts the eyes and the brain.
+/// Priority of the variants: target in crit (the skull breaks, the head stays on) > Wolf Grip synergy (backflip, then an instant
+/// Wolf Dance) > Wolf Dance mark (body hit and a knockback) > target already lying (forced sleep and a much harder
+/// hit) > the base hit (knockdown). The crit, grip, lying and base variants also hurt the eyes and the brain.
 /// </summary>
 public sealed partial class HammerActionEvent : EntityTargetActionEvent
 {
@@ -91,16 +91,38 @@ public sealed partial class HammerActionEvent : EntityTargetActionEvent
     public SoundSpecifier? HitSound;
 
     /// <summary>
-    /// Played when the head of a critical target is torn apart.
+    /// Wolf Dance variant: damage to the body (torso), no eye/brain trauma and no sleep.
     /// </summary>
     [DataField]
-    public SoundSpecifier? GibSound;
+    public DamageSpecifier DanceDamage = new();
 
     /// <summary>
-    /// Blood spilled on the floor when the head is torn apart.
+    /// Wolf Dance variant: exact knockback (tiles) away from the user.
     /// </summary>
     [DataField]
-    public float GibBloodSpill = 40f;
+    public float DanceKnockbackDistance = 5f;
+
+    [DataField]
+    public float DanceKnockbackSpeed = 10f;
+
+    /// <summary>
+    /// Wolf Dance variant: the target stays down at least this long after landing.
+    /// </summary>
+    [DataField]
+    public TimeSpan DanceKnockdownTime = TimeSpan.FromSeconds(1.5);
+}
+
+/// <summary>
+/// Left on the target by any Wolf Dance hit: while it lasts, the same user's Hammer hits the body and knocks it back.
+/// </summary>
+[RegisterComponent]
+public sealed partial class ProperKungFuWolfDanceMarkComponent : Component
+{
+    [ViewVariables]
+    public EntityUid Marker;
+
+    [ViewVariables]
+    public TimeSpan ExpiresAt;
 }
 
 /// <summary>

@@ -1,34 +1,12 @@
 {
   "version": 1,
   "license": "CC-BY-SA-3.0",
-  "copyright": "Perfect Flow arm cuts, scarlet palms and axe kick made for Abisfera in the style of the Proper Kung Fu effects",
+  "copyright": "Perfect Flow axe kick made for Abisfera in the style of the Proper Kung Fu effects",
   "size": {
     "x": 48,
     "y": 48
   },
   "states": [
-    {
-      "name": "arm_cuts",
-      "delays": [
-        [
-          0.04,
-          0.04,
-          0.04,
-          0.8
-        ]
-      ]
-    },
-    {
-      "name": "scarlet_palms",
-      "delays": [
-        [
-          0.05,
-          0.05,
-          0.05,
-          1.0
-        ]
-      ]
-    },
     {
       "name": "axe_kick",
       "delays": [

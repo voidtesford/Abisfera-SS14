@@ -16,6 +16,7 @@ using Content.Shared._Shitmed.Targeting;
 using Content.Shared.Body.Components;
 using Content.Shared.Body.Organ;
 using Content.Shared.Body.Systems;
+using Content.Shared.Damage;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Movement.Pulling.Components;
 using Content.Shared.Popups;
@@ -115,6 +116,11 @@ public sealed partial class ProperKungFuSystem
         held.To = landing;
         held.ReleaseAt = now + total;
         held.Landed = false;
+        // The threshold is checked on the damage the target had before the whirlwind.
+        held.Finisher = args.FinisherThreshold > 0
+            && TryComp<DamageableComponent>(target, out var damageable)
+            && damageable.TotalDamage >= args.FinisherThreshold;
+        held.FinisherSlashes = 0;
 
         // Standing stun for the whole move: no attacking or using things while being thrown around.
         _stun.TryStun(target, total, true);
@@ -169,9 +175,25 @@ public sealed partial class ProperKungFuSystem
                     break;
                 }
                 case ClawWhirlwindPhase.Air:
-                    if (now - held.PhaseStart >= args.AirDuration)
+                {
+                    var inAir = now - held.PhaseStart;
+                    if (held.Finisher && !TerminatingOrDeleted(held.User) && !_mobState.IsIncapacitated(held.User))
+                    {
+                        if (held.FinisherSlashes == 0 && inAir >= args.FinisherUpDelay)
+                            DoWhirlwindFinisherSlash(held.User, uid, held, args, up: true);
+
+                        if (held.FinisherSlashes == 1 && inAir >= args.FinisherDownDelay)
+                        {
+                            DoWhirlwindFinisherSlash(held.User, uid, held, args, up: false);
+                            SlamDown(uid, held, args);
+                            break;
+                        }
+                    }
+
+                    if (inAir >= args.AirDuration)
                         Land(uid, held, args);
                     break;
+                }
                 case ClawWhirlwindPhase.Land:
                     if (now >= held.ReleaseAt)
                         RemCompDeferred(uid, held);
@@ -297,6 +319,48 @@ public sealed partial class ProperKungFuSystem
                 modifier = FixedPoint2.New(0.01);
             _trauma.TrySetOrganDamageModifier(organ, modifier, trauma, "WoundableDamage", organComp);
         }
+    }
+
+    /// <summary>
+    /// Plain finisher: a huge ascending (then descending) claw slash on the target in the air.
+    /// </summary>
+    private void DoWhirlwindFinisherSlash(EntityUid user, EntityUid target, ClawWhirlwindedComponent held, ClawWhirlwindActionEvent args, bool up)
+    {
+        held.FinisherSlashes = up ? 1 : 2;
+
+        // In chunks, so the torso doesn't get one giant wound.
+        DealChunkedDamage(user, target, args.FinisherSlashDamage, SkillTargetPart);
+
+        if ((up ? args.FinisherUpEffect : args.FinisherDownEffect) is { } effect)
+            Spawn(effect, _transform.GetMapCoordinates(target));
+
+        _audio.PlayPvs(up ? args.FinisherUpSound : args.FinisherDownSound, target);
+
+        if (up)
+        {
+            _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-whirlwind-finisher-user", ("target", target)), user, user, PopupType.Medium);
+            _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-whirlwind-finisher-target", ("user", user)), target, target, PopupType.LargeCaution);
+        }
+    }
+
+    /// <summary>
+    /// The descending slash drives the target into the floor: no knockback, a longer knockdown.
+    /// The target stays held until the usual release time.
+    /// </summary>
+    private void SlamDown(EntityUid target, ClawWhirlwindedComponent held, ClawWhirlwindActionEvent args)
+    {
+        held.Phase = ClawWhirlwindPhase.Land;
+        held.Landed = true;
+        _physics.SetLinearVelocity(target, Vector2.Zero);
+        SendWhirlwindAnimation(target, ClawWhirlwindPhase.Land, 0f, Vector2.Zero, 0f, 0f);
+        _stun.TryKnockdown(target, args.FinisherKnockdownTime, true);
+
+        var coords = _transform.GetMapCoordinates(target);
+        foreach (var effect in args.FinisherImpactEffects)
+            Spawn(effect, coords);
+
+        _audio.PlayPvs(args.FinisherSlamSound, target);
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-whirlwind-finisher-slam-target"), target, target, PopupType.LargeCaution);
     }
 
     private void Land(EntityUid target, ClawWhirlwindedComponent held, ClawWhirlwindActionEvent args)

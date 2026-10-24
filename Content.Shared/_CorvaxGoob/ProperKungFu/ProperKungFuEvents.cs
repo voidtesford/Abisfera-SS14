@@ -1,3 +1,4 @@
+using Content.Shared._Shitmed.Targeting;
 using Content.Shared.Actions;
 using Content.Shared.Damage;
 using Robust.Shared.Audio;
@@ -140,6 +141,121 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
     /// </summary>
     [DataField]
     public float ShieldThrowSpeed = 6f;
+
+    // CorvaxGoob-ProperKungFu-Start: plain Wolf Dance (no synergy) is a dash through the target that tosses it up in place.
+    /// <summary>
+    /// Plain variant: the user dashes through the target and stops this far (tiles) past its center.
+    /// </summary>
+    [DataField]
+    public float PassThroughDistance = 1f;
+
+    /// <summary>
+    /// Plain variant: duration of the fast dash through the target.
+    /// </summary>
+    [DataField]
+    public TimeSpan PassThroughDashDuration = TimeSpan.FromSeconds(0.35);
+
+    /// <summary>
+    /// Plain variant: how long the target spends in the air (it lands on the same spot, knocked down).
+    /// </summary>
+    [DataField]
+    public TimeSpan TossDuration = TimeSpan.FromSeconds(0.6);
+
+    /// <summary>
+    /// Plain variant: how high (tiles) the target sprite is tossed.
+    /// </summary>
+    [DataField]
+    public float TossHeight = 0.9f;
+
+    /// <summary>
+    /// Plain variant: full flips of the target in the air.
+    /// </summary>
+    [DataField]
+    public float TossSpins = 1f;
+
+    /// <summary>
+    /// Plain variant: whether the user falls after the dash (no by default, no dropkick pose).
+    /// </summary>
+    [DataField]
+    public bool PlainUserFalls;
+
+    /// <summary>
+    /// Plain variant finisher: starts when the target already had at least this much total damage before the dance.
+    /// </summary>
+    [DataField]
+    public float FinisherThreshold = 85f;
+
+    /// <summary>
+    /// Finisher: extra dashes through the locked target after the first hit, each turned 90 degrees.
+    /// </summary>
+    [DataField]
+    public int FinisherPasses = 10;
+
+    /// <summary>
+    /// Finisher: every extra dash ends this far (tiles) past the target.
+    /// </summary>
+    [DataField]
+    public float FinisherPassDistance = 3f;
+
+    /// <summary>
+    /// Finisher: duration of one extra dash.
+    /// </summary>
+    [DataField]
+    public TimeSpan FinisherPassDuration = TimeSpan.FromSeconds(0.16);
+
+    /// <summary>
+    /// Finisher: damage of every extra pass (to the torso).
+    /// </summary>
+    [DataField]
+    public DamageSpecifier FinisherPassDamage = new();
+
+    [DataField]
+    public EntProtoId? FinisherPassEffect;
+
+    [DataField]
+    public SoundSpecifier? FinisherPassSound;
+
+    /// <summary>
+    /// Finisher: toss of the target on every pass (client only).
+    /// </summary>
+    [DataField]
+    public TimeSpan FinisherTossDuration = TimeSpan.FromSeconds(0.3);
+
+    [DataField]
+    public float FinisherTossHeight = 0.5f;
+
+    /// <summary>
+    /// Final strike: damage dealt to each of <see cref="FinisherFinalParts"/>.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier FinisherFinalDamage = new();
+
+    [DataField]
+    public List<TargetBodyPart> FinisherFinalParts = new()
+    {
+        TargetBodyPart.Head,
+        TargetBodyPart.Chest,
+        TargetBodyPart.LeftArm,
+        TargetBodyPart.RightArm,
+        TargetBodyPart.LeftLeg,
+        TargetBodyPart.RightLeg,
+    };
+
+    [DataField]
+    public float FinisherKnockbackDistance = 7f;
+
+    [DataField]
+    public float FinisherKnockbackSpeed = 14f;
+
+    [DataField]
+    public TimeSpan FinisherKnockdownTime = TimeSpan.FromSeconds(3);
+
+    [DataField]
+    public EntProtoId? FinisherFinalEffect;
+
+    [DataField]
+    public SoundSpecifier? FinisherFinalSound;
+    // CorvaxGoob-ProperKungFu-End
 }
 
 /// <summary>
