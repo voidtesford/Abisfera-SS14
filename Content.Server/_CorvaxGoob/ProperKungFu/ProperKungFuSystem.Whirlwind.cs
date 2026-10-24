@@ -14,6 +14,7 @@ using Content.Shared._Shitmed.Medical.Surgery.Wounds.Components;
 using Content.Shared._Shitmed.Medical.Surgery.Wounds.Systems;
 using Content.Shared._Shitmed.Targeting;
 using Content.Shared.Body.Components;
+using Content.Shared.Body.Organ;
 using Content.Shared.Body.Systems;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Movement.Pulling.Components;
@@ -74,6 +75,13 @@ public sealed partial class ProperKungFuSystem
         }
 
         args.Handled = true;
+
+        // Wolf Grip synergy: instead of the throw, a two-handed cross strike (it releases the grab itself).
+        if (TryConsumeWolfGripMark(user, target))
+        {
+            DoWolfGripStrike(user, target, args);
+            return;
+        }
 
         // Nobody keeps dragging the target around while it flies over the user.
         if (TryComp<PullableComponent>(target, out var pullable) && pullable.BeingPulled)
@@ -218,46 +226,71 @@ public sealed partial class ProperKungFuSystem
     /// </summary>
     private void InflictHeadTrauma(EntityUid target, FixedPoint2 brainSeverity)
     {
+        InflictPartTrauma(target, TargetBodyPart.Head, "Blunt",
+            (organ, _) => HasComp<BrainComponent>(organ) ? brainSeverity : null);
+    }
+
+    /// <summary>
+    /// Shitmed: breaks the bone of one body part and puts organ damage traumas on its organs.
+    /// <paramref name="organSeverity"/> returns how much integrity to take from an organ (out of its IntegrityCap), or null to skip it.
+    /// </summary>
+    private void InflictPartTrauma(EntityUid target,
+        TargetBodyPart targetPart,
+        string woundType,
+        Func<EntityUid, OrganComponent, FixedPoint2?> organSeverity)
+    {
         if (!TryComp<BodyComponent>(target, out var body))
             return;
 
-        var (partType, symmetry) = _body.ConvertTargetBodyPart(TargetBodyPart.Head);
+        var (partType, symmetry) = _body.ConvertTargetBodyPart(targetPart);
         var part = _body.GetBodyChildrenOfType(target, partType, body, symmetry).FirstOrDefault();
-        var head = part.Id;
-        if (!head.IsValid() || !TryComp<WoundableComponent>(head, out var woundable))
+        var partUid = part.Id;
+        if (!partUid.IsValid() || !TryComp<WoundableComponent>(partUid, out var woundable))
             return;
 
-        // Traumas need an inflicter wound: reuse (or open) the Blunt wound on the head, like dismemberment does.
+        // Traumas need an inflicter wound: reuse (or open) a wound on the part, like dismemberment does.
         Entity<TraumaInflicterComponent>? inflicter = null;
-        if (_wound.TryInduceWound(head, "Blunt", 0f, out var wound, woundable))
+        if (_wound.TryInduceWound(partUid, woundType, 0f, out var wound, woundable))
             inflicter = (wound.Value.Owner, EnsureComp<TraumaInflicterComponent>(wound.Value.Owner));
 
-        if (woundable.Bone.ContainedEntities.FirstOrDefault() is { } bone
-            && bone.IsValid()
-            && TryComp<BoneComponent>(bone, out var boneComp)
-            && boneComp.BoneSeverity != BoneSeverity.Broken)
+        foreach (var bone in woundable.Bone.ContainedEntities)
         {
+            if (!TryComp<BoneComponent>(bone, out var boneComp) || boneComp.BoneSeverity == BoneSeverity.Broken)
+                continue;
+
             // Removing all the integrity left makes it Broken.
             if (inflicter is { } inf)
-                _trauma.ApplyBoneTrauma(bone, (head, woundable), inf, boneComp.BoneIntegrity, boneComp);
+                _trauma.ApplyBoneTrauma(bone, (partUid, woundable), inf, boneComp.BoneIntegrity, boneComp);
             else
                 _trauma.ApplyDamageToBone(bone, boneComp.BoneIntegrity, boneComp);
         }
 
-        if (inflicter is not { } brainInflicter)
+        if (inflicter is not { } organInflicter)
             return;
 
-        foreach (var (organ, organComp) in _body.GetPartOrgans(head, part.Component))
+        foreach (var (organ, organComp) in _body.GetPartOrgans(partUid, part.Component))
         {
-            if (!HasComp<BrainComponent>(organ))
+            if (organSeverity(organ, organComp) is not { } loss || loss <= 0)
                 continue;
 
-            var trauma = _trauma.AddTrauma(organ, (head, woundable), brainInflicter, TraumaType.OrganDamage, brainSeverity);
+            var trauma = _trauma.AddTrauma(organ, (partUid, woundable), organInflicter, TraumaType.OrganDamage, loss);
             if (!trauma.IsValid())
-                break;
-            if (!_trauma.TryCreateOrganDamageModifier(organ, brainSeverity, trauma, "WoundableDamage", organComp))
-                _trauma.TryChangeOrganDamageModifier(organ, brainSeverity, trauma, "WoundableDamage", organComp);
-            break;
+                continue;
+
+            // Shitmed sums all integrity modifiers into the organ's integrity, so our modifier is whatever
+            // brings that sum down to (current integrity - loss).
+            var desired = FixedPoint2.Max(organComp.OrganIntegrity - loss, FixedPoint2.New(0.01));
+            var others = FixedPoint2.Zero;
+            foreach (var (key, value) in organComp.IntegrityModifiers)
+            {
+                if (key != ("WoundableDamage", trauma))
+                    others += value;
+            }
+
+            var modifier = desired - others;
+            if (modifier == FixedPoint2.Zero)
+                modifier = FixedPoint2.New(0.01);
+            _trauma.TrySetOrganDamageModifier(organ, modifier, trauma, "WoundableDamage", organComp);
         }
     }
 

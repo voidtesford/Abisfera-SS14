@@ -81,6 +81,41 @@ public sealed partial class ClawWhirlwindActionEvent : EntityTargetActionEvent
 
     [DataField]
     public SoundSpecifier? LandSound;
+
+    // Wolf Grip synergy: a Claw Whirlwind on a Wolf-Grip-marked target becomes a two-handed cross strike.
+
+    /// <summary>
+    /// Damage of the two-handed strike, dealt to the chest.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier GripStrikeDamage = new();
+
+    /// <summary>
+    /// Part of the lungs' integrity the strike removes (0.4 = 40%).
+    /// </summary>
+    [DataField]
+    public float GripLungDamageFraction = 0.4f;
+
+    [DataField]
+    public TimeSpan GripBreathBlockTime = TimeSpan.FromSeconds(60);
+
+    [DataField]
+    public float GripKnockbackDistance = 8f;
+
+    [DataField]
+    public float GripKnockbackSpeed = 10f;
+
+    /// <summary>
+    /// The target lies on the floor and can't get up this long.
+    /// </summary>
+    [DataField]
+    public TimeSpan GripKnockdownTime = TimeSpan.FromSeconds(10);
+
+    [DataField]
+    public EntProtoId? GripImpactEffect = "ProperKungFuCrossSlash";
+
+    [DataField]
+    public SoundSpecifier? GripSound;
 }
 
 [Serializable, NetSerializable]

@@ -7,6 +7,7 @@
   id: ProperKungFuMoves
   combos:
   - ProperKungFuClawSeries
+  - ProperKungFuWolfGrip
 
 # Three fist hits in a row. Damage, knockback and stun are applied by ProperKungFuSystem;
 # the name is a locale id (the popup localizes it).
@@ -21,4 +22,21 @@
   event: !type:ProperKungFuClawSeriesPerformedEvent
   extraDamage: 10
   paralyzeTime: 2
+  canDoWhileProne: false
+
+# Harm, Disarm, Grab: 15 Slash, no breathing for 10 s, hard grab with the target held in front of the user.
+- type: combo
+  id: ProperKungFuWolfGrip
+  name: proper-kung-fu-wolf-grip
+  martialArtsForm: ProperKungFu
+  attacks:
+  - Harm
+  - Disarm
+  - Grab
+  event: !type:ProperKungFuWolfGripPerformedEvent
+    breathBlockTime: 10
+    markDuration: 2
+    holdDistance: 0.6
+  extraDamage: 15
+  damageType: Slash
   canDoWhileProne: false

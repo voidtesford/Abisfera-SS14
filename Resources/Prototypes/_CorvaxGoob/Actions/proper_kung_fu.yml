@@ -57,7 +57,7 @@
   parent: BaseAction
   id: ActionProperKungFuClawWhirlwind
   name: Claw Whirlwind
-  description: Throw a target within fist reach over yourself, drive your knee into their jaw (breaks the skull and shakes the brain), and they slowly spin up into the air before crashing down. The target can't move for about 2 seconds. Shields don't help. A Wolf Dance right after it becomes a single fast dash that sends the target 5 tiles away, but you fall too.
+  description: Throw a target within fist reach over yourself, drive your knee into their jaw (breaks the skull and shakes the brain), and they slowly spin up into the air before crashing down. The target can't move for about 2 seconds. Shields don't help. A Wolf Dance right after it becomes a single fast dash that sends the target 5 tiles away, but you fall too. Used on a target right after a Wolf Grip it becomes a two-handed cross strike instead.
   components:
   - type: Action
     useDelay: 30
@@ -94,3 +94,16 @@
         path: /Audio/Weapons/genhit2.ogg
       landSound:
         path: /Audio/Effects/thudswoosh.ogg
+      # Wolf Grip synergy: two-handed cross strike instead of the throw.
+      gripStrikeDamage:
+        types:
+          Blunt: 20
+          Slash: 10
+      gripLungDamageFraction: 0.4
+      gripBreathBlockTime: 60
+      gripKnockbackDistance: 8
+      gripKnockbackSpeed: 10
+      gripKnockdownTime: 10
+      gripImpactEffect: ProperKungFuCrossSlash
+      gripSound:
+        path: /Audio/Weapons/genhit3.ogg

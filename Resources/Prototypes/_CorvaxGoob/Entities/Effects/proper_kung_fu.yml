@@ -137,3 +137,27 @@
   - type: Tag
     tags:
     - HideContextMenu
+
+# Wolf Grip + Claw Whirlwind synergy: bright white-red cross (X) of claw slashes on the target.
+- type: entity
+  id: ProperKungFuCrossSlash
+  name: cross claw slash
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_cross.rsi
+      state: cross_slash
+      scale: 1.5, 1.5
+  - type: PointLight
+    color: "#FF3030"
+    radius: 2
+    energy: 2.5
+  - type: TimedDespawn
+    lifetime: 0.45
+  - type: Tag
+    tags:
+    - HideContextMenu

@@ -4,3 +4,5 @@ ent-ProperKungFuDashAfterimage = wolf dance afterimage
     .desc = { "" }
 ent-ProperKungFuKneeBurst = knee claw burst
     .desc = { "" }
+ent-ProperKungFuCrossSlash = cross claw slash
+    .desc = { "" }

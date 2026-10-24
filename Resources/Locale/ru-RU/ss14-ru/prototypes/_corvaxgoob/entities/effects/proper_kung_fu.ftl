@@ -4,3 +4,5 @@ ent-ProperKungFuDashAfterimage = остаточный образ волчьег�
     .desc = { "" }
 ent-ProperKungFuKneeBurst = коленный удар когтей
     .desc = { "" }
+ent-ProperKungFuCrossSlash = крестовый разрез когтей
+    .desc = { "" }
