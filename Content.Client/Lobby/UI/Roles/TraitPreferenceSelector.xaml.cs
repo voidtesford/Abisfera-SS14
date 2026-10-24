@@ -42,6 +42,20 @@ public sealed partial class TraitPreferenceSelector : Control
         }
     }
 
+    // CorvaxGoob-ProperKungFu-Start
+    /// <summary>
+    /// Shows the trait as unavailable, with the reason in the tooltip.
+    /// </summary>
+    public void LockRequirements(Robust.Shared.Utility.FormattedMessage reason)
+    {
+        Checkbox.Pressed = false;
+        Checkbox.Disabled = true;
+        Checkbox.Text = $"{Checkbox.Text} {Loc.GetString("trait-locked-suffix")}";
+        var tooltip = Checkbox.ToolTip is { } desc ? $"{desc}\n\n" : "";
+        Checkbox.ToolTip = tooltip + reason.ToString();
+    }
+    // CorvaxGoob-ProperKungFu-End
+
     private void OnCheckBoxToggled(BaseButton.ButtonToggledEventArgs args)
     {
         PreferenceChanged?.Invoke(Preference);

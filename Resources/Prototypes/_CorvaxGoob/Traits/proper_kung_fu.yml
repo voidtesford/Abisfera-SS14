@@ -1,0 +1,18 @@
+# Set (above zero) when a master of Proper Kung Fu teaches this player through "Join the Pack".
+# Play times are stored in the database, so this works as a persistent per-player unlock.
+- type: playTimeTracker
+  id: ProperKungFuPackHound
+
+# "Pack Hound": start the round already taught the pupil form of Proper Kung Fu.
+# Locked until a master has taught the player at least once.
+- type: trait
+  id: ProperKungFuPackHound
+  name: trait-proper-kung-fu-pack-hound-name
+  description: trait-proper-kung-fu-pack-hound-desc
+  category: Quirks
+  requirements:
+  - !type:PlayTimeTrackerRequirement
+    tracker: ProperKungFuPackHound
+    reason: trait-proper-kung-fu-pack-hound-locked
+  components:
+  - type: ProperKungFuPackHound

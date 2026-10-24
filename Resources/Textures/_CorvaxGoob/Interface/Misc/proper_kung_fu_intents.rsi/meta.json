@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Harm/Disarm/Grab intent icons for the Proper Kung Fu character info section, made for Abisfera",
+  "size": {
+    "x": 16,
+    "y": 16
+  },
+  "states": [
+    {
+      "name": "harm"
+    },
+    {
+      "name": "disarm"
+    },
+    {
+      "name": "grab"
+    }
+  ]
+}

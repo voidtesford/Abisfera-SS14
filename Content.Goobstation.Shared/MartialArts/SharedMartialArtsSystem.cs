@@ -30,6 +30,9 @@ using Content.Goobstation.Shared.Changeling.Components;
 using Content.Goobstation.Shared.MartialArts.Components;
 using Content.Goobstation.Shared.Sprinting;
 using Content.Goobstation.Shared.Stealth;
+// CorvaxGoob-ProperKungFu-Start
+using Content.Shared._CorvaxGoob.ProperKungFu;
+// CorvaxGoob-ProperKungFu-End
 using Content.Shared._Goobstation.Heretic.Components;
 using Content.Shared._Shitmed.Medical.Surgery.Traumas.Systems;
 using Content.Shared._Shitmed.Targeting;
@@ -119,6 +122,9 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
         InitializeNinjutsu();
         InitializeHellRip();
         InitializeCanPerformCombo();
+        // CorvaxGoob-ProperKungFu-Start
+        InitializeProperKungFu();
+        // CorvaxGoob-ProperKungFu-End
 
         SubscribeLocalEvent<MartialArtsKnowledgeComponent, ComponentShutdown>(OnShutdown);
         SubscribeLocalEvent<MartialArtsKnowledgeComponent, CheckGrabOverridesEvent>(CheckGrabStageOverride);
@@ -390,6 +396,9 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
             comboComponent.AllowedCombos.Clear();
 
         RemCompDeferred<DragonKungFuTimerComponent>(ent);
+        // CorvaxGoob-ProperKungFu-Start
+        RemCompDeferred<ProperKungFuComponent>(ent);
+        // CorvaxGoob-ProperKungFu-End
     }
 
     private void CheckGrabStageOverride<T>(EntityUid uid, T component, CheckGrabOverridesEvent args)
@@ -409,7 +418,8 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
 
     private void OnShotAttempt(Entity<MartialArtsKnowledgeComponent> ent, ref ShotAttemptedEvent args)
     {
-        if (ent.Comp.MartialArtsForm != MartialArtsForms.SleepingCarp)
+        if (ent.Comp.MartialArtsForm != MartialArtsForms.SleepingCarp
+            && ent.Comp.MartialArtsForm != MartialArtsForms.ProperKungFu) // CorvaxGoob-ProperKungFu
             return;
         _popupSystem.PopupClient(Loc.GetString("gun-disabled"), ent, ent);
         args.Cancel();
@@ -482,6 +492,33 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
         return false;
     }
 
+    // CorvaxGoob-ProperKungFu-Start
+    /// <summary>
+    /// Silently teaches Proper Kung Fu to an entity without a manual (used by the Wolf Pack clones).
+    /// </summary>
+    public bool GrantProperKungFu(EntityUid user)
+    {
+        return GrantMartialArt(new GrantProperKungFuComponent { LearnMessage = null }, user);
+    }
+
+    /// <summary>
+    /// Teaches the trimmed pupil form ("Join the Pack"): the three regular combos with halved effects, nothing else.
+    /// </summary>
+    public bool GrantProperKungFuPupil(EntityUid user)
+    {
+        if (!HasComp<ProperKungFuComponent>(user))
+        {
+            var kungFu = Factory.GetComponent<ProperKungFuComponent>();
+            kungFu.Pupil = true;
+            kungFu.BaseActions.Clear();
+            kungFu.BonusStamina = 0f;
+            AddComp(user, kungFu);
+        }
+
+        return GrantMartialArt(new GrantProperKungFuPupilComponent { LearnMessage = null }, user);
+    }
+    // CorvaxGoob-ProperKungFu-End
+
     private bool GrantMartialArt(GrantMartialArtKnowledgeComponent comp, EntityUid user)
     {
         var canPerformComboComponent = EnsureComp<CanPerformComboComponent>(user);
@@ -500,6 +537,15 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
             case MartialArtsForms.KungFuDragon:
                 EnsureComp<DragonKungFuTimerComponent>(user);
                 break;
+            // CorvaxGoob-ProperKungFu-Start
+            case MartialArtsForms.ProperKungFu:
+                EnsureComp<ProperKungFuComponent>(user);
+                break;
+            case MartialArtsForms.ProperKungFuPupil:
+                // The pupil component is set up by GrantProperKungFuPupil before this.
+                EnsureComp<ProperKungFuComponent>(user);
+                break;
+            // CorvaxGoob-ProperKungFu-End
             case MartialArtsForms.Ninjutsu:
                 EnsureComp<NinjutsuSneakAttackComponent>(user);
                 break;

@@ -30,6 +30,7 @@ public sealed class TraitSystem : EntitySystem
     [Dependency] private readonly IPrototypeManager _prototypeManager = default!;
     [Dependency] private readonly SharedHandsSystem _sharedHandsSystem = default!;
     [Dependency] private readonly EntityWhitelistSystem _whitelistSystem = default!;
+    [Dependency] private readonly Content.Server.Players.PlayTimeTracking.PlayTimeTrackingManager _playTime = default!; // CorvaxGoob-ProperKungFu
 
     public override void Initialize()
     {
@@ -60,6 +61,19 @@ public sealed class TraitSystem : EntitySystem
             if (_whitelistSystem.IsWhitelistFail(traitPrototype.Whitelist, args.Mob) ||
                 _whitelistSystem.IsBlacklistPass(traitPrototype.Blacklist, args.Mob))
                 continue;
+
+            // CorvaxGoob-ProperKungFu-Start: locked traits (e.g. Pack Hound) need their requirements met
+            if (traitPrototype.Requirements != null)
+            {
+                var playTimes = _playTime.TryGetTrackerTimes(args.Player, out var times)
+                    ? times
+                    : new Dictionary<string, TimeSpan>();
+
+                if (!Content.Shared._CorvaxGoob.ProperKungFu.ProperKungFuPackHound.TraitRequirementsMet(traitPrototype,
+                        EntityManager, _prototypeManager, args.Profile, playTimes, out _))
+                    continue;
+            }
+            // CorvaxGoob-ProperKungFu-End
 
             // Begin Goobstation: Species trait support
             if (traitPrototype.IncludedSpecies.Count > 0 && !traitPrototype.IncludedSpecies.Contains(args.Profile.Species) ||

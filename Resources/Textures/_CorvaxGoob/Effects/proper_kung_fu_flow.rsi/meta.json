@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Perfect Flow axe kick made for Abisfera in the style of the Proper Kung Fu effects",
+  "size": {
+    "x": 48,
+    "y": 48
+  },
+  "states": [
+    {
+      "name": "axe_kick",
+      "delays": [
+        [
+          0.06,
+          0.06,
+          0.08,
+          0.4
+        ]
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Knee impact claw burst made for Abisfera in the style of the wolf art provided by the project owner",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "knee_burst",
+      "delays": [
+        [
+          0.04,
+          0.05,
+          0.08,
+          0.15
+        ]
+      ]
+    }
+  ]
+}

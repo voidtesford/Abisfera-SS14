@@ -1274,3 +1274,33 @@
 #  - type: FoodSequenceElement
 #    entries:
 #      CottonBurger: MothPlushie
+
+- type: entity
+  parent: BasePlushie
+  id: PlushieArtist
+  name: плюшевый Ксенон
+  description: Мягкая игрушка легенды сервера.
+  components:
+  - type: Sprite
+    sprite: _Abisfera/Objects/Fun/Plushies/plushie_artist.rsi
+    state: icon
+  
+- type: entity
+  parent: BasePlushie
+  id: PlushieSlimeBartender
+  name: плюшевая Аврора
+  description: Мягкая игрушка хоста.
+  components:
+  - type: Sprite
+    sprite: _Abisfera/Objects/Fun/Plushies/plushie_slime.rsi
+    state: icon
+
+- type: entity
+  parent: BasePlushie
+  id: PlushieVulpMedic
+  name: плюшевый Лео
+  description: Пушистая игрушка лучшего модератора.
+  components:
+  - type: Sprite
+    sprite: _Abisfera/Objects/Fun/Plushies/plushie_medic.rsi
+    state: icon

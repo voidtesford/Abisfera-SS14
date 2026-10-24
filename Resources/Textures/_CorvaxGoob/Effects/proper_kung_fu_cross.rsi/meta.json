@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Cross claw slash made for Abisfera in the style of the wolf claw art provided by the project owner",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "cross_slash",
+      "delays": [
+        [
+          0.06,
+          0.07,
+          0.14,
+          0.18
+        ]
+      ]
+    }
+  ]
+}

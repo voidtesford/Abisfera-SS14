@@ -806,6 +806,28 @@ namespace Content.Client.Lobby.UI
                     var selector = new TraitPreferenceSelector(trait);
 
                     selector.Preference = Profile?.TraitPreferences.Contains(trait.ID) == true;
+
+                    // CorvaxGoob-ProperKungFu-Start: locked traits (e.g. Pack Hound) can't be picked
+                    if (trait.Requirements != null)
+                    {
+                        var playTimes = _playerManager.LocalSession is { } localSession
+                            ? _requirements.GetPlayTimes(localSession)
+                            : new Dictionary<string, TimeSpan>();
+
+                        if (!Content.Shared._CorvaxGoob.ProperKungFu.ProperKungFuPackHound.TraitRequirementsMet(trait,
+                                _entManager, _prototypeManager, Profile, playTimes, out var lockReason))
+                        {
+                            if (selector.Preference)
+                            {
+                                Profile = Profile?.WithoutTraitPreference(trait.ID, _prototypeManager);
+                                SetDirty();
+                            }
+
+                            selector.LockRequirements(lockReason);
+                        }
+                    }
+                    // CorvaxGoob-ProperKungFu-End
+
                     if (selector.Preference)
                         selectionCount += trait.Cost;
 

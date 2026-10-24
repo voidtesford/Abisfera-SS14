@@ -89,6 +89,14 @@ public sealed partial class TraitPrototype : IPrototype
     [DataField]
     public HashSet<ProtoId<SpeciesPrototype>> IncludedSpecies = new();
 
+    // CorvaxGoob-ProperKungFu-Start
+    /// <summary>
+    /// Requirements the player must meet to pick this trait (checked in the editor and when the trait is applied).
+    /// </summary>
+    [DataField]
+    public HashSet<Content.Shared.Roles.JobRequirement>? Requirements;
+    // CorvaxGoob-ProperKungFu-End
+
     // Einstein Engines - Language begin (remove this if trait system refactor)
     /// <summary>
     ///     The list of all Spoken Languages that this trait adds.

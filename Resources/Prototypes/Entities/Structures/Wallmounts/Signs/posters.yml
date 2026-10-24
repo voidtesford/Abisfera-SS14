@@ -1337,3 +1337,21 @@
   components:
   - type: Sprite
     state: originmap
+
+- type: entity
+  parent: PosterBase
+  id: PosterCustomCat
+  name: Плакат с котом
+  description: "АХХАХАХАХАХАХАХАХАХАХХАХАХАХАХА."
+  components:
+  - type: Sprite
+    state: poster_cat
+
+- type: entity
+  parent: PosterBase
+  id: PosterCustomNo
+  name: Плакат "НЕТ!"
+  description: "Категорический протест против грызлодёра."
+  components:
+  - type: Sprite
+    state: poster_no

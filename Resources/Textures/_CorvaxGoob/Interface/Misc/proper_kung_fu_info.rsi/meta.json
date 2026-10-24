@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Proper Kung Fu character info icons (combo icons and Harm/Disarm/Grab intent icons) made for Abisfera in the style of the Proper Kung Fu action icons",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "claw_series"
+    },
+    {
+      "name": "wolf_grip"
+    },
+    {
+      "name": "perfect_flow"
+    }
+  ]
+}
