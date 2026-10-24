@@ -1,0 +1,8 @@
+# Perfect Flow (Proper Kung Fu) disorientation: heavy blur / double vision / flash overlay, slowdown and stumbling.
+# Slurred speech and jitter are applied by the combo itself.
+- type: entity
+  parent: MobStatusEffectBase
+  id: StatusEffectProperKungFuDisoriented
+  name: disorientation
+  components:
+  - type: ProperKungFuDisorientedStatusEffect

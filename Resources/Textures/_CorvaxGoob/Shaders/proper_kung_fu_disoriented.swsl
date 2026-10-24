@@ -1,0 +1,45 @@
+// Proper Kung Fu "Perfect Flow" disorientation: a strong mix of a flashbang aftereffect and heavy drunkenness.
+// Strength: 0..1 overall power (fades out with the remaining time), Flash: 0..1 white flash right after the hit.
+uniform sampler2D SCREEN_TEXTURE;
+uniform highp float Strength;
+uniform highp float Flash;
+
+void fragment() {
+    highp vec2 uv = FRAGCOORD.xy * SCREEN_PIXEL_SIZE.xy;
+    highp float t = TIME;
+
+    // Big swaying of the whole picture (several times stronger than drunk.swsl).
+    highp float amp = 0.03 * Strength;
+    highp vec2 sway = vec2(amp * sin(t * 2.3), amp * 0.8 * cos(t * 1.7 - 0.4));
+    // Second, out of phase image for the double vision.
+    highp vec2 ghostOffset = vec2(amp * 1.4 * sin(t * 1.1 + 1.0), amp * 1.1 * cos(t * 2.9));
+
+    // Radial blur toward the screen center.
+    highp vec2 toCenter = vec2(0.5, 0.5) - uv;
+    highp vec3 col = vec3(0.0, 0.0, 0.0);
+    for (int i = 0; i < 8; i++) {
+        highp float f = float(i) / 8.0;
+        col += zTextureSpec(SCREEN_TEXTURE, uv + sway + toCenter * f * 0.1 * Strength).rgb;
+    }
+    col = col / 8.0;
+
+    // Double vision.
+    highp vec3 ghost = zTextureSpec(SCREEN_TEXTURE, uv - ghostOffset).rgb;
+    col = mix(col, ghost, 0.45 * Strength);
+
+    // Colour split.
+    highp float split = 0.007 * Strength;
+    col.r = mix(col.r, zTextureSpec(SCREEN_TEXTURE, uv + sway + vec2(split, 0.0)).r, 0.6 * Strength);
+    col.b = mix(col.b, zTextureSpec(SCREEN_TEXTURE, uv + sway - vec2(split, 0.0)).b, 0.6 * Strength);
+
+    // Pulsing dark red vignette.
+    highp float dist = length(uv - vec2(0.5, 0.5));
+    highp float pulse = 0.5 + 0.5 * sin(t * 6.0);
+    highp float vignette = smoothstep(0.2, 0.75, dist) * Strength * (0.55 + 0.3 * pulse);
+    col = mix(col, vec3(0.25, 0.0, 0.03), vignette);
+
+    // Flashbang-like white flash, fading out.
+    col = mix(col, vec3(1.0, 0.97, 0.94), clamp(Flash, 0.0, 1.0));
+
+    COLOR = vec4(col, 1.0);
+}

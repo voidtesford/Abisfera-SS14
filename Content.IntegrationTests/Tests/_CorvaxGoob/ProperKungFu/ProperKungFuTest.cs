@@ -10,6 +10,7 @@ using Content.Server.Body.Systems;
 using Content.Server.Temperature.Components;
 using Content.Shared._CorvaxGoob.ProperKungFu;
 using Content.Shared._Shitmed.Medical.Surgery.Traumas;
+using Content.Shared._Shitmed.Targeting;
 using Content.Shared._Shitmed.Medical.Surgery.Traumas.Components;
 using Content.Shared._Shitmed.Medical.Surgery.Wounds.Components;
 using Content.Shared.ActionBlocker;
@@ -1264,6 +1265,190 @@ public sealed class ProperKungFuTest
         });
 
         await pair.CleanReturnAsync();
+    }
+
+    /// <summary>
+    /// Perfect Flow (Disarm, Harm, Disarm, Harm): 10 Blunt into each arm and the torso (hands untouched),
+    /// 5 s disorientation, broken arms from 50 total damage, finisher from 80 total damage.
+    /// </summary>
+    [Test]
+    public async Task PerfectFlowTest()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var map = await pair.CreateTestMap();
+
+        var entMan = server.ResolveDependency<IEntityManager>();
+        var tileDefs = server.ResolveDependency<ITileDefinitionManager>();
+        var mapSys = entMan.System<SharedMapSystem>();
+        var hands = entMan.System<SharedHandsSystem>();
+        var xformSys = entMan.System<SharedTransformSystem>();
+        var combat = entMan.System<SharedCombatModeSystem>();
+        var damageSys = entMan.System<DamageableSystem>();
+        var statusNew = entMan.System<Content.Shared.StatusEffectNew.StatusEffectsSystem>();
+        var statusOld = entMan.System<StatusEffectsSystem>();
+        var timing = server.ResolveDependency<Robust.Shared.Timing.IGameTiming>();
+
+        // Pre-damage on the legs/groin (never on the parts the combo hits) -> total after the combo.
+        var preDamage = new[] { 0f, 20f, 45f, 50f };
+        var targets = new EntityUid[preDamage.Length];
+        EntityUid user = default;
+
+        await server.WaitPost(() =>
+        {
+            var tile = new Tile(tileDefs["Plating"].TileId);
+            for (var x = -3; x <= 6; x++)
+            for (var y = -3; y <= 12; y++)
+            {
+                mapSys.SetTile(map.Grid.Owner, map.Grid.Comp, new Vector2i(x, y), tile);
+            }
+
+            user = SpawnMob(entMan, new EntityCoordinates(map.Grid, 0.5f, 0.5f));
+            for (var i = 0; i < targets.Length; i++)
+            {
+                targets[i] = SpawnMob(entMan, new EntityCoordinates(map.Grid, 1.5f, 0.5f + i * 3));
+            }
+
+            var book = entMan.SpawnEntity("ProperKungFuManual", new EntityCoordinates(map.Grid, 0.5f, 0.5f));
+            Assert.That(hands.TryPickupAnyHand(user, book), Is.True);
+            entMan.EventBus.RaiseLocalEvent(book, new UseInHandEvent(user));
+        });
+
+        await server.WaitRunTicks(5);
+
+        await server.WaitPost(() =>
+        {
+            for (var i = 0; i < targets.Length; i++)
+            {
+                if (preDamage[i] <= 0f)
+                    continue;
+
+                var third = preDamage[i] / 2f;
+                foreach (var part in new[] { TargetBodyPart.LeftLeg, TargetBodyPart.RightLeg })
+                {
+                    var dmg = new DamageSpecifier();
+                    dmg.DamageDict.Add("Blunt", third);
+                    damageSys.TryChangeDamage(targets[i], dmg, targetPart: part, canMiss: false);
+                }
+
+                Assert.That(entMan.GetComponent<DamageableComponent>(targets[i]).TotalDamage.Float(),
+                    Is.EqualTo(preDamage[i]).Within(0.5f), "Pre-damage applied");
+            }
+        });
+
+        await server.WaitRunTicks(1);
+
+        for (var i = 0; i < targets.Length; i++)
+        {
+            var target = targets[i];
+            var expectedTotal = preDamage[i] + 30f;
+            var finisher = expectedTotal >= 80f;
+            var fractures = expectedTotal >= 50f;
+            var userStart = new Vector2(0.5f, 0.5f + i * 3);
+
+            await server.WaitPost(() =>
+            {
+                xformSys.SetWorldPosition(user, userStart);
+                combat.SetInCombatMode(user, true);
+                Assert.That(entMan.GetComponent<DamageableComponent>(target).TotalDamage.Float(),
+                    Is.EqualTo(preDamage[i]).Within(0.5f), $"Case {i}: total before the combo");
+
+                entMan.EventBus.RaiseLocalEvent(user, new ComboAttackPerformedEvent(user, target, user, ComboAttackType.Disarm));
+                entMan.EventBus.RaiseLocalEvent(user, new ComboAttackPerformedEvent(user, target, user, ComboAttackType.Harm));
+                entMan.EventBus.RaiseLocalEvent(user, new ComboAttackPerformedEvent(user, target, user, ComboAttackType.Disarm));
+                entMan.EventBus.RaiseLocalEvent(user, new ComboAttackPerformedEvent(user, target, user, ComboAttackType.Harm));
+            });
+
+            await server.WaitRunTicks(1);
+
+            await server.WaitAssertion(() =>
+            {
+                var what = $"Case {i} (total {expectedTotal})";
+
+                // Damage per part: arms and torso 10 Blunt each, hands nothing.
+                Assert.That(ArmDamage(entMan, target, BodyPartSymmetry.Left), Is.EqualTo(10f).Within(0.5f), $"{what}: 10 Blunt on the left arm");
+                Assert.That(ArmDamage(entMan, target, BodyPartSymmetry.Right), Is.EqualTo(10f).Within(0.5f), $"{what}: 10 Blunt on the right arm");
+                Assert.That(PartDamage(entMan, target, BodyPartType.Chest, "Blunt"), Is.EqualTo(10f).Within(0.5f), $"{what}: 10 Blunt on the torso");
+                foreach (var hand in entMan.System<SharedBodySystem>().GetBodyChildrenOfType(target, BodyPartType.Hand))
+                {
+                    var handDamage = entMan.GetComponent<DamageableComponent>(hand.Id).Damage.DamageDict.TryGetValue("Blunt", out var hb) ? hb.Float() : 0f;
+                    Assert.That(handDamage, Is.LessThanOrEqualTo(0f), $"{what}: no damage on the hands");
+                }
+
+                Assert.That(PartDamage(entMan, target, BodyPartType.Head, "Blunt"), Is.EqualTo(finisher ? 20f : 0f).Within(0.5f),
+                    finisher ? $"{what}: finisher, 20 Blunt on the head" : $"{what}: no finisher, head untouched");
+                Assert.That(entMan.GetComponent<DamageableComponent>(target).TotalDamage.Float(),
+                    Is.EqualTo(expectedTotal + (finisher ? 20f : 0f)).Within(0.5f), $"{what}: total damage");
+
+                // Broken arms from 50.
+                foreach (var symmetry in new[] { BodyPartSymmetry.Left, BodyPartSymmetry.Right })
+                {
+                    var arm = entMan.System<SharedBodySystem>().GetBodyChildrenOfType(target, BodyPartType.Arm, symmetry: symmetry).First().Id;
+                    var bone = entMan.GetComponent<WoundableComponent>(arm).Bone.ContainedEntities.First();
+                    var severity = entMan.GetComponent<BoneComponent>(bone).BoneSeverity;
+                    if (fractures)
+                        Assert.That(severity, Is.EqualTo(BoneSeverity.Broken), $"{what}: {symmetry} arm broken");
+                    else
+                        Assert.That(severity, Is.Not.EqualTo(BoneSeverity.Broken), $"{what}: {symmetry} arm intact");
+                }
+
+                // 5 s disorientation.
+                Assert.That(statusNew.TryGetTime(target, "StatusEffectProperKungFuDisoriented", out var time), $"{what}: disoriented");
+                Assert.That(time.EndEffectTime, Is.Not.Null);
+                Assert.That((time.EndEffectTime!.Value - timing.CurTime).TotalSeconds, Is.EqualTo(5).Within(0.2), $"{what}: for 5 s");
+                Assert.That(entMan.HasComponent<ProperKungFuDisorientedComponent>(target), $"{what}: mob-side disorientation");
+                Assert.That(statusOld.HasStatusEffect(target, "SlurredSpeech"), $"{what}: slurred speech");
+                Assert.That(entMan.HasComponent<Content.Shared.Jittering.JitteringComponent>(target), $"{what}: jitter");
+
+                // Finisher: the user is behind the target, on the side opposite to where they stood.
+                var userPos = xformSys.GetWorldPosition(user);
+                var targetPos = xformSys.GetWorldPosition(target);
+                if (finisher)
+                {
+                    Assert.That(userPos.X - targetPos.X, Is.EqualTo(0.8f).Within(0.1f), $"{what}: user behind the target ({userPos}, target {targetPos})");
+                    Assert.That(userPos.Y - targetPos.Y, Is.EqualTo(0f).Within(0.1f), $"{what}: on the same line");
+                    var afterimages = 0;
+                    var query = entMan.EntityQueryEnumerator<MetaDataComponent, TransformComponent>();
+                    while (query.MoveNext(out var uid, out var meta, out _))
+                    {
+                        if (meta.EntityPrototype?.ID == "ProperKungFuFlowAfterimage"
+                            && (xformSys.GetWorldPosition(uid) - userStart).Length() < 0.1f)
+                            afterimages++;
+                    }
+                    Assert.That(afterimages, Is.EqualTo(1), $"{what}: burgundy afterimage at the old spot");
+                }
+                else
+                {
+                    Assert.That((userPos - userStart).Length(), Is.LessThan(0.05f), $"{what}: no finisher, the user stays");
+                }
+
+                Assert.That(entMan.GetComponent<ProperKungFuComponent>(user).UltimateCharge, Is.EqualTo(5f * (i + 1)).Within(0.01f),
+                    $"{what}: +5 ult, nothing extra for the finisher");
+                Assert.That(entMan.GetComponent<CanPerformComboComponent>(user).LastAttacks, Is.Empty, $"{what}: no leftover chain");
+            });
+        }
+
+        // The disorientation wears off after 5 s.
+        await server.WaitRunTicks((int) (timing.TickRate * 5.5f));
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(statusNew.HasStatusEffect(targets[0], "StatusEffectProperKungFuDisoriented"), Is.False, "Disorientation over");
+            Assert.That(entMan.HasComponent<ProperKungFuDisorientedComponent>(targets[0]), Is.False, "Mob-side disorientation removed");
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    private static float ArmDamage(IEntityManager entMan, EntityUid target, BodyPartSymmetry symmetry)
+    {
+        var part = entMan.System<SharedBodySystem>().GetBodyChildrenOfType(target, BodyPartType.Arm, symmetry: symmetry).FirstOrDefault();
+        if (part == default)
+            return -1f;
+
+        return entMan.GetComponent<DamageableComponent>(part.Id).Damage.DamageDict.TryGetValue("Blunt", out var value)
+            ? value.Float()
+            : 0f;
     }
 
     /// <summary>

@@ -8,6 +8,7 @@
   combos:
   - ProperKungFuClawSeries
   - ProperKungFuWolfGrip
+  - ProperKungFuPerfectFlow
 
 # Three fist hits in a row. Damage, knockback and stun are applied by ProperKungFuSystem;
 # the name is a locale id (the popup localizes it).
@@ -39,4 +40,43 @@
     holdDistance: 0.6
   extraDamage: 15
   damageType: Slash
+  canDoWhileProne: false
+
+# Disarm, Harm, Disarm, Harm: 10 Blunt into each arm and the torso (hands untouched), broken arms from 50 total damage,
+# 5 s of heavy disorientation. From 80 total damage the user appears behind the target and spin-kicks it in the head.
+# Thresholds are checked after the combo's own damage. Damage is dealt by ProperKungFuSystem (extraDamage stays 0).
+- type: combo
+  id: ProperKungFuPerfectFlow
+  name: proper-kung-fu-perfect-flow
+  martialArtsForm: ProperKungFu
+  attacks:
+  - Disarm
+  - Harm
+  - Disarm
+  - Harm
+  event: !type:ProperKungFuPerfectFlowPerformedEvent
+    partDamage: 10
+    damageType: Blunt
+    fractureThreshold: 50
+    disorientEffect: StatusEffectProperKungFuDisoriented
+    disorientTime: 5
+    finisherThreshold: 80
+    finisherDamage: 20
+    finisherDamageType: Blunt
+    behindDistance: 0.8
+    spinDuration: 0.35
+    armCutEffect: ProperKungFuFlowArmCuts
+    palmsEffect: ProperKungFuFlowPalms
+    axeKickEffect: ProperKungFuFlowAxeKick
+    afterimageEffect: ProperKungFuFlowAfterimage
+    hitSound:
+      path: /Audio/Weapons/punch2.ogg
+      params:
+        volume: 2
+    fractureSound:
+      path: /Audio/_Goobstation/Effects/bone_crack.ogg
+    finisherSound:
+      path: /Audio/Effects/hit_kick.ogg
+      params:
+        volume: 4
   canDoWhileProne: false

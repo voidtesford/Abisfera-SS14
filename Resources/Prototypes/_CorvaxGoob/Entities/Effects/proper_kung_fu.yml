@@ -249,3 +249,87 @@
   - type: Tag
     tags:
     - HideContextMenu
+
+# Perfect Flow: small bright claw cuts on one of the target's arms (spawned on both arms, attached to the target).
+- type: entity
+  id: ProperKungFuFlowArmCuts
+  name: perfect flow arm cuts
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_flow.rsi
+      state: arm_cuts
+  - type: TimedDespawn
+    lifetime: 0.9
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Perfect Flow: two scarlet palm prints on the target's chest.
+- type: entity
+  id: ProperKungFuFlowPalms
+  name: perfect flow palm prints
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_flow.rsi
+      state: scarlet_palms
+  - type: PointLight
+    color: "#FF2A2A"
+    radius: 1.5
+    energy: 1.5
+  - type: TimedDespawn
+    lifetime: 1.2
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Perfect Flow finisher: a chopping axe-kick arc coming down onto the target's head.
+- type: entity
+  id: ProperKungFuFlowAxeKick
+  name: perfect flow axe kick
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_flow.rsi
+      state: axe_kick
+  - type: PointLight
+    color: "#C0182E"
+    radius: 2.5
+    energy: 3
+  - type: TimedDespawn
+    lifetime: 0.6
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Perfect Flow finisher: burgundy afterimage left where the user stood (the Wolf Dance afterimage, recolored).
+- type: entity
+  parent: ProperKungFuDashAfterimage
+  id: ProperKungFuFlowAfterimage
+  name: perfect flow afterimage
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Trail
+    lerpTime: 0.01
+    frequency: 0.01
+    maxParticleAmount: 1
+    lifetime: 1.2
+    alphaLerpAmount: 0.06
+    color: "#800020E0"
+    shader: unshaded
+    spawnRemainingTrail: false
+  - type: TimedDespawn
+    lifetime: 1.6

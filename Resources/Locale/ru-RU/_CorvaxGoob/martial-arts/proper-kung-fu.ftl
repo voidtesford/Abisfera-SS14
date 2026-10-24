@@ -40,3 +40,9 @@ proper-kung-fu-wolf-instinct-dash-miss = Слишком далеко, вы пр�
 proper-kung-fu-wolf-instinct-catch-user = Вы опрокидываете { $target } и берёте в жёсткий захват!
 proper-kung-fu-wolf-instinct-catch-target = { CAPITALIZE($user) } опрокидывает вас, выбивает оружие и хватает!
 proper-kung-fu-wolf-instinct-reflect-user = Вы отправляете { $item } обратно!
+
+proper-kung-fu-perfect-flow = Идеальный поток
+proper-kung-fu-perfect-flow-user = Идеальный поток! Ваши удары проходят по рукам и груди { $target }!
+proper-kung-fu-perfect-flow-target = Удары { $user } текут сквозь вас, мир плывёт и кружится!
+proper-kung-fu-perfect-flow-finisher-user = Вы оказываетесь за спиной { $target } и с разворота бьёте ногой в голову!
+proper-kung-fu-perfect-flow-finisher-target = { CAPITALIZE($user) } исчезает, и пятка с размаху обрушивается вам на голову сзади!

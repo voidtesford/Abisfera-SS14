@@ -40,3 +40,9 @@ proper-kung-fu-wolf-instinct-dash-miss = Too far, you miss!
 proper-kung-fu-wolf-instinct-catch-user = You knock { $target } down and take them into a hard grab!
 proper-kung-fu-wolf-instinct-catch-target = { CAPITALIZE($user) } knocks you down, knocks the gun out of your hands and grabs you!
 proper-kung-fu-wolf-instinct-reflect-user = You send { $item } back!
+
+proper-kung-fu-perfect-flow = Perfect Flow
+proper-kung-fu-perfect-flow-user = Perfect Flow! Your blows flow through { $target }'s arms and chest!
+proper-kung-fu-perfect-flow-target = { CAPITALIZE($user) }'s blows flow into you, the world spins and blurs!
+proper-kung-fu-perfect-flow-finisher-user = You appear behind { $target } and spin-kick them in the head!
+proper-kung-fu-perfect-flow-finisher-target = { CAPITALIZE($user) } vanishes and a heel crashes down on your head from behind!
