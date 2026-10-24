@@ -123,7 +123,7 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
         InitializeHellRip();
         InitializeCanPerformCombo();
         // CorvaxGoob-ProperKungFu-Start
-        SubscribeLocalEvent<GrantProperKungFuComponent, Content.Shared.Interaction.Events.UseInHandEvent>(OnGrantCQCUse);
+        InitializeProperKungFu();
         // CorvaxGoob-ProperKungFu-End
 
         SubscribeLocalEvent<MartialArtsKnowledgeComponent, ComponentShutdown>(OnShutdown);
@@ -418,7 +418,8 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
 
     private void OnShotAttempt(Entity<MartialArtsKnowledgeComponent> ent, ref ShotAttemptedEvent args)
     {
-        if (ent.Comp.MartialArtsForm != MartialArtsForms.SleepingCarp)
+        if (ent.Comp.MartialArtsForm != MartialArtsForms.SleepingCarp
+            && ent.Comp.MartialArtsForm != MartialArtsForms.ProperKungFu) // CorvaxGoob-ProperKungFu
             return;
         _popupSystem.PopupClient(Loc.GetString("gun-disabled"), ent, ent);
         args.Cancel();

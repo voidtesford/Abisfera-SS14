@@ -3,7 +3,22 @@
   martialArtsForm: ProperKungFu
   roundstartCombos: ProperKungFuMoves
 
-# No click combos yet, the art currently consists of the Wolf Dance action only.
 - type: comboList
   id: ProperKungFuMoves
-  combos: []
+  combos:
+  - ProperKungFuClawSeries
+
+# Three fist hits in a row. Damage, knockback and stun are applied by ProperKungFuSystem;
+# the name is a locale id (the popup localizes it).
+- type: combo
+  id: ProperKungFuClawSeries
+  name: proper-kung-fu-claw-series
+  martialArtsForm: ProperKungFu
+  attacks:
+  - Harm
+  - Harm
+  - Harm
+  event: !type:ProperKungFuClawSeriesPerformedEvent
+  extraDamage: 10
+  paralyzeTime: 2
+  canDoWhileProne: false

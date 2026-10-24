@@ -2,7 +2,7 @@
   parent: BaseAction
   id: ActionProperKungFuWolfDance
   name: Wolf Dance
-  description: Dash to a target up to 5 tiles away and finish with a roundhouse kick that knocks them down and sends them flying. A held shield blocks the kick but gets knocked out of the hands.
+  description: Roll forward toward a target up to 5 tiles away, dash into it at an angle and finish with a roundhouse kick that knocks them down and sends them flying. A held shield blocks the kick but gets knocked out of the hands. Right after a Claw Series the kick hits much harder and sends the target further, but only knocks them down.
   components:
   - type: Action
     useDelay: 20
@@ -26,9 +26,24 @@
       knockbackDistance: 3
       knockbackSpeed: 10
       maxRange: 5.5
+      rollDuration: 0.45
+      dashDuration: 0.25
+      rollFraction: 0.45
+      sideOffset: 0.75
+      kickRange: 1.5
+      # Kick on a target marked by Claw Series in the last 2 s.
+      synergyDamage:
+        types:
+          Blunt: 30
+      synergyKnockbackDistance: 5
+      synergyKnockdownTime: 2
+      rollSound:
+        path: /Audio/Effects/thudswoosh.ogg
       dashSound:
         path: /Audio/Weapons/punchmiss.ogg
+      missSound:
+        path: /Audio/Weapons/punchmiss.ogg
       hitSound:
-        path: /Audio/Effects/hit_kick.ogg
+        path: /Audio/_CorvaxGoob/Effects/MartialArts/wolf_dance_kick.ogg
       blockedSound:
         path: /Audio/Weapons/block_metal1.ogg

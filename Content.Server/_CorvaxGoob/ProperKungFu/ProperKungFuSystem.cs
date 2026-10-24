@@ -1,5 +1,6 @@
 using System.Numerics;
 using Content.Goobstation.Common.MartialArts;
+using Content.Goobstation.Shared.MartialArts.Components;
 using Content.Server.Popups;
 using Content.Shared._CorvaxGoob.ProperKungFu;
 using Content.Shared._Goobstation.Wizard.Projectiles;
@@ -7,14 +8,29 @@ using Content.Shared._Shitmed.Targeting;
 using Content.Shared.Actions;
 using Content.Shared.Blocking;
 using Content.Shared.Damage;
+using Content.Shared.Damage.Components;
+using Content.Shared.Movement.Pulling.Components;
+using Content.Shared.Movement.Pulling.Systems;
+using Content.Shared.Movement.Systems;
 using Content.Shared.Hands.EntitySystems;
 using Content.Shared.Mobs.Components;
+using Content.Shared.Mobs.Systems;
+using Content.Shared.Physics;
 using Content.Shared.Popups;
+using Content.Shared.Standing;
 using Content.Shared.Stunnable;
 using Content.Shared.Throwing;
 using Robust.Server.Audio;
+using Robust.Shared.Audio;
 using Robust.Server.GameObjects;
+using Robust.Shared.Containers;
 using Robust.Shared.Map;
+using Robust.Shared.Physics;
+using Robust.Shared.Physics.Systems;
+using Robust.Shared.Player;
+using Robust.Shared.Prototypes;
+using Robust.Shared.Random;
+using Robust.Shared.Timing;
 
 namespace Content.Server._CorvaxGoob.ProperKungFu;
 
@@ -31,8 +47,38 @@ public sealed class ProperKungFuSystem : EntitySystem
     [Dependency] private readonly SharedStunSystem _stun = default!;
     [Dependency] private readonly ThrowingSystem _throwing = default!;
     [Dependency] private readonly TransformSystem _transform = default!;
+    [Dependency] private readonly SharedPhysicsSystem _physics = default!;
+    [Dependency] private readonly MobStateSystem _mobState = default!;
+    [Dependency] private readonly SharedContainerSystem _container = default!;
+    [Dependency] private readonly IGameTiming _timing = default!;
+    [Dependency] private readonly IRobustRandom _random = default!;
+    [Dependency] private readonly IPrototypeManager _proto = default!;
+    [Dependency] private readonly MovementSpeedModifierSystem _movementSpeed = default!;
+    [Dependency] private readonly PullingSystem _pulling = default!;
 
     private const string WolfDanceMove = "WolfDance";
+    private const string ClawSeriesMove = "ClawSeries";
+
+    /// <summary>
+    /// Claw Series knockback (tiles) and how long its mark enables the Wolf Dance synergy.
+    /// </summary>
+    private const float ClawSeriesKnockback = 3f;
+    private static readonly TimeSpan ClawMarkDuration = TimeSpan.FromSeconds(2);
+
+    // Claw Series visuals (all white-red).
+    private static readonly EntProtoId ClawSwipeEffect = "ProperKungFuClawSwipe";
+    private static readonly EntProtoId ClawSwipeFlippedEffect = "ProperKungFuClawSwipeFlipped";
+    private static readonly EntProtoId PalmFlashEffect = "ProperKungFuPalmFlash";
+    private static readonly EntProtoId DustPuffWhite = "ProperKungFuDustPuffWhite";
+    private static readonly EntProtoId DustPuffRed = "ProperKungFuDustPuffRed";
+    private const float ClawSwipeDistance = 0.7f;
+    private static readonly TimeSpan SlideDuration = TimeSpan.FromSeconds(0.4);
+    private static readonly TimeSpan DustPuffInterval = TimeSpan.FromSeconds(0.06);
+
+    /// <summary>
+    /// Distance kept from walls while moving, roughly a mob's collision radius.
+    /// </summary>
+    private const float BodyClearance = 0.4f;
 
     public override void Initialize()
     {
@@ -42,6 +88,8 @@ public sealed class ProperKungFuSystem : EntitySystem
         SubscribeLocalEvent<ProperKungFuComponent, ComponentShutdown>(OnShutdown);
         SubscribeLocalEvent<ProperKungFuComponent, WolfDanceActionEvent>(OnWolfDance);
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuSpecialHitEvent>(OnSpecialHit);
+        SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuClawSeriesPerformedEvent>(OnClawSeries);
+        SubscribeLocalEvent<ProperKungFuComponent, ComboAttackPerformedEvent>(OnComboAttack);
     }
 
     private void OnStartup(Entity<ProperKungFuComponent> ent, ref ComponentStartup args)
@@ -52,6 +100,15 @@ public sealed class ProperKungFuSystem : EntitySystem
                 ent.Comp.ActionEntities.Add(action);
         }
 
+        // Passive +stamina. Attack rate and sprint speed are applied by SharedMartialArtsSystem.ProperKungFu.
+        if (TryComp<StaminaComponent>(ent, out var stamina))
+        {
+            stamina.CritThreshold += ent.Comp.BonusStamina;
+            ent.Comp.AppliedBonusStamina = ent.Comp.BonusStamina;
+            Dirty(ent.Owner, stamina);
+        }
+
+        _movementSpeed.RefreshMovementSpeedModifiers(ent);
         Dirty(ent);
     }
 
@@ -63,6 +120,20 @@ public sealed class ProperKungFuSystem : EntitySystem
         }
 
         ent.Comp.ActionEntities.Clear();
+
+        if (TerminatingOrDeleted(ent))
+            return;
+
+        if (ent.Comp.AppliedBonusStamina != 0f && TryComp<StaminaComponent>(ent, out var stamina))
+        {
+            stamina.CritThreshold -= ent.Comp.AppliedBonusStamina;
+            Dirty(ent.Owner, stamina);
+        }
+
+        ent.Comp.AppliedBonusStamina = 0f;
+
+        // The component is still attached during shutdown, so the speed refresh is skipped for it.
+        _movementSpeed.RefreshMovementSpeedModifiers(ent);
     }
 
     private void OnSpecialHit(Entity<ProperKungFuComponent> ent, ref ProperKungFuSpecialHitEvent args)
@@ -72,6 +143,91 @@ public sealed class ProperKungFuSystem : EntitySystem
             return;
 
         AddUltimateCharge(ent, ent.Comp.ChargePerSpecialHit);
+    }
+
+    /// <summary>
+    /// Every unarmed Harm hit on a mob draws a claw swipe between the attacker and the target, mirrored each hit.
+    /// </summary>
+    private void OnComboAttack(Entity<ProperKungFuComponent> ent, ref ComboAttackPerformedEvent args)
+    {
+        if (args.Type != ComboAttackType.Harm
+            || args.Weapon != ent.Owner
+            || args.Target == ent.Owner
+            || !HasComp<MobStateComponent>(args.Target)
+            || !TryComp<MartialArtsKnowledgeComponent>(ent, out var knowledge)
+            || knowledge.MartialArtsForm != MartialArtsForms.ProperKungFu
+            || knowledge.Blocked)
+            return;
+
+        var userPos = _transform.GetWorldPosition(ent);
+        var delta = _transform.GetWorldPosition(args.Target) - userPos;
+        var direction = delta.LengthSquared() > 0.0001f
+            ? Vector2.Normalize(delta)
+            : _transform.GetWorldRotation(ent).ToWorldVec();
+
+        var proto = ent.Comp.SwipeFlipped ? ClawSwipeFlippedEffect : ClawSwipeEffect;
+        ent.Comp.SwipeFlipped = !ent.Comp.SwipeFlipped;
+
+        var mapCoords = new MapCoordinates(userPos + direction * MathF.Min(ClawSwipeDistance, delta.Length()),
+            _transform.GetMapId(ent.Owner));
+        // Arc sprites point south by default, so the world angle of the direction faces them at the target.
+        Spawn(proto, mapCoords, rotation: direction.ToWorldAngle());
+    }
+
+    /// <summary>
+    /// "Claw Series": the third fist hit in a row adds 10 Blunt, throws the target 3 tiles back,
+    /// stuns it for 2 s and marks it for the Wolf Dance synergy.
+    /// </summary>
+    private void OnClawSeries(Entity<ProperKungFuComponent> ent, ref ProperKungFuClawSeriesPerformedEvent args)
+    {
+        if (!TryComp<CanPerformComboComponent>(ent, out var combo)
+            || combo.CurrentTarget is not { } target
+            || TerminatingOrDeleted(target)
+            || !_proto.TryIndex(combo.BeingPerformed, out var proto)
+            || proto.MartialArtsForm != MartialArtsForms.ProperKungFu
+            || !TryComp<MartialArtsKnowledgeComponent>(ent, out var knowledge)
+            || knowledge.MartialArtsForm != MartialArtsForms.ProperKungFu
+            || knowledge.Blocked)
+            return;
+
+        // Start the next series from scratch instead of chaining hit 4, 5... into new combos.
+        combo.LastAttacks.Clear();
+        Dirty(ent.Owner, combo);
+
+        if (!proto.CanDoWhileProne && TryComp<StandingStateComponent>(ent, out var standing)
+            && standing.CurrentState != StandingState.Standing)
+            return;
+
+        var targetPart = TryComp<TargetingComponent>(ent, out var targeting) ? targeting.Target : (TargetBodyPart?) null;
+        var damage = new DamageSpecifier();
+        damage.DamageDict.Add(proto.DamageType, proto.ExtraDamage);
+        _damageable.TryChangeDamage(target, damage, origin: ent, targetPart: targetPart);
+
+        // Standing stun: StunnedComponent only, no knockdown and nothing is dropped.
+        _stun.TryStun(target, TimeSpan.FromSeconds(proto.ParalyzeTime), true);
+        Spawn(PalmFlashEffect, _transform.GetMapCoordinates(target));
+
+        if (TryComp<PullableComponent>(target, out var pullable))
+            _pulling.TryStopPull(target, pullable, ent, true);
+
+        var delta = _transform.GetWorldPosition(target) - _transform.GetWorldPosition(ent);
+        var direction = delta.LengthSquared() > 0.0001f
+            ? Vector2.Normalize(delta)
+            : _transform.GetWorldRotation(ent).ToWorldVec();
+
+        // Slides back exactly 3 tiles on its feet, kicking up dust; walls stop it.
+        StartKnockback(target, direction, ClawSeriesKnockback, SlideDuration, dust: true);
+
+        var mark = EnsureComp<ProperKungFuClawMarkComponent>(target);
+        mark.Marker = ent;
+        mark.ExpiresAt = _timing.CurTime + ClawMarkDuration;
+
+        _audio.PlayPvs(new SoundPathSpecifier("/Audio/Weapons/genhit3.ogg"), target);
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-series-user", ("target", target)), ent, ent, PopupType.Medium);
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-series-target", ("user", ent.Owner)), target, target, PopupType.MediumCaution);
+
+        if (!ent.Comp.UltimateActive)
+            AddUltimateCharge(ent, ent.Comp.ChargePerCombo);
     }
 
     public void AddUltimateCharge(Entity<ProperKungFuComponent> ent, float amount)
@@ -92,7 +248,7 @@ public sealed class ProperKungFuSystem : EntitySystem
         var user = args.Performer;
         var target = args.Target;
 
-        if (user == target || !HasComp<MobStateComponent>(target))
+        if (user == target || !HasComp<MobStateComponent>(target) || HasComp<WolfDancingComponent>(user))
             return;
 
         if (!TryComp<MartialArtsKnowledgeComponent>(user, out var knowledge)
@@ -113,29 +269,287 @@ public sealed class ProperKungFuSystem : EntitySystem
             return;
         }
 
+        args.Handled = true;
+
         var direction = distance > 0.01f
             ? delta / distance
             : _transform.GetWorldRotation(user).ToWorldVec();
 
-        // Dash: stop right in front of the target, on the user's side.
-        var dashLength = MathF.Max(0f, distance - args.StopDistance);
-        var start = userCoords.Position;
-        var landing = start + direction * dashLength;
+        _transform.SetWorldRotation(user, direction.ToWorldAngle());
 
-        if (dashLength > 0.1f)
+        var travel = MathF.Max(0f, distance - args.StopDistance);
+
+        // Already in kicking range: no movement needed, kick right away.
+        if (travel < 0.3f)
         {
-            SpawnAfterimages(user, userCoords.MapId, start, landing, args);
-            _transform.SetWorldPosition(user, landing);
+            DoKick(user, target, args);
+            return;
         }
 
+        var start = userCoords.Position;
+        var rollEnd = PlanRoll(user, userCoords.MapId, start, direction, travel, args);
+
+        var dancing = EnsureComp<WolfDancingComponent>(user);
+        dancing.Target = target;
+        dancing.Event = args;
+        dancing.Map = userCoords.MapId;
+        dancing.MaxDashLength = Vector2.Distance(rollEnd, targetCoords.Position) - args.StopDistance + args.ChaseDistance;
+        dancing.AfterimagesSpawned = 0;
+        StartPhase(user, dancing, WolfDancePhase.Roll, start, rollEnd, args.RollDuration);
+
+        _audio.PlayPvs(args.RollSound, user);
+    }
+
+    /// <summary>
+    /// Picks where the forward roll ends: part of the way to the target, drifted to one side so the following
+    /// dash comes in at an angle. Walls shorten the roll / cancel the side drift.
+    /// </summary>
+    private Vector2 PlanRoll(EntityUid user, MapId map, Vector2 start, Vector2 direction, float travel, WolfDanceActionEvent args)
+    {
+        var forward = direction * travel * Math.Clamp(args.RollFraction, 0f, 1f);
+        var side = MathF.Min(args.SideOffset, travel * 0.35f);
+        var perpendicular = new Vector2(-direction.Y, direction.X);
+
+        // Alternate the side the roll drifts to, fall back to the other side or straight if a wall is in the way.
+        var firstSide = _random.Prob(0.5f) ? 1f : -1f;
+        foreach (var sign in new[] { firstSide, -firstSide, 0f })
+        {
+            var candidate = start + forward + perpendicular * side * sign;
+            if (!IsPathBlocked(user, map, start, candidate, out _))
+                return candidate;
+        }
+
+        IsPathBlocked(user, map, start, start + forward, out var free);
+        return free;
+    }
+
+    /// <summary>
+    /// Raycasts for walls/windows/doors between two points. <paramref name="free"/> is the furthest safe point.
+    /// </summary>
+    /// <summary>
+    /// Pushes <paramref name="target"/> <paramref name="distance"/> tiles along <paramref name="direction"/>
+    /// over <paramref name="duration"/>, decelerating; see the sliding part of <see cref="Update"/>.
+    /// </summary>
+    private void StartKnockback(EntityUid target, Vector2 direction, float distance, TimeSpan duration, bool dust)
+    {
+        var now = _timing.CurTime;
+        var from = _transform.GetWorldPosition(target);
+        var sliding = EnsureComp<ProperKungFuSlidingComponent>(target);
+        sliding.Map = _transform.GetMapId(target);
+        sliding.From = from;
+        sliding.To = from + direction * distance;
+        sliding.StartTime = now;
+        sliding.EndTime = now + duration;
+        sliding.Dust = dust;
+        sliding.NextPuff = now;
+        sliding.Puffs = 0;
+        _physics.SetLinearVelocity(target, Vector2.Zero);
+    }
+
+    private bool IsPathBlocked(EntityUid user, MapId map, Vector2 from, Vector2 to, out Vector2 free)
+    {
+        free = to;
+        var delta = to - from;
+        var length = delta.Length();
+        if (length < 0.01f)
+            return false;
+
+        var dir = delta / length;
+        // A little extra length so the user's body (radius ~0.35) never ends up inside a wall.
+        var ray = new CollisionRay(from, dir, (int) CollisionGroup.Impassable);
+        foreach (var hit in _physics.IntersectRay(map, ray, length + BodyClearance, user, returnOnFirstHit: true))
+        {
+            free = from + dir * MathF.Max(0f, hit.Distance - BodyClearance);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void StartPhase(EntityUid user, WolfDancingComponent dancing, WolfDancePhase phase, Vector2 from, Vector2 to, TimeSpan duration)
+    {
+        dancing.Phase = phase;
+        dancing.PhaseStart = _timing.CurTime;
+        dancing.PhaseDuration = duration;
+        dancing.PhaseFrom = from;
+        dancing.PhaseTo = to;
+        dancing.NextAfterimage = _timing.CurTime;
+
+        var dir = to - from;
+        if (dir.LengthSquared() > 0.0001f)
+            _transform.SetWorldRotation(user, (Vector2.Normalize(dir)).ToWorldAngle());
+
+        SendAnimation(user, phase, (float) duration.TotalSeconds, dir);
+    }
+
+    private void SendAnimation(EntityUid user, WolfDancePhase phase, float duration, Vector2 direction)
+    {
+        var ev = new WolfDanceAnimationEvent(GetNetEntity(user), phase, duration, direction);
+        RaiseNetworkEvent(ev, Filter.Pvs(user, entityManager: EntityManager));
+    }
+
+    public override void Update(float frameTime)
+    {
+        base.Update(frameTime);
+
+        var now = _timing.CurTime;
+        var query = EntityQueryEnumerator<WolfDancingComponent>();
+        while (query.MoveNext(out var uid, out var dancing))
+        {
+            UpdateDance(uid, dancing, now);
+        }
+
+        var slides = EntityQueryEnumerator<ProperKungFuSlidingComponent, TransformComponent>();
+        while (slides.MoveNext(out var uid, out var sliding, out var xform))
+        {
+            if (xform.MapID != sliding.Map || _container.IsEntityInContainer(uid))
+            {
+                RemCompDeferred(uid, sliding);
+                continue;
+            }
+
+            var total = (sliding.EndTime - sliding.StartTime).TotalSeconds;
+            var t = total <= 0 ? 1f : (float) Math.Clamp((now - sliding.StartTime).TotalSeconds / total, 0, 1);
+            var eased = 1f - (1f - t) * (1f - t); // fast start, skids to a stop
+            var current = _transform.GetWorldPosition(xform);
+            var desired = Vector2.Lerp(sliding.From, sliding.To, eased);
+            var blocked = IsPathBlocked(uid, sliding.Map, current, desired, out var free);
+            _transform.SetWorldPosition(uid, blocked ? free : desired);
+
+            if (t >= 1f || blocked)
+            {
+                RemCompDeferred(uid, sliding);
+                continue;
+            }
+
+            if (!sliding.Dust || now < sliding.NextPuff)
+                continue;
+
+            Spawn(sliding.Puffs % 2 == 0 ? DustPuffWhite : DustPuffRed, xform.Coordinates);
+            sliding.Puffs++;
+            sliding.NextPuff = now + DustPuffInterval;
+        }
+
+        var marks = EntityQueryEnumerator<ProperKungFuClawMarkComponent>();
+        while (marks.MoveNext(out var uid, out var mark))
+        {
+            if (now >= mark.ExpiresAt)
+                RemCompDeferred(uid, mark);
+        }
+    }
+
+    private void UpdateDance(EntityUid user, WolfDancingComponent dancing, TimeSpan now)
+    {
+        if (dancing.Event is not { } args)
+        {
+            StopDance(user, false);
+            return;
+        }
+
+        // Interrupted: stunned, knocked down, crit/dead, put into a container, or moved to another map.
+        if (_mobState.IsIncapacitated(user)
+            || HasComp<StunnedComponent>(user)
+            || HasComp<KnockedDownComponent>(user)
+            || _container.IsEntityInContainer(user)
+            || _transform.GetMapId(user) != dancing.Map)
+        {
+            StopDance(user, false);
+            return;
+        }
+
+        var target = dancing.Target;
+        var targetValid = !TerminatingOrDeleted(target) && _transform.GetMapId(target) == dancing.Map;
+        var current = _transform.GetWorldPosition(user);
+
+        // Phase 2 re-aims every tick at the target's current position, but can't chase further than allowed.
+        if (dancing.Phase == WolfDancePhase.Dash && targetValid)
+        {
+            var targetPos = _transform.GetWorldPosition(target);
+            var toTarget = targetPos - dancing.PhaseFrom;
+            var len = toTarget.Length();
+            if (len > 0.01f)
+            {
+                var dir = toTarget / len;
+                var dashLength = Math.Clamp(len - args.StopDistance, 0f, MathF.Max(0f, dancing.MaxDashLength));
+                dancing.PhaseTo = dancing.PhaseFrom + dir * dashLength;
+            }
+        }
+
+        var duration = dancing.PhaseDuration.TotalSeconds;
+        var t = duration <= 0 ? 1f : (float) Math.Clamp((now - dancing.PhaseStart).TotalSeconds / duration, 0, 1);
+        // Roll: steady tumble with a soft landing. Dash: accelerating lunge.
+        var eased = dancing.Phase == WolfDancePhase.Roll
+            ? 1f - (1f - t) * (1f - t) * 0.5f - (1f - t) * 0.5f
+            : t * t;
+
+        var desired = Vector2.Lerp(dancing.PhaseFrom, dancing.PhaseTo, eased);
+        var hitWall = IsPathBlocked(user, dancing.Map, current, desired, out var free);
+        _transform.SetWorldPosition(user, hitWall ? free : desired);
+
+        if (args.AfterimageEffect != null
+            && dancing.AfterimagesSpawned < args.Afterimages
+            && now >= dancing.NextAfterimage)
+        {
+            SpawnAfterimage(user, dancing.Map, hitWall ? free : desired, args.AfterimageEffect.Value);
+            dancing.AfterimagesSpawned++;
+            dancing.NextAfterimage = now + args.AfterimageInterval;
+        }
+
+        if (t < 1f && !hitWall)
+            return;
+
+        if (dancing.Phase == WolfDancePhase.Roll && targetValid)
+        {
+            // Phase 2: angled dash from where the roll ended straight into the target.
+            var from = _transform.GetWorldPosition(user);
+            var targetPos = _transform.GetWorldPosition(target);
+            var toTarget = targetPos - from;
+            var len = toTarget.Length();
+            var to = len > 0.01f ? from + toTarget / len * MathF.Max(0f, len - args.StopDistance) : from;
+            StartPhase(user, dancing, WolfDancePhase.Dash, from, to, args.DashDuration);
+            _audio.PlayPvs(args.DashSound, user);
+            return;
+        }
+
+        // End of the dash (or blocked by a wall / target gone): kick if the target is close enough.
+        var inRange = targetValid
+            && Vector2.Distance(_transform.GetWorldPosition(user), _transform.GetWorldPosition(target)) <= args.KickRange;
+
+        StopDance(user, inRange);
+
+        if (inRange)
+        {
+            DoKick(user, target, args);
+            return;
+        }
+
+        _audio.PlayPvs(args.MissSound, user);
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-miss"), user, user, PopupType.SmallCaution);
+    }
+
+    private void StopDance(EntityUid user, bool kicking)
+    {
+        RemComp<WolfDancingComponent>(user);
+
+        if (!kicking)
+            SendAnimation(user, WolfDancePhase.Cancel, 0f, Vector2.Zero);
+    }
+
+    /// <summary>
+    /// The roundhouse kick at the end of the Wolf Dance.
+    /// </summary>
+    private void DoKick(EntityUid user, EntityUid target, WolfDanceActionEvent args)
+    {
+        var delta = _transform.GetWorldPosition(target) - _transform.GetWorldPosition(user);
+        var direction = delta.LengthSquared() > 0.0001f
+            ? Vector2.Normalize(delta)
+            : _transform.GetWorldRotation(user).ToWorldVec();
+
         _transform.SetWorldRotation(user, direction.ToWorldAngle());
-        _audio.PlayPvs(args.DashSound, user);
+        SendAnimation(user, WolfDancePhase.Kick, 0.3f, direction);
 
-        args.Handled = true;
-
-        // Roundhouse kick.
         if (args.ShockwaveEffect is { } shockwave)
-            Spawn(shockwave, targetCoords);
+            Spawn(shockwave, _transform.GetMapCoordinates(target));
 
         if (TryKnockShieldAway(user, target, direction, args))
         {
@@ -144,30 +558,45 @@ public sealed class ProperKungFuSystem : EntitySystem
             return;
         }
 
+        // Claw Series synergy: a fresh mark from this user turns the kick into a harder finisher without the stun.
+        var synergy = TryComp<ProperKungFuClawMarkComponent>(target, out var mark)
+            && mark.Marker == user
+            && _timing.CurTime < mark.ExpiresAt;
+
+        if (mark != null)
+            RemComp(target, mark);
+
         _audio.PlayPvs(args.HitSound, target);
         _damageable.TryChangeDamage(target,
-            args.Damage,
+            synergy ? args.SynergyDamage : args.Damage,
             origin: user,
             targetPart: TargetBodyPart.Head,
             canMiss: false);
 
-        // Paralyze = stun + knockdown, so the target falls and stays down for the duration.
-        _stun.TryParalyze(target, args.StunTime, true);
+        if (synergy)
+        {
+            // Falls, but can still act (no StunnedComponent).
+            _stun.TryKnockdown(target, args.SynergyKnockdownTime, true);
+        }
+        else
+        {
+            // Paralyze = stun + knockdown, so the target falls and stays down for the duration.
+            _stun.TryParalyze(target, args.StunTime, true);
+        }
 
         // Fly backwards, away from the user.
-        _throwing.TryThrow(target,
-            direction * args.KnockbackDistance,
-            args.KnockbackSpeed,
-            user,
-            pushbackRatio: 0f,
-            compensateFriction: true,
-            recoil: false,
-            animated: false,
-            playSound: false,
-            doSpin: false);
+        // Kinematic, so the distance is exact (a thrown mob kept sliding far past it) and walls stop it.
+        var knockback = synergy ? args.SynergyKnockbackDistance : args.KnockbackDistance;
+        StartKnockback(target,
+            direction,
+            knockback,
+            TimeSpan.FromSeconds(knockback / MathF.Max(0.1f, args.KnockbackSpeed)),
+            dust: false);
 
-        _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-hit-user", ("target", target)), user, user, PopupType.Medium);
-        _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-hit-target", ("user", user)), target, target, PopupType.MediumCaution);
+        var hitUserLoc = synergy ? "proper-kung-fu-wolf-dance-synergy-user" : "proper-kung-fu-wolf-dance-hit-user";
+        var hitTargetLoc = synergy ? "proper-kung-fu-wolf-dance-synergy-target" : "proper-kung-fu-wolf-dance-hit-target";
+        _popup.PopupEntity(Loc.GetString(hitUserLoc, ("target", target)), user, user, PopupType.Medium);
+        _popup.PopupEntity(Loc.GetString(hitTargetLoc, ("user", user)), target, target, PopupType.MediumCaution);
 
         var hitEv = new ProperKungFuSpecialHitEvent(target, WolfDanceMove, false);
         RaiseLocalEvent(user, ref hitEv);
@@ -209,23 +638,14 @@ public sealed class ProperKungFuSystem : EntitySystem
         return true;
     }
 
-    private void SpawnAfterimages(EntityUid user, MapId map, Vector2 start, Vector2 end, WolfDanceActionEvent args)
+    private void SpawnAfterimage(EntityUid user, MapId map, Vector2 pos, EntProtoId proto)
     {
-        if (args.AfterimageEffect is not { } proto || args.Afterimages <= 0)
+        var effect = Spawn(proto, new MapCoordinates(pos, map));
+        if (!TryComp<TrailComponent>(effect, out var trail))
             return;
 
-        for (var i = 0; i < args.Afterimages; i++)
-        {
-            var t = (float) i / args.Afterimages;
-            var pos = Vector2.Lerp(start, end, t);
-            var effect = Spawn(proto, new MapCoordinates(pos, map));
-
-            if (!TryComp<TrailComponent>(effect, out var trail))
-                continue;
-
-            trail.RenderedEntity = user;
-            trail.SpawnPosition = pos;
-            Dirty(effect, trail);
-        }
+        trail.RenderedEntity = user;
+        trail.SpawnPosition = pos;
+        Dirty(effect, trail);
     }
 }

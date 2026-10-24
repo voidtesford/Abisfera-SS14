@@ -25,6 +25,36 @@ public sealed partial class ProperKungFuComponent : Component
     [DataField, AutoNetworkedField]
     public List<EntityUid> ActionEntities = new();
 
+    /// <summary>
+    /// Passive: multiplier of the unarmed (fist) attack rate.
+    /// </summary>
+    [DataField]
+    public float UnarmedAttackRateMultiplier = 1.5f;
+
+    /// <summary>
+    /// Passive: multiplier of the movement speed while sprinting (Goob sprint). Walking is unaffected.
+    /// </summary>
+    [DataField]
+    public float SprintSpeedMultiplier = 1.15f;
+
+    /// <summary>
+    /// Passive: added to the stamina crit threshold (max stamina) while the art is known.
+    /// </summary>
+    [DataField]
+    public float BonusStamina = 10f;
+
+    /// <summary>
+    /// Claw Series swipes alternate left / right; this flips on every Harm hit.
+    /// </summary>
+    [ViewVariables]
+    public bool SwipeFlipped;
+
+    /// <summary>
+    /// How much stamina was actually added, so exactly that is removed again when the art is lost.
+    /// </summary>
+    [ViewVariables]
+    public float AppliedBonusStamina;
+
     // TODO ProperKungFu ultimate: show this as a red 0-100 bar with a percentage above the hotbar (client UI).
     // Spec: +1 per point of damage taken, +5 per combo, +5 per special move hit (already wired via ProperKungFuSpecialHitEvent).
     // When the owner enters crit with a full bar: after 5 s fully heal, stand up, and enable the ultimate mode

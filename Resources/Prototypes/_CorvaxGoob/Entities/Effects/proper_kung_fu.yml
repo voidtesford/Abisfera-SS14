@@ -40,3 +40,107 @@
     - HideContextMenu
   - type: TimedDespawn
     lifetime: 1
+
+# Claw Series: curved swipe in front of the attacker, one per Harm hit, mirrored every other hit.
+# Red outer glow + white core, fades out fast.
+- type: entity
+  id: ProperKungFuClawSwipe
+  name: claw swipe
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    sprite: Effects/arcs.rsi
+    layers:
+    - state: slash
+      shader: unshaded
+      color: "#FF2A2ACC"
+      scale: 1.25, 1.25
+    - state: slash
+      shader: unshaded
+      color: "#FFFFFFEE"
+  - type: FadingTimedDespawn
+    lifetime: 0.08
+    fadeOutTime: 0.18
+  - type: AnimationPlayer
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+- type: entity
+  parent: ProperKungFuClawSwipe
+  id: ProperKungFuClawSwipeFlipped
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    sprite: Effects/arcs.rsi
+    layers:
+    - state: slash
+      shader: unshaded
+      color: "#FF2A2ACC"
+      scale: -1.25, 1.25
+    - state: slash
+      shader: unshaded
+      color: "#FFFFFFEE"
+      scale: -1, 1
+
+# Claw Series finisher (double palm thrust): white-red impact flash on the target.
+- type: entity
+  id: ProperKungFuPalmFlash
+  name: palm strike flash
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    sprite: Effects/arcs.rsi
+    layers:
+    - state: smash
+      shader: unshaded
+      color: "#FF2A2AD0"
+      scale: 1.8, 1.8
+    - state: smash
+      shader: unshaded
+      color: "#FFFFFFF0"
+      scale: 1.1, 1.1
+  - type: PointLight
+    radius: 2
+    energy: 2
+    color: "#FF6060"
+  - type: FadingTimedDespawn
+    lifetime: 0.1
+    fadeOutTime: 0.25
+  - type: AnimationPlayer
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Dust kicked up while the target slides back on its feet (Goob sprint dust, tinted white / red).
+- type: entity
+  parent: SmallSprintAnimation
+  id: ProperKungFuDustPuffWhite
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: WallMountedItems
+    sprite: _Goobstation/Effects/sprinting.rsi
+    color: "#FFF4F4"
+    layers:
+    - map: [ "enum.SprintVisualLayers.Base" ]
+      sprite: _Goobstation/Effects/sprinting.rsi
+      state: sprint_cloud_small
+
+- type: entity
+  parent: SmallSprintAnimation
+  id: ProperKungFuDustPuffRed
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: WallMountedItems
+    sprite: _Goobstation/Effects/sprinting.rsi
+    color: "#FF6A6A"
+    layers:
+    - map: [ "enum.SprintVisualLayers.Base" ]
+      sprite: _Goobstation/Effects/sprinting.rsi
+      state: sprint_cloud_small
