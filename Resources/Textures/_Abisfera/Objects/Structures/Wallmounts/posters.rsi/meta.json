@@ -1,0 +1,17 @@
+{
+    "version": 1,
+    "license": "CC-BY-SA-3.0",
+    "copyright": "Создано для сервера Abisfera, за авторством San4ous",
+    "size": {
+        "x": 32,
+        "y": 32
+    },
+    "states": [
+        {
+            "name": "poster_cat"
+        },
+        {
+            "name": "poster_no"
+        }
+    ]
+}

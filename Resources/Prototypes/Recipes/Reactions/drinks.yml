@@ -1127,19 +1127,18 @@
       amount: 1
   products:
     Silencer: 3
-
-# - type: reaction
-#   id: Singulo
-#   reactants:
-#     Vodka:
-#       amount: 5
-#     Wine:
-#       amount: 5
-#     LiquidDarkMatter:
-#       amount: 1
-#   products:
-#     Singulo: 10
-# Waiting until LiquidDarkMatter added
+   
+- type: reaction
+  id: Singulo
+  reactants:
+    Vodka:
+      amount: 5
+    Wine:
+      amount: 5
+    LiquidDarkMatter:
+      amount: 1
+  products:
+    Singulo: 10
 
 - type: reaction
   id: SnowWhite
