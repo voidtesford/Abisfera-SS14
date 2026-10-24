@@ -1,0 +1,9 @@
+- type: martialArt
+  id: ProperKungFu
+  martialArtsForm: ProperKungFu
+  roundstartCombos: ProperKungFuMoves
+
+# No click combos yet, the art currently consists of the Wolf Dance action only.
+- type: comboList
+  id: ProperKungFuMoves
+  combos: []

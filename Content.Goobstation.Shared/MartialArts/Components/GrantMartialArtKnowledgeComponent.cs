@@ -72,6 +72,17 @@ public sealed partial class GrantKungFuDragonComponent : GrantMartialArtKnowledg
     public override LocId? LearnMessage { get; set; } = "dragon-success-learned";
 }
 
+// CorvaxGoob-ProperKungFu-Start
+[RegisterComponent]
+public sealed partial class GrantProperKungFuComponent : GrantMartialArtKnowledgeComponent
+{
+    [DataField]
+    public override MartialArtsForms MartialArtsForm { get; set; } = MartialArtsForms.ProperKungFu;
+
+    public override LocId? LearnMessage { get; set; } = "proper-kung-fu-success-learned";
+}
+// CorvaxGoob-ProperKungFu-End
+
 [RegisterComponent]
 public sealed partial class GrantNinjutsuComponent : GrantMartialArtKnowledgeComponent
 {

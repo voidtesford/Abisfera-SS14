@@ -30,6 +30,9 @@ using Content.Goobstation.Shared.Changeling.Components;
 using Content.Goobstation.Shared.MartialArts.Components;
 using Content.Goobstation.Shared.Sprinting;
 using Content.Goobstation.Shared.Stealth;
+// CorvaxGoob-ProperKungFu-Start
+using Content.Shared._CorvaxGoob.ProperKungFu;
+// CorvaxGoob-ProperKungFu-End
 using Content.Shared._Goobstation.Heretic.Components;
 using Content.Shared._Shitmed.Medical.Surgery.Traumas.Systems;
 using Content.Shared._Shitmed.Targeting;
@@ -119,6 +122,9 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
         InitializeNinjutsu();
         InitializeHellRip();
         InitializeCanPerformCombo();
+        // CorvaxGoob-ProperKungFu-Start
+        SubscribeLocalEvent<GrantProperKungFuComponent, Content.Shared.Interaction.Events.UseInHandEvent>(OnGrantCQCUse);
+        // CorvaxGoob-ProperKungFu-End
 
         SubscribeLocalEvent<MartialArtsKnowledgeComponent, ComponentShutdown>(OnShutdown);
         SubscribeLocalEvent<MartialArtsKnowledgeComponent, CheckGrabOverridesEvent>(CheckGrabStageOverride);
@@ -390,6 +396,9 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
             comboComponent.AllowedCombos.Clear();
 
         RemCompDeferred<DragonKungFuTimerComponent>(ent);
+        // CorvaxGoob-ProperKungFu-Start
+        RemCompDeferred<ProperKungFuComponent>(ent);
+        // CorvaxGoob-ProperKungFu-End
     }
 
     private void CheckGrabStageOverride<T>(EntityUid uid, T component, CheckGrabOverridesEvent args)
@@ -500,6 +509,11 @@ public abstract partial class SharedMartialArtsSystem : EntitySystem
             case MartialArtsForms.KungFuDragon:
                 EnsureComp<DragonKungFuTimerComponent>(user);
                 break;
+            // CorvaxGoob-ProperKungFu-Start
+            case MartialArtsForms.ProperKungFu:
+                EnsureComp<ProperKungFuComponent>(user);
+                break;
+            // CorvaxGoob-ProperKungFu-End
             case MartialArtsForms.Ninjutsu:
                 EnsureComp<NinjutsuSneakAttackComponent>(user);
                 break;

@@ -1,0 +1,42 @@
+- type: entity
+  id: ProperKungFuShockwaveEffect
+  name: wolf dance shockwave
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: TimedDespawn
+    lifetime: 0.8
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      map: ["enum.EffectLayers.Unshaded"]
+      sprite: _CorvaxGoob/Effects/wolf_dance_shockwave.rsi
+      state: shockwave
+  - type: EffectVisuals
+  - type: Tag
+    tags:
+    - HideContextMenu
+  - type: AnimationPlayer
+
+- type: entity
+  id: ProperKungFuDashAfterimage
+  name: wolf dance afterimage
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Trail
+    lerpTime: 0.01
+    frequency: 0.01
+    maxParticleAmount: 1
+    lifetime: 0.6
+    alphaLerpAmount: 0.12
+    color: "#FF5050C0"
+    shader: unshaded
+    spawnRemainingTrail: false
+  - type: Transform
+    noRot: true
+  - type: Tag
+    tags:
+    - HideContextMenu
+  - type: TimedDespawn
+    lifetime: 1

@@ -61,4 +61,7 @@ public enum MartialArtsForms
     KungFuDragon,
     Ninjutsu,
     HellRip,
+    // CorvaxGoob-ProperKungFu-Start
+    ProperKungFu,
+    // CorvaxGoob-ProperKungFu-End
 }

@@ -1,0 +1,15 @@
+# Admin spawn only for now: intentionally not added to any uplink, loot table or other spawner.
+- type: entity
+  parent: BaseItem
+  id: ProperKungFuManual
+  name: Proper Kung Fu manual
+  description: A small crimson manual. The pages are full of drawings of a wolf-like fighter dashing at people and kicking them across the room.
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Misc/proper_kung_fu_manual.rsi
+    state: icon
+  - type: Item
+    size: Small
+  - type: StaticPrice
+    price: 3000
+  - type: GrantProperKungFu
