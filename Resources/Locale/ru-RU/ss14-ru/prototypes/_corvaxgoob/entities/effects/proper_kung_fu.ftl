@@ -6,3 +6,7 @@ ent-ProperKungFuKneeBurst = коленный удар когтей
     .desc = { "" }
 ent-ProperKungFuCrossSlash = крестовый разрез когтей
     .desc = { "" }
+ent-ProperKungFuHammerStrike = нисходящий удар когтей
+    .desc = { "" }
+ent-ProperKungFuHammerUpStrike = восходящий удар когтей
+    .desc = { "" }

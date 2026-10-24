@@ -161,3 +161,43 @@
   - type: Tag
     tags:
     - HideContextMenu
+
+# Hammer: one big downward three-claw swipe that ends on the target.
+- type: entity
+  id: ProperKungFuHammerStrike
+  name: hammer claw strike
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_hammer.rsi
+      state: hammer_strike
+      offset: 0, 0.35
+  - type: PointLight
+    color: "#FF3030"
+    radius: 2
+    energy: 2.5
+  - type: TimedDespawn
+    lifetime: 0.4
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Hammer out of a Wolf Grip: the same three claws, but sweeping upward.
+- type: entity
+  parent: ProperKungFuHammerStrike
+  id: ProperKungFuHammerUpStrike
+  name: rising claw strike
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_hammer.rsi
+      state: hammer_strike_up
+      offset: 0, 0.35

@@ -89,6 +89,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuClawSeriesPerformedEvent>(OnClawSeries);
         SubscribeLocalEvent<ProperKungFuComponent, ClawWhirlwindActionEvent>(OnClawWhirlwind);
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuWolfGripPerformedEvent>(OnWolfGrip);
+        SubscribeLocalEvent<ProperKungFuComponent, HammerActionEvent>(OnHammer);
     }
 
     private void OnStartup(Entity<ProperKungFuComponent> ent, ref ComponentStartup args)
@@ -277,6 +278,11 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         // so it can't run out mid-dash.
         var whirlwind = TryConsumeWhirlwindMark(user, target);
 
+        // Right after the Hammer's Wolf Grip synergy: an instant straight dash with the normal kick.
+        var hammer = !whirlwind && TryConsumeHammerMark(user, target);
+        if (hammer)
+            RemComp<ProperKungFuSlidingComponent>(user); // cut the backflip short
+
         // Already in kicking range: no movement needed, kick right away.
         if (travel < 0.3f)
         {
@@ -284,16 +290,17 @@ public sealed partial class ProperKungFuSystem : EntitySystem
             return;
         }
 
-        if (whirlwind)
+        if (whirlwind || hammer)
         {
             var straight = EnsureComp<WolfDancingComponent>(user);
             straight.Target = target;
             straight.Event = args;
             straight.Map = userCoords.MapId;
-            straight.WhirlwindVariant = true;
+            straight.WhirlwindVariant = whirlwind;
             straight.MaxDashLength = travel + args.ChaseDistance;
             straight.AfterimagesSpawned = 0;
-            StartPhase(user, straight, WolfDancePhase.Dash, userCoords.Position, userCoords.Position + direction * travel, args.WhirlwindDashDuration);
+            StartPhase(user, straight, WolfDancePhase.Dash, userCoords.Position, userCoords.Position + direction * travel,
+                whirlwind ? args.WhirlwindDashDuration : args.HammerDashDuration);
             return;
         }
 
@@ -454,6 +461,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
 
         UpdateWhirlwind(now);
         UpdateWolfGripMarks(now);
+        UpdateHammerMarks(now);
 
         var marks = EntityQueryEnumerator<ProperKungFuClawMarkComponent>();
         while (marks.MoveNext(out var uid, out var mark))

@@ -6,3 +6,7 @@ ent-ProperKungFuKneeBurst = knee claw burst
     .desc = { "" }
 ent-ProperKungFuCrossSlash = cross claw slash
     .desc = { "" }
+ent-ProperKungFuHammerStrike = hammer claw strike
+    .desc = { "" }
+ent-ProperKungFuHammerUpStrike = rising claw strike
+    .desc = { "" }

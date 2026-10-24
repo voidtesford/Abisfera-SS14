@@ -231,13 +231,14 @@ public sealed partial class ProperKungFuSystem
     }
 
     /// <summary>
-    /// Shitmed: breaks the bone of one body part and puts organ damage traumas on its organs.
+    /// Shitmed: breaks the bone of one body part (unless <paramref name="breakBones"/> is false) and puts organ damage traumas on its organs.
     /// <paramref name="organSeverity"/> returns how much integrity to take from an organ (out of its IntegrityCap), or null to skip it.
     /// </summary>
     private void InflictPartTrauma(EntityUid target,
         TargetBodyPart targetPart,
         string woundType,
-        Func<EntityUid, OrganComponent, FixedPoint2?> organSeverity)
+        Func<EntityUid, OrganComponent, FixedPoint2?> organSeverity,
+        bool breakBones = true)
     {
         if (!TryComp<BodyComponent>(target, out var body))
             return;
@@ -255,6 +256,9 @@ public sealed partial class ProperKungFuSystem
 
         foreach (var bone in woundable.Bone.ContainedEntities)
         {
+            if (!breakBones)
+                break;
+
             if (!TryComp<BoneComponent>(bone, out var boneComp) || boneComp.BoneSeverity == BoneSeverity.Broken)
                 continue;
 

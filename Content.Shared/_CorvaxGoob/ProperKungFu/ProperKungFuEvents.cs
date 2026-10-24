@@ -143,6 +143,12 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
     public TimeSpan WhirlwindKnockdownTime = TimeSpan.FromSeconds(2);
 
     /// <summary>
+    /// Duration of the near-instant straight dash right after the Hammer's Wolf Grip synergy (no roll, normal kick).
+    /// </summary>
+    [DataField]
+    public TimeSpan HammerDashDuration = TimeSpan.FromSeconds(0.08);
+
+    /// <summary>
     /// The user falls after the Whirlwind variant connects.
     /// </summary>
     [DataField]
