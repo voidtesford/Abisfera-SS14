@@ -8,8 +8,8 @@
     useDelay: 20
     itemIconStyle: BigAction
     icon:
-      sprite: _Goobstation/Actions/kravmaga.rsi
-      state: legsweep
+      sprite: _CorvaxGoob/Interface/Actions/proper_kung_fu.rsi
+      state: wolf_dance
   - type: TargetAction
     range: 5
     interactOnMiss: false

@@ -233,6 +233,7 @@ public sealed class ProperKungFuTest
         Entity<ActionComponent> action = default;
         float baseStamina = 0f, baseRate = 0f, baseWalk = 0f, baseSprintingSpeed = 0f;
         Vector2 targetPosBeforeCombo = default;
+        string baseAnim = "", baseWide = "", baseMiss = "";
 
         await server.WaitPost(() =>
         {
@@ -249,6 +250,9 @@ public sealed class ProperKungFuTest
             baseStamina = entMan.GetComponent<StaminaComponent>(user).CritThreshold;
             baseRate = melee.GetAttackRate(user, user);
             baseWalk = entMan.GetComponent<MovementSpeedModifierComponent>(user).CurrentWalkSpeed;
+            var baseFist = entMan.GetComponent<MeleeWeaponComponent>(user);
+            (baseAnim, baseWide, baseMiss) = (baseFist.Animation.Id, baseFist.WideAnimation.Id, baseFist.MissAnimation.Id);
+            Assert.That(baseAnim, Is.EqualTo("WeaponArcFist"));
 
             var sprinter = entMan.GetComponent<SprinterComponent>(user);
             sprinter.IsSprinting = true;
@@ -282,6 +286,12 @@ public sealed class ProperKungFuTest
             sprinter.IsSprinting = false;
             speed.RefreshMovementSpeedModifiers(user);
 
+            // Fist arcs are replaced by the wolf claw scratch.
+            var fist = entMan.GetComponent<MeleeWeaponComponent>(user);
+            Assert.That(fist.Animation.Id, Is.EqualTo("WeaponArcProperKungFuClaw"));
+            Assert.That(fist.WideAnimation.Id, Is.EqualTo("WeaponArcProperKungFuClaw"));
+            Assert.That(fist.MissAnimation.Id, Is.EqualTo("WeaponArcProperKungFuClaw"));
+
             // Guns are forbidden like Sleeping Carp.
             var shot = new ShotAttemptedEvent { User = user };
             entMan.EventBus.RaiseLocalEvent(user, ref shot);
@@ -300,21 +310,15 @@ public sealed class ProperKungFuTest
             Assert.That(entMan.HasComponent<KnockedDownComponent>(target), Is.False, "Claw Series stun keeps the target standing");
             Assert.That(entMan.System<StandingStateSystem>().IsDown(target), Is.False);
 
-            var swipes = 0;
-            var flipped = 0;
             var flashes = 0;
             var metaQuery = entMan.AllEntityQueryEnumerator<MetaDataComponent>();
             while (metaQuery.MoveNext(out var meta))
             {
-                switch (meta.EntityPrototype?.ID)
-                {
-                    case "ProperKungFuClawSwipe": swipes++; break;
-                    case "ProperKungFuClawSwipeFlipped": flipped++; break;
-                    case "ProperKungFuPalmFlash": flashes++; break;
-                }
+                if (meta.EntityPrototype?.ID == "ProperKungFuPalmFlash")
+                    flashes++;
             }
 
-            Assert.That((swipes, flipped, flashes), Is.EqualTo((2, 1, 1)), "Swipe per hit alternating left/right, one finisher flash");
+            Assert.That(flashes, Is.EqualTo(1), "One finisher flash");
             Assert.That(entMan.HasComponent<ProperKungFuClawMarkComponent>(target), "Claw Series marks the target");
             Assert.That(entMan.GetComponent<ProperKungFuComponent>(user).UltimateCharge, Is.EqualTo(5f).Within(0.01f));
         });
@@ -365,6 +369,10 @@ public sealed class ProperKungFuTest
             entMan.RemoveComponent<ProperKungFuComponent>(user);
             Assert.That(entMan.GetComponent<StaminaComponent>(user).CritThreshold, Is.EqualTo(baseStamina).Within(0.01f));
             Assert.That(melee.GetAttackRate(user, user), Is.EqualTo(baseRate).Within(0.01f));
+            var fistAfter = entMan.GetComponent<MeleeWeaponComponent>(user);
+            Assert.That(fistAfter.Animation.Id, Is.EqualTo(baseAnim), "Fist animation restored");
+            Assert.That(fistAfter.WideAnimation.Id, Is.EqualTo(baseWide));
+            Assert.That(fistAfter.MissAnimation.Id, Is.EqualTo(baseMiss));
         });
 
         await pair.CleanReturnAsync();

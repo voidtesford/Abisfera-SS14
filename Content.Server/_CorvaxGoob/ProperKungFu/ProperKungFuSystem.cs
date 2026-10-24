@@ -13,6 +13,7 @@ using Content.Shared.Movement.Pulling.Components;
 using Content.Shared.Movement.Pulling.Systems;
 using Content.Shared.Movement.Systems;
 using Content.Shared.Hands.EntitySystems;
+using Content.Shared.Weapons.Melee;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Mobs.Systems;
 using Content.Shared.Physics;
@@ -65,13 +66,10 @@ public sealed class ProperKungFuSystem : EntitySystem
     private const float ClawSeriesKnockback = 3f;
     private static readonly TimeSpan ClawMarkDuration = TimeSpan.FromSeconds(2);
 
-    // Claw Series visuals (all white-red).
-    private static readonly EntProtoId ClawSwipeEffect = "ProperKungFuClawSwipe";
-    private static readonly EntProtoId ClawSwipeFlippedEffect = "ProperKungFuClawSwipeFlipped";
+    // Claw Series visuals (white-red finisher flash and dust).
     private static readonly EntProtoId PalmFlashEffect = "ProperKungFuPalmFlash";
     private static readonly EntProtoId DustPuffWhite = "ProperKungFuDustPuffWhite";
     private static readonly EntProtoId DustPuffRed = "ProperKungFuDustPuffRed";
-    private const float ClawSwipeDistance = 0.7f;
     private static readonly TimeSpan SlideDuration = TimeSpan.FromSeconds(0.4);
     private static readonly TimeSpan DustPuffInterval = TimeSpan.FromSeconds(0.06);
 
@@ -89,7 +87,6 @@ public sealed class ProperKungFuSystem : EntitySystem
         SubscribeLocalEvent<ProperKungFuComponent, WolfDanceActionEvent>(OnWolfDance);
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuSpecialHitEvent>(OnSpecialHit);
         SubscribeLocalEvent<ProperKungFuComponent, ProperKungFuClawSeriesPerformedEvent>(OnClawSeries);
-        SubscribeLocalEvent<ProperKungFuComponent, ComboAttackPerformedEvent>(OnComboAttack);
     }
 
     private void OnStartup(Entity<ProperKungFuComponent> ent, ref ComponentStartup args)
@@ -106,6 +103,18 @@ public sealed class ProperKungFuSystem : EntitySystem
             stamina.CritThreshold += ent.Comp.BonusStamina;
             ent.Comp.AppliedBonusStamina = ent.Comp.BonusStamina;
             Dirty(ent.Owner, stamina);
+        }
+
+        // Fist hits draw red wolf claw scratches instead of the normal fist sprite.
+        if (TryComp<MeleeWeaponComponent>(ent, out var melee))
+        {
+            ent.Comp.OriginalAnimation = melee.Animation;
+            ent.Comp.OriginalWideAnimation = melee.WideAnimation;
+            ent.Comp.OriginalMissAnimation = melee.MissAnimation;
+            melee.Animation = ent.Comp.ClawAnimation;
+            melee.WideAnimation = ent.Comp.ClawAnimation;
+            melee.MissAnimation = ent.Comp.ClawAnimation;
+            Dirty(ent.Owner, melee);
         }
 
         _movementSpeed.RefreshMovementSpeedModifiers(ent);
@@ -132,6 +141,18 @@ public sealed class ProperKungFuSystem : EntitySystem
 
         ent.Comp.AppliedBonusStamina = 0f;
 
+        // Give the normal fist animations back (only the ones we still own).
+        if (TryComp<MeleeWeaponComponent>(ent, out var melee))
+        {
+            if (ent.Comp.OriginalAnimation is { } anim && melee.Animation == ent.Comp.ClawAnimation)
+                melee.Animation = anim;
+            if (ent.Comp.OriginalWideAnimation is { } wide && melee.WideAnimation == ent.Comp.ClawAnimation)
+                melee.WideAnimation = wide;
+            if (ent.Comp.OriginalMissAnimation is { } miss && melee.MissAnimation == ent.Comp.ClawAnimation)
+                melee.MissAnimation = miss;
+            Dirty(ent.Owner, melee);
+        }
+
         // The component is still attached during shutdown, so the speed refresh is skipped for it.
         _movementSpeed.RefreshMovementSpeedModifiers(ent);
     }
@@ -143,35 +164,6 @@ public sealed class ProperKungFuSystem : EntitySystem
             return;
 
         AddUltimateCharge(ent, ent.Comp.ChargePerSpecialHit);
-    }
-
-    /// <summary>
-    /// Every unarmed Harm hit on a mob draws a claw swipe between the attacker and the target, mirrored each hit.
-    /// </summary>
-    private void OnComboAttack(Entity<ProperKungFuComponent> ent, ref ComboAttackPerformedEvent args)
-    {
-        if (args.Type != ComboAttackType.Harm
-            || args.Weapon != ent.Owner
-            || args.Target == ent.Owner
-            || !HasComp<MobStateComponent>(args.Target)
-            || !TryComp<MartialArtsKnowledgeComponent>(ent, out var knowledge)
-            || knowledge.MartialArtsForm != MartialArtsForms.ProperKungFu
-            || knowledge.Blocked)
-            return;
-
-        var userPos = _transform.GetWorldPosition(ent);
-        var delta = _transform.GetWorldPosition(args.Target) - userPos;
-        var direction = delta.LengthSquared() > 0.0001f
-            ? Vector2.Normalize(delta)
-            : _transform.GetWorldRotation(ent).ToWorldVec();
-
-        var proto = ent.Comp.SwipeFlipped ? ClawSwipeFlippedEffect : ClawSwipeEffect;
-        ent.Comp.SwipeFlipped = !ent.Comp.SwipeFlipped;
-
-        var mapCoords = new MapCoordinates(userPos + direction * MathF.Min(ClawSwipeDistance, delta.Length()),
-            _transform.GetMapId(ent.Owner));
-        // Arc sprites point south by default, so the world angle of the direction faces them at the target.
-        Spawn(proto, mapCoords, rotation: direction.ToWorldAngle());
     }
 
     /// <summary>

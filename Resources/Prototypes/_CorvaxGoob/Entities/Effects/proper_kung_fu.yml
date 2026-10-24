@@ -41,49 +41,16 @@
   - type: TimedDespawn
     lifetime: 1
 
-# Claw Series: curved swipe in front of the attacker, one per Harm hit, mirrored every other hit.
-# Red outer glow + white core, fades out fast.
+# Proper Kung Fu fist arc: red wolf claw scratch, replaces WeaponArcFist (and the wide / miss arcs) while the art is known.
 - type: entity
-  id: ProperKungFuClawSwipe
-  name: claw swipe
+  id: WeaponArcProperKungFuClaw
+  parent: WeaponArcStatic
   categories: [ HideSpawnMenu ]
   components:
   - type: Sprite
+    sprite: _CorvaxGoob/Effects/proper_kung_fu_claw.rsi
+    state: claw_scratch
     drawdepth: Effects
-    sprite: Effects/arcs.rsi
-    layers:
-    - state: slash
-      shader: unshaded
-      color: "#FF2A2ACC"
-      scale: 1.25, 1.25
-    - state: slash
-      shader: unshaded
-      color: "#FFFFFFEE"
-  - type: FadingTimedDespawn
-    lifetime: 0.08
-    fadeOutTime: 0.18
-  - type: AnimationPlayer
-  - type: Tag
-    tags:
-    - HideContextMenu
-
-- type: entity
-  parent: ProperKungFuClawSwipe
-  id: ProperKungFuClawSwipeFlipped
-  categories: [ HideSpawnMenu ]
-  components:
-  - type: Sprite
-    drawdepth: Effects
-    sprite: Effects/arcs.rsi
-    layers:
-    - state: slash
-      shader: unshaded
-      color: "#FF2A2ACC"
-      scale: -1.25, 1.25
-    - state: slash
-      shader: unshaded
-      color: "#FFFFFFEE"
-      scale: -1, 1
 
 # Claw Series finisher (double palm thrust): white-red impact flash on the target.
 - type: entity

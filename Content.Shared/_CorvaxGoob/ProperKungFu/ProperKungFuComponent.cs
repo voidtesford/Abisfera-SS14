@@ -44,10 +44,22 @@ public sealed partial class ProperKungFuComponent : Component
     public float BonusStamina = 10f;
 
     /// <summary>
-    /// Claw Series swipes alternate left / right; this flips on every Harm hit.
+    /// Melee arc that replaces the user's fist hit / wide / miss animations while the art is known (red wolf claw scratch).
+    /// </summary>
+    [DataField]
+    public EntProtoId ClawAnimation = "WeaponArcProperKungFuClaw";
+
+    /// <summary>
+    /// The user's own fist animations, restored when the art is lost.
     /// </summary>
     [ViewVariables]
-    public bool SwipeFlipped;
+    public EntProtoId? OriginalAnimation;
+
+    [ViewVariables]
+    public EntProtoId? OriginalWideAnimation;
+
+    [ViewVariables]
+    public EntProtoId? OriginalMissAnimation;
 
     /// <summary>
     /// How much stamina was actually added, so exactly that is removed again when the art is lost.
