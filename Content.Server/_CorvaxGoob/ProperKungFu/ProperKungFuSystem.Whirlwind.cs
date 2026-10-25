@@ -118,6 +118,7 @@ public sealed partial class ProperKungFuSystem
         held.Landed = false;
         // The threshold is checked on the damage the target had before the whirlwind.
         held.Finisher = args.FinisherThreshold > 0
+            && !IsWolfPackClone(user)
             && !_mobState.IsDead(target)
             && TryComp<DamageableComponent>(target, out var damageable)
             && damageable.TotalDamage >= args.FinisherThreshold;

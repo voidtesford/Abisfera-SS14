@@ -1,12 +1,15 @@
-# Wolf Pack clone brain: the ProperKungFuSystem keeps Target/TargetCoordinates set to the pack's victim and
-# fires the art's skills itself; the HTN only walks up to the victim and punches it.
+# Wolf Pack clone / ultimate shadow brain. The ProperKungFuSystem only writes the victim into the
+# ProperKungFuCloneTarget key (and fires the art's skills itself). The first task of the branch turns it into the
+# Target/TargetCoordinates keys as planning effects (like the stock UtilityOperator), so MoveTo/Melee always find them.
 - type: htnCompound
   id: ProperKungFuCloneCompound
   branches:
     - preconditions:
       - !type:KeyExistsPrecondition
-        key: Target
+        key: ProperKungFuCloneTarget
       tasks:
+        - !type:HTNPrimitiveTask
+          operator: !type:ProperKungFuCloneTargetOperator
         - !type:HTNPrimitiveTask
           operator: !type:MoveToOperator
             shutdownState: PlanFinished
@@ -22,6 +25,8 @@
           preconditions:
             - !type:KeyExistsPrecondition
               key: Target
+            - !type:KeyExistsPrecondition
+              key: TargetCoordinates
             - !type:TargetInRangePrecondition
               targetKey: Target
               rangeKey: MeleeRange

@@ -29,6 +29,7 @@ public sealed partial class ProperKungFuSystem
     public const string UltimateAction = "ActionProperKungFuUltimate";
 
     private const float UltimateCloneSearchRange = 10f;
+    public const string UltimateShadowFaction = "ProperKungFuShadow";
     private static readonly TimeSpan PackCallDuration = TimeSpan.FromSeconds(2);
     private static readonly SoundSpecifier UltimateStartSound = new SoundPathSpecifier("/Audio/Magic/forcewall.ogg");
 
@@ -250,6 +251,11 @@ public sealed partial class ProperKungFuSystem
             var cloneComp = EnsureComp<ProperKungFuCloneComponent>(clone);
             cloneComp.Summoner = user;
             cloneComp.Ultimate = true;
+
+            // Hostile to everyone (not the user's factions), sparing only the summoner and the Pack Dogs.
+            _faction.ClearFactions(clone, false);
+            _faction.AddFaction(clone, UltimateShadowFaction);
+            SyncShadowExceptions(clone, cloneComp);
             // 60 s of life each; EndUltimate still clears them early if the mode ends first.
             cloneComp.ExpiresAt = now + args.CloneLifetime;
             cloneComp.DamageModifier = args.DamageModifier;

@@ -336,7 +336,7 @@
   parent: BaseAction
   id: ActionProperKungFuKunai
   name: Kunai
-  description: "Summon a kunai into your hand out of white-red smoke. It cuts like a combat knife (15 Slash) and flies twice as fast as a normal throw. Thrown, it sticks into whatever it hits (15 Slash to a body), and wherever it lands or sticks you teleport to it in a puff of smoke and the kunai is gone. A hit on a living target that already has at least 80 damage starts a kunai finisher instead (heals you for 25): in melee a kick, a kunai to the neck that drains all blood and the one-inch death punch; thrown, ten crimson doubles throw their kunai and vanish, you dash through the target with a long slash, turn, backflip and a volley of ten kunai flies in. Only one summoned kunai exists at a time; an unused one fades after 60 seconds. Allowed despite the ban on ranged weapons."
+  description: "Summon a kunai into your hand out of white-red smoke. It cuts like a combat knife (15 Slash) and flies twice as fast as a normal throw. Thrown, it sticks into whatever it hits (15 Slash to a body), and wherever it lands or sticks you teleport to it in a puff of smoke and the kunai is gone. A hit on a living target that already has at least 80 damage starts a kunai finisher instead (heals you for 25): in melee a kick, a kunai to the neck that drains all blood and the one-inch death punch; thrown, ten crimson doubles throw their kunai and vanish, you dash through the target leaving a wide crescent slash on it, turn, backflip and a volley of ten kunai flies in. Only one summoned kunai exists at a time; an unused one fades after 60 seconds. Allowed despite the ban on ranged weapons."
   components:
   - type: Action
     useDelay: 10

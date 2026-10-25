@@ -440,6 +440,7 @@ public sealed partial class ProperKungFuSystem
     private bool TryStartInstinctFinisher(EntityUid user, EntityUid attacker, WolfInstinctActionEvent args)
     {
         if (args.FinisherSlashes <= 0
+            || IsWolfPackClone(user)
             || TerminatingOrDeleted(attacker)
             || _mobState.IsDead(attacker)
             || HasComp<ProperKungFuInstinctFinisherComponent>(user)

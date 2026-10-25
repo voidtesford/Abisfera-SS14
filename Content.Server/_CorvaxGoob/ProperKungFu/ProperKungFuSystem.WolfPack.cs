@@ -47,6 +47,7 @@ public sealed partial class ProperKungFuSystem
     [Dependency] private readonly MobThresholdSystem _thresholds = default!;
     [Dependency] private readonly NpcFactionSystem _faction = default!;
     [Dependency] private readonly NPCSystem _npc = default!;
+    [Dependency] private readonly HTNSystem _htn = default!;
     [Dependency] private readonly SharedMartialArtsSystem _martialArts = default!;
 
     public const string WolfPackAction = "ActionProperKungFuWolfPack";
@@ -253,6 +254,15 @@ public sealed partial class ProperKungFuSystem
         }
     }
 
+    /// <summary>
+    /// Wolf Pack clones (and the ultimate's shadows) never get finishers or the finisher heal; their combos and
+    /// skills still work with the reduced clone damage.
+    /// </summary>
+    public bool IsWolfPackClone(EntityUid uid)
+    {
+        return HasComp<ProperKungFuCloneComponent>(uid);
+    }
+
     private bool IsPackMember(EntityUid summoner, EntityUid uid)
     {
         return TryComp<ProperKungFuCloneComponent>(uid, out var clone) && clone.Summoner == summoner;
@@ -329,20 +339,62 @@ public sealed partial class ProperKungFuSystem
         }
     }
 
+    /// <summary>
+    /// Hands the clone's victim to its HTN. Only the clone's own key is written here: the Target and
+    /// TargetCoordinates keys the MoveTo/Melee operators read are set by <see cref="ProperKungFuCloneTargetOperator"/>
+    /// as planning effects of the same branch (the stock UtilityOperator pattern). Removing those keys from here
+    /// while a plan was being built made MoveToOperator.Startup throw a KeyNotFoundException and crash the server.
+    /// When the victim changes, the running plan is dropped so the clone replans for the new one right away.
+    /// </summary>
     private void UpdateCloneBlackboard(EntityUid clone, ProperKungFuCloneComponent comp)
     {
         if (!TryComp<HTNComponent>(clone, out var htn))
             return;
 
-        if (comp.Target is { } target && !TerminatingOrDeleted(target))
-        {
-            htn.Blackboard.SetValue("Target", target);
-            htn.Blackboard.SetValue("TargetCoordinates", Transform(target).Coordinates);
-        }
+        var key = ProperKungFuCloneTargetOperator.DefaultSourceKey;
+        htn.Blackboard.TryGetValue<EntityUid>(key, out var old, EntityManager);
+        EntityUid? current = comp.Target is { } target && !TerminatingOrDeleted(target) ? target : null;
+
+        if (current is { } wanted)
+            htn.Blackboard.SetValue(key, wanted);
         else
+            htn.Blackboard.Remove<EntityUid>(key);
+
+        if (old == (current ?? EntityUid.Invalid) || comp.Vanished || !htn.Enabled)
+            return;
+
+        // Stock API: shuts the current task and plan down cleanly, cancels a plan being built, and replans.
+        _htn.SetHTNEnabled((clone, htn), false);
+        _htn.SetHTNEnabled((clone, htn), true);
+    }
+
+    /// <summary>
+    /// The ultimate's shadows belong to a faction hostile to every faction, and only spare their summoner and the
+    /// Pack Dogs (faction exceptions). Kept in sync while they live so pupils taught later are spared too.
+    /// </summary>
+    private void SyncShadowExceptions(EntityUid clone, ProperKungFuCloneComponent comp)
+    {
+        if (!TerminatingOrDeleted(comp.Summoner))
+            _faction.IgnoreEntity(clone, comp.Summoner);
+
+        var pupils = EntityQueryEnumerator<ProperKungFuComponent>();
+        while (pupils.MoveNext(out var pupil, out var kungFu))
         {
-            htn.Blackboard.Remove<EntityUid>("Target");
-            htn.Blackboard.Remove<EntityCoordinates>("TargetCoordinates");
+            if (kungFu.Pupil && pupil != clone)
+                _faction.IgnoreEntity(clone, pupil);
+        }
+    }
+
+    /// <summary>
+    /// Makes every living shadow spare a newly taught Pack Dog.
+    /// </summary>
+    public void SpareNewPupil(EntityUid pupil)
+    {
+        var query = EntityQueryEnumerator<ProperKungFuCloneComponent>();
+        while (query.MoveNext(out var clone, out var comp))
+        {
+            if (comp.Ultimate && !comp.Vanished)
+                _faction.IgnoreEntity(clone, pupil);
         }
     }
 
@@ -430,6 +482,7 @@ public sealed partial class ProperKungFuSystem
 
             if (clone.Ultimate)
             {
+                SyncShadowExceptions(uid, clone);
                 clone.Target ??= FindUltimateCloneTarget(uid, xform);
                 UpdateCloneBlackboard(uid, clone);
                 continue;

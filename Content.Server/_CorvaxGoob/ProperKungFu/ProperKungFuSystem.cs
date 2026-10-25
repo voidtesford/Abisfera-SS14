@@ -222,7 +222,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         // Finisher threshold is measured before the combo bonus lands.
         var preDamage = TryComp<DamageableComponent>(target, out var preDamageable) ? preDamageable.TotalDamage.Float() : 0f;
         var scale = EffectScale(ent);
-        var finisher = !ent.Comp.Pupil && ent.Comp.ClawSeriesFinisherThreshold > 0f && preDamage >= ent.Comp.ClawSeriesFinisherThreshold
+        var finisher = !ent.Comp.Pupil && !IsWolfPackClone(ent) && ent.Comp.ClawSeriesFinisherThreshold > 0f && preDamage >= ent.Comp.ClawSeriesFinisherThreshold
                        && !_mobState.IsDead(target)
                        && !HasComp<ProperKungFuSeriesFinisherComponent>(ent);
 

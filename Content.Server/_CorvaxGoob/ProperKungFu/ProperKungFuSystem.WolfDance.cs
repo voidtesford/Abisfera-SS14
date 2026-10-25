@@ -51,6 +51,7 @@ public sealed partial class ProperKungFuSystem
         dancing.PassHit = false;
         // The finisher looks at the damage from before the dance; only the plain variant has one, never on the dead.
         dancing.FinisherPending = !kickVariant
+                                  && !IsWolfPackClone(user)
                                   && args.FinisherPasses > 0
                                   && !_mobState.IsDead(target)
                                   && TryComp<DamageableComponent>(target, out var damageable)

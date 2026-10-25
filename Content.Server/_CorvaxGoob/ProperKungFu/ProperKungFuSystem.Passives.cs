@@ -198,7 +198,7 @@ public sealed partial class ProperKungFuSystem
     /// </summary>
     private void HealFinisherUser(EntityUid user)
     {
-        if (!TryComp<ProperKungFuComponent>(user, out var kungFu))
+        if (IsWolfPackClone(user) || !TryComp<ProperKungFuComponent>(user, out var kungFu))
             return;
 
         HealKungFuUser(user, kungFu.FinisherHeal);

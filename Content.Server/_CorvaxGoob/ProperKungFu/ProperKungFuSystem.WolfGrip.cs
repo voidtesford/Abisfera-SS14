@@ -48,7 +48,7 @@ public sealed partial class ProperKungFuSystem
             ? targetDamageable.TotalDamage.Float()
             : 0f;
         var scale = EffectScale(ent);
-        var finisher = !ent.Comp.Pupil && args.FinisherThreshold > 0f
+        var finisher = !ent.Comp.Pupil && !IsWolfPackClone(ent) && args.FinisherThreshold > 0f
                        && preDamage >= args.FinisherThreshold
                        && !_mobState.IsDead(target)
                        && !HasComp<ProperKungFuGripSuplexComponent>(target);

@@ -89,7 +89,7 @@ public sealed partial class ProperKungFuSystem
         }
         _audio.PlayPvs(args.HitSound, target);
 
-        if (!ent.Comp.Pupil && total >= args.FinisherThreshold && !TerminatingOrDeleted(target) && !_mobState.IsDead(target))
+        if (!ent.Comp.Pupil && !IsWolfPackClone(ent) && total >= args.FinisherThreshold && !TerminatingOrDeleted(target) && !_mobState.IsDead(target))
         {
             DoPerfectFlowFinisher(user, target, args);
         }

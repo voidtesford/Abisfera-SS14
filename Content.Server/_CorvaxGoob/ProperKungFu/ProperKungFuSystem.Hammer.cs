@@ -101,6 +101,7 @@ public sealed partial class ProperKungFuSystem
         }
 
         if (args.FinisherThreshold > 0f
+            && !IsWolfPackClone(user)
             && preDamage >= args.FinisherThreshold
             && !_mobState.IsDead(target)
             && !HasComp<ProperKungFuHammerFinisherComponent>(user))

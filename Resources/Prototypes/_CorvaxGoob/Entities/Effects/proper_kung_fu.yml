@@ -761,7 +761,7 @@
   - type: TimedDespawn
     lifetime: 2
 
-# Thrown kunai finisher: one piece of the long white-red slash line left along the dash through the victim.
+# Thrown kunai finisher: the wide white-red crescent swoosh left on the victim by the dash strike, across the dash.
 - type: entity
   id: ProperKungFuKunaiDashSlash
   name: kunai dash slash
@@ -774,13 +774,13 @@
     - shader: unshaded
       sprite: _CorvaxGoob/Effects/proper_kung_fu_kunai_slash.rsi
       state: dash_slash
-      scale: 1.15, 1
+      scale: 1.3, 1.3
   - type: PointLight
     color: "#FF3040"
-    radius: 1.2
-    energy: 1.5
+    radius: 2
+    energy: 2
   - type: TimedDespawn
-    lifetime: 0.38
+    lifetime: 0.44
   - type: Tag
     tags:
     - HideContextMenu
@@ -810,7 +810,7 @@
     tags:
     - HideContextMenu
 
-# One-inch death punch: golden-orange 一寸死拳 burning behind the victim, then fading.
+# One-inch death punch: golden-orange 一寸死拳 burning behind the victim, then dissolving upward into the air.
 - type: entity
   id: ProperKungFuOneInchKanji
   name: one-inch death punch kanji
@@ -827,10 +827,127 @@
     color: "#FF9020"
     radius: 3
     energy: 3
-  - type: FadingTimedDespawn
-    lifetime: 0.6
-    fadeOutTime: 1
-  - type: AnimationPlayer
+  - type: ProperKungFuDissolve
+    hold: 0.6
+    fade: 1.1
+    drift: 0, 0.55
+    scaleTo: 1.1
+  - type: TimedDespawn
+    lifetime: 1.8
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# One-inch death punch impact: a bright white-crimson starburst flash.
+- type: entity
+  id: ProperKungFuDeathPunchFlash
+  name: death punch flash
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_death_punch.rsi
+      state: flash
+      scale: 1.6, 1.6
+  - type: PointLight
+    color: "#FFD0D8"
+    radius: 5
+    energy: 8
+  - type: ProperKungFuDissolve
+    hold: 0.12
+    fade: 0.35
+    scaleFrom: 0.6
+    scaleTo: 1.25
+    scaleTime: 0.2
+  - type: TimedDespawn
+    lifetime: 0.55
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# One-inch death punch impact: a white-crimson shockwave ring expanding from the impact point.
+- type: entity
+  id: ProperKungFuDeathPunchRing
+  name: death punch shockwave
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_death_punch.rsi
+      state: ring
+  - type: PointLight
+    color: "#FF3050"
+    radius: 3
+    energy: 3
+  - type: ProperKungFuDissolve
+    hold: 0.1
+    fade: 0.5
+    scaleFrom: 0.2
+    scaleTo: 3.2
+    scaleTime: 0.6
+  - type: TimedDespawn
+    lifetime: 0.7
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# One-inch death punch residue: a crackling white-red wisp of energy lingering around the impact point.
+- type: entity
+  id: ProperKungFuDeathPunchWisp
+  name: residual energy
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_death_punch.rsi
+      state: wisp
+  - type: ProperKungFuDissolve
+    hold: 0.25
+    fade: 0.8
+    drift: 0, 0.35
+    driftJitter: 0.3
+    scaleFrom: 0.8
+    scaleTo: 1.2
+  - type: TimedDespawn
+    lifetime: 1.15
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# One-inch death punch residue: the dim crimson glow left over the impact point while the wisps crackle.
+- type: entity
+  id: ProperKungFuDeathPunchResidue
+  name: residual glow
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_death_punch.rsi
+      state: flash
+      color: "#FF305070"
+  - type: PointLight
+    color: "#FF2040"
+    radius: 2.5
+    energy: 2.5
+  - type: ProperKungFuDissolve
+    hold: 0.2
+    fade: 0.9
+    scaleFrom: 0.9
+    scaleTo: 0.6
+  - type: TimedDespawn
+    lifetime: 1.2
   - type: Tag
     tags:
     - HideContextMenu

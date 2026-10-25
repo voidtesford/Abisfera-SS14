@@ -20,7 +20,7 @@
   parent: BaseItem
   id: ProperKungFuKunai
   name: kunai
-  description: A grey kunai with a ring pommel and a wrapped grip. It smells faintly of smoke.
+  description: A dark kunai with a red-wrapped grip and a ring pommel. It smells faintly of smoke.
   categories: [ HideSpawnMenu ]
   components:
   - type: Sprite

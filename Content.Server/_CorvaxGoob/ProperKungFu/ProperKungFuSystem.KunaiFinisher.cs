@@ -41,7 +41,12 @@ public sealed partial class ProperKungFuSystem
     private static readonly EntProtoId KunaiNeckSlash = "ProperKungFuKunaiNeckSlash";
     private static readonly EntProtoId KunaiPierce = "ProperKungFuKunaiPierce";
     private static readonly EntProtoId DeathPunchKanji = "ProperKungFuOneInchKanji";
-    private static readonly EntProtoId DeathPunchImpact = "ProperKungFuPalmFlash";
+    private static readonly EntProtoId DeathPunchImpact = "ProperKungFuDeathPunchFlash";
+    private static readonly EntProtoId DeathPunchRing = "ProperKungFuDeathPunchRing";
+    private static readonly EntProtoId DeathPunchWisp = "ProperKungFuDeathPunchWisp";
+    private static readonly EntProtoId DeathPunchResidue = "ProperKungFuDeathPunchResidue";
+    public const int DeathPunchWispCount = 8;
+    private const float DeathPunchWispRadius = 0.8f;
     private static readonly EntProtoId KunaiDouble = "ProperKungFuKunaiDouble";
     private static readonly EntProtoId KunaiDoubleVanish = "ProperKungFuWolfPackVanish";
     private static readonly EntProtoId KunaiDashSlash = "ProperKungFuKunaiDashSlash";
@@ -74,7 +79,6 @@ public sealed partial class ProperKungFuSystem
     private const float KunaiDashSpeed = 20f;
     private const float KunaiDashBehind = 1.2f;
     public const float KunaiDashDamage = 1f;
-    private const float KunaiDashSlashSegment = 0.9f;
     private static readonly TimeSpan KunaiTurnDelay = TimeSpan.FromSeconds(0.08);
     public const int KunaiVolleyCount = 10;
     private static readonly TimeSpan KunaiVolleyStart = TimeSpan.FromSeconds(0.03);
@@ -83,6 +87,12 @@ public sealed partial class ProperKungFuSystem
     private const float KunaiBackflipDistance = 1f;
     private static readonly TimeSpan KunaiBackflipDuration = TimeSpan.FromSeconds(0.35);
     private static readonly TimeSpan KunaiThrownVictimStun = TimeSpan.FromSeconds(4);
+
+    /// <summary>
+    /// Any kunai hit, melee or thrown, by anyone (the ultimate's shadows included), stuns for this long.
+    /// Stuns are refreshed, never accumulated: with a finisher's own stun the longer one wins.
+    /// </summary>
+    public static readonly TimeSpan KunaiHitStun = TimeSpan.FromSeconds(2);
 
     private const float FlyingKunaiFastSpeed = 25f;
     private const float FlyingKunaiArrive = 0.3f;
@@ -120,9 +130,25 @@ public sealed partial class ProperKungFuSystem
         return TryComp<DamageableComponent>(uid, out var damageable) ? damageable.TotalDamage.Float() : 0f;
     }
 
+    private void StunKunaiVictim(EntityUid victim, EntityUid? attacker)
+    {
+        if (victim == attacker || !HasComp<MobStateComponent>(victim) || _mobState.IsDead(victim))
+            return;
+
+        _stun.TryStun(victim, KunaiHitStun, true);
+    }
+
     private void OnKunaiMeleeHit(Entity<ProperKungFuKunaiComponent> ent, ref MeleeHitEvent args)
     {
-        if (!args.IsHit || args.Handled || args.HitEntities.Count == 0 || args.User != ent.Comp.Summoner)
+        if (!args.IsHit || args.Handled || args.HitEntities.Count == 0)
+            return;
+
+        foreach (var hit in args.HitEntities)
+        {
+            StunKunaiVictim(hit, args.User);
+        }
+
+        if (args.User != ent.Comp.Summoner)
             return;
 
         var user = args.User;
@@ -142,6 +168,8 @@ public sealed partial class ProperKungFuSystem
 
     private void OnKunaiThrowHit(Entity<ProperKungFuKunaiComponent> ent, ref ThrowDoHitEvent args)
     {
+        StunKunaiVictim(args.Target, args.Component.Thrower);
+
         if (ent.Comp.ThrowOrigin == null || ent.Comp.Summoner is not { } user)
             return;
 
@@ -340,7 +368,7 @@ public sealed partial class ProperKungFuSystem
                 finisher.Dashed = true;
 
                 SpawnAfterimage(user, finisher.Map, userPos, DashAfterimageEffect);
-                SpawnKunaiDashSlash(finisher.Map, userPos, end, dir);
+                SpawnKunaiDashSlash(finisher.Map, victimPos, dir);
                 _transform.SetWorldRotation(user, dir.ToWorldAngle());
                 StartKnockback(user, dir, distance, duration, dust: false);
 
@@ -415,19 +443,14 @@ public sealed partial class ProperKungFuSystem
     }
 
     /// <summary>
-    /// The long white-red slash line along the whole dash path.
+    /// A wide white-red crescent swoosh centred on the victim, lying across the dash: the sprite's arc bulges
+    /// towards +X, so rotating it by the dash angle puts the chord perpendicular to the dash.
     /// </summary>
-    private void SpawnKunaiDashSlash(MapId map, Vector2 from, Vector2 to, Vector2 dir)
+    public EntityUid SpawnKunaiDashSlash(MapId map, Vector2 victimPos, Vector2 dir)
     {
-        var length = (to - from).Length();
-        var segments = Math.Max(1, (int) MathF.Ceiling(length / KunaiDashSlashSegment));
-        var step = length / segments;
-        for (var i = 0; i < segments; i++)
-        {
-            var pos = from + dir * (step * (i + 0.5f));
-            var fx = Spawn(KunaiDashSlash, new MapCoordinates(pos, map));
-            _transform.SetWorldRotation(fx, dir.ToAngle());
-        }
+        var fx = Spawn(KunaiDashSlash, new MapCoordinates(victimPos, map));
+        _transform.SetWorldRotation(fx, dir.ToAngle());
+        return fx;
     }
 
     /// <summary>
@@ -572,7 +595,7 @@ public sealed partial class ProperKungFuSystem
         if (IsPathBlocked(victim, map, victimPos, kanjiPos, out var kanjiFree))
             kanjiPos = kanjiFree;
         Spawn(DeathPunchKanji, new MapCoordinates(kanjiPos, map));
-        Spawn(DeathPunchImpact, new MapCoordinates(victimPos, map));
+        SpawnDeathPunchImpact(map, victimPos);
 
         DealChunkedDamage(user, victim, DeathPunchDamage, TargetBodyPart.Chest);
         foreach (var part in new[] { TargetBodyPart.Chest, TargetBodyPart.Groin })
@@ -596,6 +619,23 @@ public sealed partial class ProperKungFuSystem
         _audio.PlayPvs(DeathPunchSound, victim);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-kunai-death-punch-user", ("target", victim)), user, user, PopupType.Large);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-kunai-death-punch-target", ("user", user)), victim, victim, PopupType.LargeCaution);
+    }
+
+    /// <summary>
+    /// The impact of the death punch, left at the impact point while the victim flies off: a white-crimson flash,
+    /// an expanding shockwave ring, and crackling wisps over a dim glow fading out over about a second.
+    /// </summary>
+    public void SpawnDeathPunchImpact(MapId map, Vector2 pos)
+    {
+        Spawn(DeathPunchImpact, new MapCoordinates(pos, map));
+        Spawn(DeathPunchRing, new MapCoordinates(pos, map));
+        Spawn(DeathPunchResidue, new MapCoordinates(pos, map));
+        for (var i = 0; i < DeathPunchWispCount; i++)
+        {
+            var angle = MathHelper.TwoPi * (i + _instinctRandom.NextFloat(-0.3f, 0.3f)) / DeathPunchWispCount;
+            var offset = new Angle(angle).ToVec() * _instinctRandom.NextFloat(0.25f, DeathPunchWispRadius);
+            Spawn(DeathPunchWisp, new MapCoordinates(pos + offset, map));
+        }
     }
 
     private bool IsDeathPunchOrgan(EntityUid organ, Content.Shared.Body.Organ.OrganComponent organComp)
