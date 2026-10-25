@@ -106,6 +106,105 @@
         volume: 4
   canDoWhileProne: false
 
+# CorvaxGoob-ProperKungFu v13: Claw Mastery combos. While the ultimate runs, ProperKungFuSystem swaps the regular
+# combo list for this one (and back when it ends): every combo is 2 inputs, keeping the last two inputs of its
+# regular sequence. None is a prefix of another; a performed combo clears the attack history.
+- type: comboList
+  id: ProperKungFuUltimateMoves
+  combos:
+  - ProperKungFuUltClawSeries
+  - ProperKungFuUltWolfGrip
+  - ProperKungFuUltPerfectFlow
+
+- type: combo
+  id: ProperKungFuUltClawSeries
+  name: proper-kung-fu-claw-series
+  martialArtsForm: ProperKungFu
+  attacks:
+  - Harm
+  - Harm
+  event: !type:ProperKungFuClawSeriesPerformedEvent
+  extraDamage: 10
+  paralyzeTime: 2
+  canDoWhileProne: false
+
+
+- type: combo
+  id: ProperKungFuUltWolfGrip
+  name: proper-kung-fu-wolf-grip
+  martialArtsForm: ProperKungFu
+  attacks:
+  - Disarm
+  - Grab
+  event: !type:ProperKungFuWolfGripPerformedEvent
+    breathBlockTime: 10
+    markDuration: 2
+    holdDistance: 0.6
+    # Finisher (bridge suplex) on a target that already had this much damage before the combo.
+    finisherThreshold: 80
+    finisherDelay: 0.25
+    finisherDuration: 0.55
+    finisherHeight: 0.9
+    finisherBehindDistance: 1
+    finisherHeadDamage:
+      types:
+        Blunt: 25
+    finisherTorsoDamage:
+      types:
+        Blunt: 50
+    finisherKnockdownTime: 4
+    finisherImpactEffects:
+    - ProperKungFuGripSlamCrack
+    - ProperKungFuGripSlamRing
+    - ProperKungFuShockwaveEffect
+    - ProperKungFuDustPuffWhite
+    - ProperKungFuDustPuffRed
+    finisherLiftSound:
+      path: /Audio/Effects/thudswoosh.ogg
+    finisherSound:
+      path: /Audio/Effects/metal_slam1.ogg
+      params:
+        volume: 6
+  extraDamage: 15
+  damageType: Slash
+  canDoWhileProne: false
+
+
+- type: combo
+  id: ProperKungFuUltPerfectFlow
+  name: proper-kung-fu-perfect-flow
+  martialArtsForm: ProperKungFu
+  attacks:
+  - Disarm
+  - Harm
+  event: !type:ProperKungFuPerfectFlowPerformedEvent
+    partDamage: 10
+    damageType: Blunt
+    fractureThreshold: 50
+    disorientEffect: StatusEffectProperKungFuDisoriented
+    disorientTime: 5
+    finisherThreshold: 80
+    finisherDamage: 20
+    finisherDamageType: Blunt
+    behindDistance: 0.8
+    spinDuration: 0.35
+    flashEffect: ProperKungFuFlowFlash
+    flashInterval: 0.1
+    axeKickEffect: ProperKungFuFlowAxeKick
+    afterimageEffect: ProperKungFuFlowAfterimage
+    hitSound:
+      path: /Audio/Weapons/punch2.ogg
+      params:
+        volume: 2
+    fractureSound:
+      path: /Audio/_Goobstation/Effects/bone_crack.ogg
+    finisherSound:
+      path: /Audio/Effects/hit_kick.ogg
+      params:
+        volume: 4
+  canDoWhileProne: false
+
+
 # "Proper Kung Fu (pupil)", taught by the "Join the Pack" skill: the three regular combos only.
 # Claw Series and Wolf Grip deal the same damage; ProperKungFuSystem halves their other effects (stun, knockback,
 # breath block). The pupil's Perfect Flow is only 10 Blunt to the torso: no arm hits, no disorientation, no forced

@@ -172,8 +172,8 @@ public sealed class ProperKungFuV12Test
             Assert.That(kungFu.UltimateActive, "Mode on");
             Assert.That(kungFu.UltimateCharge, Is.EqualTo(0f), "Bar spent");
             Assert.That(kungFu.ActionEntities, Is.Empty, "Skills out");
-            Assert.That(kungFu.UltimateActionEntities, Has.Count.EqualTo(2), "Ultimate skills in");
-            Assert.That(kungFu.UltimateEndTime!.Value - timing.CurTime, Is.EqualTo(TimeSpan.FromMinutes(5)).Within(TimeSpan.FromSeconds(0.2)));
+            Assert.That(kungFu.UltimateActionEntities, Has.Count.EqualTo(6), "Ultimate skills in");
+            Assert.That(kungFu.UltimateEndTime!.Value - timing.CurTime, Is.EqualTo(TimeSpan.FromMinutes(4)).Within(TimeSpan.FromSeconds(0.2)));
 
             var shadows = FindAction(entMan, user, "ActionProperKungFuUltimateClones");
             actions.PerformAction(user, shadows, predicted: false);
@@ -181,7 +181,7 @@ public sealed class ProperKungFuV12Test
             startedAt = timing.CurTime;
         });
 
-        // 5 per second: 20 after ~4 s. The 5-health shadows can die on the airless test map, so count every one ever seen.
+        // One every half second on the first use: 20 after ~10 s. The 5-health shadows can die on the airless test map, so count every one ever seen.
         var seen = new Dictionary<EntityUid, TimeSpan>();
         async Task Watch(int ticks)
         {
@@ -200,19 +200,19 @@ public sealed class ProperKungFuV12Test
         }
 
         await Watch(timing.TickRate * 2);
-        Assert.That(seen.Count, Is.InRange(5, 15), "Waves, not all at once");
+        Assert.That(seen.Count, Is.InRange(3, 6), "One every half second, not all at once");
 
-        await Watch(timing.TickRate * 3);
+        await Watch(timing.TickRate * 9);
         Assert.That(seen, Has.Count.EqualTo(20), "Twenty shadows");
         foreach (var expires in seen.Values)
         {
-            Assert.That((expires - startedAt).TotalSeconds, Is.InRange(59.5, 64.5), "60 s of life");
+            Assert.That((expires - startedAt).TotalSeconds, Is.InRange(59.5, 70.5), "60 s of life");
         }
 
         await server.WaitAssertion(() =>
         {
             var action = FindAction(entMan, user, "ActionProperKungFuUltimateClones");
-            Assert.That(action.Comp.UseDelay, Is.EqualTo(TimeSpan.FromSeconds(10)), "10 s re-use cooldown");
+            Assert.That(action.Comp.UseDelay, Is.EqualTo(TimeSpan.FromSeconds(60)), "60 s cooldown");
             actions.ClearCooldown(action.Owner);
             actions.PerformAction(user, action, predicted: false);
         });

@@ -376,8 +376,13 @@ public sealed partial class ProperKungFuSystem
     {
         HealFinisherUser(user);
 
+        // v13: the katana shadows take the chest, arms and legs; the strike keeps the rest (the head).
+        var clones = args.FinisherCloneCount > 0;
         foreach (var part in args.FinisherFinalParts)
         {
+            if (clones && args.FinisherCloneParts.Contains(part))
+                continue;
+
             DealChunkedDamage(user, victim, args.FinisherFinalDamage, part);
         }
 
@@ -389,13 +394,25 @@ public sealed partial class ProperKungFuSystem
         // Away from the user.
         var away = finisher.Center - _transform.GetWorldPosition(user);
         away = away.LengthSquared() > 0.0001f ? Vector2.Normalize(away) : -finisher.LastDirection;
-        var slide = TimeSpan.FromSeconds(args.FinisherKnockbackDistance / MathF.Max(0.1f, args.FinisherKnockbackSpeed));
-        StartKnockback(victim, away, args.FinisherKnockbackDistance, slide, dust: true);
-        _stun.TryKnockdown(victim, slide + args.FinisherKnockdownTime, true);
 
         _audio.PlayPvs(args.FinisherFinalSound, victim);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-finisher-final-user", ("target", victim)), user, user, PopupType.Large);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-dance-finisher-final-target", ("user", user)), victim, victim, PopupType.LargeCaution);
+
+        if (clones)
+        {
+            StartKatanaClones(user, victim, finisher.Map, finisher.Center, away, args);
+            return;
+        }
+
+        FinishDanceKnockback(victim, away, args);
+    }
+
+    private void FinishDanceKnockback(EntityUid victim, Vector2 away, WolfDanceActionEvent args)
+    {
+        var slide = TimeSpan.FromSeconds(args.FinisherKnockbackDistance / MathF.Max(0.1f, args.FinisherKnockbackSpeed));
+        StartKnockback(victim, away, args.FinisherKnockbackDistance, slide, dust: true);
+        _stun.TryKnockdown(victim, slide + args.FinisherKnockdownTime, true);
     }
 
     /// <summary>

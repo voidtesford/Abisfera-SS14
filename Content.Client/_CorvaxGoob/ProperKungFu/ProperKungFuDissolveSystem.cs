@@ -68,17 +68,19 @@ public sealed class ProperKungFuDissolveSystem : EntitySystem
         grow = 1f - (1f - grow) * (1f - grow);
         var scale = comp.ScaleFrom + (comp.ScaleTo - comp.ScaleFrom) * grow;
 
+        var appear = comp.FadeIn > 0f ? Math.Clamp(t / comp.FadeIn, 0f, 1f) : 1f;
+
         // Drift eases in with the fade: the effect lifts off as it dissolves.
         var lift = fade * (2f - fade);
 
         if (TryComp<SpriteComponent>(ent, out var sprite))
         {
-            _sprite.SetColor((ent.Owner, sprite), sprite.Color.WithAlpha(comp.BaseAlpha * (1f - fade)));
+            _sprite.SetColor((ent.Owner, sprite), sprite.Color.WithAlpha(comp.BaseAlpha * appear * (1f - fade)));
             _sprite.SetScale((ent.Owner, sprite), comp.BaseScale * scale);
             _sprite.SetOffset((ent.Owner, sprite), comp.BaseOffset + comp.DriftTotal * lift);
         }
 
         if (TryComp<PointLightComponent>(ent, out var light))
-            _light.SetEnergy(ent, comp.BaseEnergy * (1f - fade), light);
+            _light.SetEnergy(ent, comp.BaseEnergy * appear * (1f - fade), light);
     }
 }

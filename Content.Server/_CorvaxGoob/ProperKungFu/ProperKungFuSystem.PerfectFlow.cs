@@ -68,7 +68,8 @@ public sealed partial class ProperKungFuSystem
         }
 
         // A battered target gets both arms broken. A pupil forces no fractures (bones only break from damage as usual).
-        if (!ent.Comp.Pupil && total >= args.FractureThreshold)
+        // Wolf Pack clones and the ultimate's shadows never break bones either.
+        if (!ent.Comp.Pupil && !IsWolfPackClone(user) && total >= args.FractureThreshold)
         {
             InflictPartTrauma(target, TargetBodyPart.LeftArm, args.DamageType, (_, _) => null, breakBones: true);
             InflictPartTrauma(target, TargetBodyPart.RightArm, args.DamageType, (_, _) => null, breakBones: true);

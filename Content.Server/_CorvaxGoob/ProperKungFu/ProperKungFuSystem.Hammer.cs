@@ -115,7 +115,7 @@ public sealed partial class ProperKungFuSystem
             SpawnHammerEffect(args.ImpactEffect, targetCoords);
             RemComp<ProperKungFuWolfGripMarkComponent>(target);
             DealHammerHeadDamage(user, target, args.LyingDamage);
-            InflictHammerTrauma(target, args);
+            InflictHammerTrauma(target, args, user);
             // Pinned and dazed: knocked down, stunned and disoriented for 10 s.
             _stun.TryParalyze(target, args.LyingStunTime, true);
             ApplyDisorientation(target, args.LyingDisorientEffect, args.LyingStunTime);
@@ -125,7 +125,7 @@ public sealed partial class ProperKungFuSystem
 
         SpawnHammerEffect(args.ImpactEffect, targetCoords);
         DealHammerHeadDamage(user, target, args.Damage);
-        InflictHammerTrauma(target, args);
+        InflictHammerTrauma(target, args, user);
         _stun.TryKnockdown(target, args.KnockdownTime, true);
         FinishHammer(user, target, "proper-kung-fu-hammer-user", "proper-kung-fu-hammer-target", args.HitSound);
     }
@@ -160,7 +160,7 @@ public sealed partial class ProperKungFuSystem
     /// <summary>
     /// Eyes and brain lose part of their integrity; the skull is never broken.
     /// </summary>
-    private void InflictHammerTrauma(EntityUid target, HammerActionEvent args)
+    private void InflictHammerTrauma(EntityUid target, HammerActionEvent args, EntityUid? source = null)
     {
         var eyes = args.EyeDamageFraction;
         var brain = args.BrainDamageFraction;
@@ -173,7 +173,8 @@ public sealed partial class ProperKungFuSystem
                     return organComp.IntegrityCap * brain;
                 return null;
             },
-            breakBones: false);
+            breakBones: false,
+            source: source);
     }
 
     /// <summary>
@@ -186,7 +187,7 @@ public sealed partial class ProperKungFuSystem
             _pulling.TryStopPull(target, pullable, user, true);
 
         DealHammerHeadDamage(user, target, args.GripDamage);
-        InflictHammerTrauma(target, args);
+        InflictHammerTrauma(target, args, user);
 
         // Backflip: the user flies back away from the target (walls stop it).
         StartKnockback(user, -direction, args.BackflipDistance, args.BackflipDuration, dust: false);

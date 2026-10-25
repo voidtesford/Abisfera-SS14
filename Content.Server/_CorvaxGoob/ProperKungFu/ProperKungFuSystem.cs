@@ -106,6 +106,12 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         InitializeKunaiFinishers();
         InitializeJoinPack();
         InitializeUltimate();
+        // CorvaxGoob-ProperKungFu-Start: v13
+        InitializeTimeStop();
+        InitializeWolfJudgment();
+        InitializeWolfGaze();
+        InitializeWolfSeal();
+        // CorvaxGoob-ProperKungFu-End
     }
 
     private void OnStartup(Entity<ProperKungFuComponent> ent, ref ComponentStartup args)
@@ -452,6 +458,17 @@ public sealed partial class ProperKungFuSystem : EntitySystem
                 continue;
             }
 
+            // CorvaxGoob-ProperKungFu-Start: v13 - a slide waits while its body is held in stopped time.
+            if (HasComp<ProperKungFuTimeStoppedComponent>(uid))
+            {
+                var pause = TimeSpan.FromSeconds(frameTime);
+                sliding.StartTime += pause;
+                sliding.EndTime += pause;
+                sliding.NextPuff += pause;
+                continue;
+            }
+            // CorvaxGoob-ProperKungFu-End
+
             var total = (sliding.EndTime - sliding.StartTime).TotalSeconds;
             var t = total <= 0 ? 1f : (float) Math.Clamp((now - sliding.StartTime).TotalSeconds / total, 0, 1);
             var eased = 1f - (1f - t) * (1f - t); // fast start, skids to a stop
@@ -490,6 +507,13 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         UpdateKunaiFinishers(now);
         UpdateBloodlust(now);
         UpdateUltimate(now);
+        // CorvaxGoob-ProperKungFu-Start: v13
+        UpdateTimeStops(now);
+        UpdateKatanaClones(now);
+        UpdateJudgments(now);
+        UpdateWolfGaze(now);
+        UpdateWolfSeals(now);
+        // CorvaxGoob-ProperKungFu-End
 
         var marks = EntityQueryEnumerator<ProperKungFuClawMarkComponent>();
         while (marks.MoveNext(out var uid, out var mark))

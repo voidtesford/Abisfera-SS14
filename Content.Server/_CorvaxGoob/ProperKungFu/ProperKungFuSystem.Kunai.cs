@@ -83,6 +83,14 @@ public sealed partial class ProperKungFuSystem
             return;
         }
 
+        // The Claw Mastery fan kunai: splits, never pulls the user, never starts a finisher.
+        if (TryComp<ProperKungFuFanKunaiComponent>(ent, out var fan))
+        {
+            ent.Comp.ThrowOrigin = null;
+            OnFanKunaiThrown((ent, ent.Comp, fan), user);
+            return;
+        }
+
         ent.Comp.ThrowOrigin = _transform.GetMapCoordinates(user);
         ent.Comp.Arrived = false;
         ent.Comp.Embedded = false;
@@ -93,6 +101,10 @@ public sealed partial class ProperKungFuSystem
         if (!ent.Comp.Embedded)
             _appearance.SetData(ent, ProperKungFuKunaiVisuals.State, ProperKungFuKunaiState.Idle);
 
+        // A fan kunai is gone once it lands (no pickup left behind).
+        if (TryComp<ProperKungFuFanKunaiComponent>(ent, out var fan) && fan.Flying)
+            ent.Comp.Consumed = true;
+
         if (ent.Comp.ThrowOrigin != null)
             ent.Comp.Arrived = true;
     }
@@ -100,11 +112,48 @@ public sealed partial class ProperKungFuSystem
     private void OnKunaiEmbed(Entity<ProperKungFuKunaiComponent> ent, ref EmbedEvent args)
     {
         _appearance.SetData(ent, ProperKungFuKunaiVisuals.State, ProperKungFuKunaiState.Embedded);
+        if (TryComp<ProperKungFuFanKunaiComponent>(ent, out var fan) && fan.Flying)
+            ent.Comp.Consumed = true;
+
         if (ent.Comp.ThrowOrigin == null)
             return;
 
         ent.Comp.Embedded = true;
         ent.Comp.Arrived = true;
+    }
+
+    /// <summary>
+    /// The thrown fan kunai becomes the middle of the fan; one more kunai is thrown along every other angle, with the
+    /// same speed and reach as the throw itself.
+    /// </summary>
+    private void OnFanKunaiThrown(Entity<ProperKungFuKunaiComponent, ProperKungFuFanKunaiComponent> ent, EntityUid user)
+    {
+        var fan = ent.Comp2;
+        fan.Flying = true;
+        if (fan.Child || fan.Direction is not { } direction || direction.LengthSquared() < 0.0001f)
+            return;
+
+        var speed = fan.Speed;
+        fan.Direction = null;
+        var coords = Transform(ent).Coordinates;
+        foreach (var angle in fan.Angles)
+        {
+            if (MathF.Abs(angle) < 0.01f)
+                continue;
+
+            var child = Spawn(MetaData(ent).EntityPrototype?.ID, coords);
+            var kunai = EnsureComp<ProperKungFuKunaiComponent>(child);
+            kunai.Summoner = user;
+            kunai.ExpiresAt = ent.Comp1.ExpiresAt;
+            kunai.SmokeEffect = ent.Comp1.SmokeEffect;
+            var childFan = EnsureComp<ProperKungFuFanKunaiComponent>(child);
+            childFan.Child = true;
+            childFan.Angles = fan.Angles;
+
+            var rotated = new Angle(MathHelper.DegreesToRadians(angle)).RotateVec(direction);
+            _throwing.TryThrow(child, rotated, speed, user, pushbackRatio: 0f, compensateFriction: false,
+                recoil: false, playSound: false);
+        }
     }
 
     private void UpdateKunai(TimeSpan now)

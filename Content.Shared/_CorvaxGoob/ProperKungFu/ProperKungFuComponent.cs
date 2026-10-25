@@ -107,7 +107,7 @@ public sealed partial class ProperKungFuComponent : Component
     // Ultimate: a red 0-100 bar with a percentage above the hotbar (client ProperKungFuUltimateBarSystem).
     // Spec: +1 per point of damage taken, +5 per combo, +5 per special move hit (already wired via ProperKungFuSpecialHitEvent).
     // When the owner enters crit with a full bar: after 5 s fully heal, stand up, and enable the ultimate mode
-    // for 5 minutes (swap BaseActions for UltimateActions), then reset the bar to 0.
+    // for 4 minutes (swap BaseActions for UltimateActions), then reset the bar to 0.
 
     /// <summary>
     /// Current ultimate meter charge, clamped to [0, <see cref="MaxUltimateCharge"/>].
@@ -150,6 +150,10 @@ public sealed partial class ProperKungFuComponent : Component
     {
         "ActionProperKungFuUltimateClones",
         "ActionProperKungFuSummonPack",
+        "ActionProperKungFuWolfJudgment",
+        "ActionProperKungFuWolfGaze",
+        "ActionProperKungFuWolfSeal",
+        "ActionProperKungFuFanKunai",
     };
 
     /// <summary>
@@ -177,6 +181,39 @@ public sealed partial class ProperKungFuComponent : Component
     public bool UltimateClonesUsed;
 
     /// <summary>
+    /// Whether the full "Wolf Judgment" (dash and combo) was already used in the running ultimate mode:
+    /// later uses are only the claw cross. Reset when a new mode starts.
+    /// </summary>
+    [ViewVariables]
+    public bool UltimateJudgmentUsed;
+
+    /// <summary>
+    /// Wolf Gaze triggers once per ultimate activation: spent only by a successful trigger; a stance that ends
+    /// without an attack is not spent (the action gets a 2 minute cooldown instead).
+    /// </summary>
+    [ViewVariables]
+    public bool UltimateGazeUsed;
+
+    /// <summary>
+    /// While the ultimate runs the fist attack rate uses this multiplier instead of
+    /// <see cref="UnarmedAttackRateMultiplier"/> (replaced, not stacked).
+    /// </summary>
+    [DataField]
+    public float UltimateAttackRateMultiplier = 2.5f;
+
+    /// <summary>
+    /// Combo list (comboList prototype id) swapped in while the ultimate runs: every combo shortened to 2 inputs.
+    /// </summary>
+    [DataField]
+    public string UltimateCombos = "ProperKungFuUltimateMoves";
+
+    /// <summary>
+    /// Combo list swapped back in when the ultimate ends.
+    /// </summary>
+    [DataField]
+    public string RegularCombos = "ProperKungFuMoves";
+
+    /// <summary>
     /// Bloodlust: how long a victim hurt by the user stays marked with "Blood Harvest".
     /// </summary>
     [DataField]
@@ -195,7 +232,7 @@ public sealed partial class ProperKungFuComponent : Component
     public float BloodlustHeal = 5f;
 
     [DataField]
-    public TimeSpan UltimateDuration = TimeSpan.FromMinutes(5);
+    public TimeSpan UltimateDuration = TimeSpan.FromMinutes(4);
 
     [DataField]
     public TimeSpan UltimateActivationDelay = TimeSpan.FromSeconds(5);

@@ -3,6 +3,7 @@ using Content.Goobstation.Maths.FixedPoint;
 using Content.Shared._CorvaxGoob.ProperKungFu;
 using Content.Shared._Shitmed.CCVar;
 using Content.Shared._Shitmed.Damage;
+using Content.Shared._Shitmed.Medical.Surgery.Traumas;
 using Content.Shared._Shitmed.Medical.Surgery.Traumas.Components;
 using Content.Shared._Shitmed.Medical.Surgery.Wounds;
 using Content.Shared._Shitmed.Medical.Surgery.Wounds.Components;
@@ -36,6 +37,7 @@ public sealed partial class ProperKungFuSystem
         SubscribeLocalEvent<ProperKungFuComponent, HitScanReflectAttemptEvent>(OnPassiveHitscan);
         SubscribeLocalEvent<ProperKungFuComponent, DamageModifyEvent>(OnPassiveDamageModify);
         SubscribeLocalEvent<ProperKungFuComponent, MeleeHitEvent>(OnPassiveMeleeHit);
+        SubscribeLocalEvent<WoundableComponent, BeforeTraumaInducedEvent>(OnBeforeTraumaInduced);
         SubscribeLocalEvent<ProperKungFuComponent, WoundAddedOnBodyEvent>(OnOwnWoundAdded);
         SubscribeLocalEvent<ProperKungFuComponent, WoundSeverityPointChangedOnBodyEvent>(OnOwnWoundChanged);
         SubscribeLocalEvent<ProperKungFuBleedBoostComponent, WoundAddedOnBodyEvent>(OnBoostWoundAdded);
@@ -121,7 +123,30 @@ public sealed partial class ProperKungFuSystem
             MarkBloodHarvest(attacker, target);
         }
 
-        return _damageable.TryChangeDamage(target, damage, ignoreResistances: ignoreResistances, origin: origin, targetPart: targetPart, canMiss: canMiss);
+        // Clones never break bones, hurt organs or sever limbs: Shitmed's random traumas are cancelled while their damage lands.
+        var cloneDamage = origin is { } source && IsWolfPackClone(source);
+        if (cloneDamage)
+            _cloneDamageDepth++;
+        try
+        {
+            return _damageable.TryChangeDamage(target, damage, ignoreResistances: ignoreResistances, origin: origin, targetPart: targetPart, canMiss: canMiss);
+        }
+        finally
+        {
+            if (cloneDamage)
+                _cloneDamageDepth--;
+        }
+    }
+
+    /// <summary>
+    /// Above zero while a Wolf Pack clone's (or ultimate shadow's) skill damage is being applied.
+    /// </summary>
+    private int _cloneDamageDepth;
+
+    private void OnBeforeTraumaInduced(Entity<WoundableComponent> ent, ref BeforeTraumaInducedEvent args)
+    {
+        if (_cloneDamageDepth > 0)
+            args.Cancelled = true;
     }
 
     private void OnOwnWoundAdded(Entity<ProperKungFuComponent> ent, ref WoundAddedOnBodyEvent args)

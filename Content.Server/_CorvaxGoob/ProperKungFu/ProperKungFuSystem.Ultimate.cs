@@ -1,5 +1,7 @@
 using System.Linq;
 using System.Numerics;
+using Content.Goobstation.Common.MartialArts;
+using Content.Goobstation.Shared.MartialArts.Components;
 using Content.Goobstation.Shared.Religion.Nullrod.Components;
 using Content.Server.Administration.Systems;
 using Content.Shared._CorvaxGoob.ProperKungFu;
@@ -19,7 +21,7 @@ namespace Content.Server._CorvaxGoob.ProperKungFu;
 /// <summary>
 /// The ultimate: the bar fills from fighting (special hits, combos and damage taken). With a full bar the master
 /// either starts the mode with the "Ultimate" action, or falls into crit and, 5 seconds later, gets up fully healed in it.
-/// For 5 minutes the skills (not the combos) are replaced by the ultimate-only skills, then everything goes back.
+/// For 4 minutes the skills (not the combos) are replaced by the ultimate-only skills, then everything goes back.
 /// </summary>
 public sealed partial class ProperKungFuSystem
 {
@@ -105,8 +107,13 @@ public sealed partial class ProperKungFuSystem
         comp.UltimateCharge = 0f;
         comp.UltimateEndTime = now + comp.UltimateDuration;
         comp.UltimateClonesUsed = false;
+        comp.UltimateJudgmentUsed = false;
+        comp.UltimateGazeUsed = false;
 
-        // Skills out, ultimate skills in. Combos are not actions and stay.
+        // The combos shorten to 2 inputs for the mode.
+        SwapComboList(ent, comp.UltimateCombos);
+
+        // Skills out, ultimate skills in.
         foreach (var action in comp.ActionEntities)
         {
             _actions.RemoveAction(ent.Owner, action);
@@ -136,7 +143,12 @@ public sealed partial class ProperKungFuSystem
         comp.UltimateActive = false;
         comp.UltimateEndTime = null;
         comp.UltimateClonesUsed = false;
+        comp.UltimateJudgmentUsed = false;
+        comp.UltimateGazeUsed = false;
         RemComp<ProperKungFuUltimateSpawnerComponent>(ent);
+        SwapComboList(ent, comp.RegularCombos);
+        EndJudgment(ent.Owner);
+        EndGazeStance(ent.Owner);
 
         foreach (var action in comp.UltimateActionEntities)
         {
@@ -160,6 +172,27 @@ public sealed partial class ProperKungFuSystem
 
         Dirty(ent);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-ultimate-end"), ent, ent, PopupType.Medium);
+    }
+
+    /// <summary>
+    /// Replaces the allowed combos with the given comboList and clears the attack history, so nothing half-typed
+    /// carries over between the regular and the Claw Mastery sequences.
+    /// </summary>
+    private void SwapComboList(EntityUid uid, string listId)
+    {
+        if (!TryComp<CanPerformComboComponent>(uid, out var combo)
+            || !_proto.TryIndex<ComboListPrototype>(listId, out var list))
+            return;
+
+        combo.AllowedCombos.Clear();
+        foreach (var id in list.Combos)
+        {
+            if (_proto.TryIndex(id, out var proto))
+                combo.AllowedCombos.Add(proto);
+        }
+
+        combo.LastAttacks.Clear();
+        Dirty(uid, combo);
     }
 
     private void UpdateUltimate(TimeSpan now)
@@ -195,8 +228,9 @@ public sealed partial class ProperKungFuSystem
             if (now < spawner.NextBatch)
                 continue;
 
-            spawner.NextBatch = now + TimeSpan.FromSeconds(1);
-            var batch = Math.Min(spawner.Remaining, Math.Max(1, spawner.Args.PerSecond));
+            // First wave: one at a time every 0.5 s. Later waves: PerSecond at once, every second.
+            spawner.NextBatch = now + (spawner.OneByOne ? spawner.Args.FirstInterval : TimeSpan.FromSeconds(1));
+            var batch = spawner.OneByOne ? 1 : Math.Min(spawner.Remaining, Math.Max(1, spawner.Args.PerSecond));
             SpawnUltimateBatch(uid, comp, spawner, batch);
             spawner.Remaining -= batch;
         }
@@ -208,7 +242,8 @@ public sealed partial class ProperKungFuSystem
             return;
 
         // First use in the mode: the full twenty. Every later use: a smaller wave of the same shadows.
-        var count = ent.Comp.UltimateClonesUsed ? args.ReuseCount : args.Count;
+        var first = !ent.Comp.UltimateClonesUsed;
+        var count = first ? args.Count : args.ReuseCount;
         ent.Comp.UltimateClonesUsed = true;
 
         var spawner = EnsureComp<ProperKungFuUltimateSpawnerComponent>(ent);
@@ -216,6 +251,7 @@ public sealed partial class ProperKungFuSystem
         {
             spawner.Spawned = 0;
             spawner.NextBatch = _timing.CurTime;
+            spawner.OneByOne = first;
         }
 
         spawner.Args = args;

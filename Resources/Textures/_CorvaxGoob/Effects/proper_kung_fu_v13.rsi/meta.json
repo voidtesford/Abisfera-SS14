@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Proper Kung Fu v13 effects (wolf kanji rendered from Noto Serif CJK, SIL OFL 1.1; gaze eye, flashes, claws, eye glow, seal impact, dust and speed lines) made for Abisfera",
+  "size": {
+    "x": 64,
+    "y": 64
+  },
+  "states": [
+    {
+      "name": "wolf"
+    },
+    {
+      "name": "gaze_eye",
+      "delays": [
+        [
+          0.12,
+          0.12,
+          0.12,
+          0.12
+        ]
+      ]
+    },
+    {
+      "name": "gaze_flash"
+    },
+    {
+      "name": "gaze_strike"
+    },
+    {
+      "name": "judgment_claw"
+    },
+    {
+      "name": "gold_claw"
+    },
+    {
+      "name": "eye_streak"
+    },
+    {
+      "name": "eye_flash"
+    },
+    {
+      "name": "seal_impact",
+      "delays": [
+        [
+          0.12,
+          0.12,
+          0.12
+        ]
+      ]
+    },
+    {
+      "name": "seal_dust"
+    },
+    {
+      "name": "seal_lines"
+    }
+  ]
+}

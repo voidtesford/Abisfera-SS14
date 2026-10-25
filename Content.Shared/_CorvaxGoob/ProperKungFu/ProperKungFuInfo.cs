@@ -35,6 +35,13 @@ public static class ProperKungFuInfo
     public static readonly ComboAttackType[] PerfectFlowInputs = { ComboAttackType.Disarm, ComboAttackType.Harm, ComboAttackType.Disarm, ComboAttackType.Harm };
 
     /// <summary>
+    /// Claw Mastery: every combo shortened to its last two inputs (no sequence is a prefix of another).
+    /// </summary>
+    public static readonly ComboAttackType[] UltClawSeriesInputs = { ComboAttackType.Harm, ComboAttackType.Harm };
+    public static readonly ComboAttackType[] UltWolfGripInputs = { ComboAttackType.Disarm, ComboAttackType.Grab };
+    public static readonly ComboAttackType[] UltPerfectFlowInputs = { ComboAttackType.Disarm, ComboAttackType.Harm };
+
+    /// <summary>
     /// Finisher thresholds: damage the living target must already have. Checked against the prototypes by the tests.
     /// </summary>
     public const float ClawSeriesFinisherThreshold = 80f;
@@ -84,6 +91,9 @@ public static class ProperKungFuInfo
             Make(Kind.Combo, Combo("claw_series"), "claw-series", ClawSeriesInputs),
             Make(Kind.Combo, Combo("wolf_grip"), "wolf-grip", WolfGripInputs),
             Make(Kind.Combo, Combo("perfect_flow"), "perfect-flow", PerfectFlowInputs),
+            Make(Kind.Combo, Combo("claw_series"), "ult-claw-series", UltClawSeriesInputs),
+            Make(Kind.Combo, Combo("wolf_grip"), "ult-wolf-grip", UltWolfGripInputs),
+            Make(Kind.Combo, Combo("perfect_flow"), "ult-perfect-flow", UltPerfectFlowInputs),
 
             Make(Kind.Skill, Action("wolf_dance"), "wolf-dance"),
             Make(Kind.Skill, Action("claw_whirlwind"), "claw-whirlwind"),
@@ -95,6 +105,10 @@ public static class ProperKungFuInfo
             Make(Kind.Skill, Action("ultimate"), "ultimate"),
             Make(Kind.Skill, Action("ultimate_clones"), "ultimate-clones"),
             Make(Kind.Skill, Action("summon_pack"), "summon-pack"),
+            Make(Kind.Skill, Action("wolf_judgment"), "wolf-judgment"),
+            Make(Kind.Skill, Action("wolf_gaze"), "wolf-gaze"),
+            Make(Kind.Skill, Action("wolf_seal"), "wolf-seal"),
+            Make(Kind.Skill, Action("ultimate_kunai"), "fan-kunai"),
 
             Make(Kind.Passive, null, "passive-speed"),
             Make(Kind.Passive, null, "passive-gunshot"),

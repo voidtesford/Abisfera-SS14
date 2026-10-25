@@ -241,6 +241,25 @@ public sealed partial class WolfDanceActionEvent : EntityTargetActionEvent
         TargetBodyPart.RightLeg,
     };
 
+    /// <summary>
+    /// v13: katana shadows that dash-slash through the victim together after the final strike. They take over the
+    /// final strike's damage on <see cref="FinisherCloneParts"/>: each deals FinisherFinalDamage / count to each of
+    /// those parts, so every part still gets exactly <see cref="FinisherFinalDamage"/> (no extra damage); the final
+    /// strike itself only hits the remaining parts (the head).
+    /// </summary>
+    [DataField]
+    public int FinisherCloneCount = 6;
+
+    [DataField]
+    public List<TargetBodyPart> FinisherCloneParts = new()
+    {
+        TargetBodyPart.Chest,
+        TargetBodyPart.LeftArm,
+        TargetBodyPart.RightArm,
+        TargetBodyPart.LeftLeg,
+        TargetBodyPart.RightLeg,
+    };
+
     [DataField]
     public float FinisherKnockbackDistance = 7f;
 

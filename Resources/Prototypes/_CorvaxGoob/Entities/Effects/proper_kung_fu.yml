@@ -951,3 +951,549 @@
   - type: Tag
     tags:
     - HideContextMenu
+
+# ---- v13 ----
+
+# A recoloured circle of the world (grey / crimson / noir), drawn by the client tint overlay.
+- type: entity
+  id: ProperKungFuTintZone
+  name: tint zone
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: ProperKungFuTintZone
+  - type: TimedDespawn
+    lifetime: 2
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Melee kunai finisher time stop: the grey circle with the wizard time stop clock spinning in its middle.
+- type: entity
+  id: ProperKungFuTimeStopZone
+  name: stopped time
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: ProperKungFuTintZone
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _Goobstation/Wizard/Effects/effects160x160.rsi
+      state: time
+      color: "#FFFFFF90"
+  - type: TimedDespawn
+    lifetime: 6
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Time stop: 一寸死拳 fading in over the victim, burning for the whole stop, then dissolving upward.
+- type: entity
+  id: ProperKungFuTimeStopKanji
+  name: one-inch death punch kanji
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_kanji.rsi
+      state: kanji
+      scale: 1.3, 1.3
+  - type: PointLight
+    color: "#FF9020"
+    radius: 3
+    energy: 3
+  - type: ProperKungFuDissolve
+    fadeIn: 1
+    hold: 5
+    fade: 1.5
+    drift: 0, 0.6
+    scaleTo: 1.15
+    scaleTime: 6.5
+  - type: TimedDespawn
+    lifetime: 6.6
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Time stop: the white-gold afterimages the victim leaves while it flies through the stopped time.
+- type: entity
+  id: ProperKungFuTimeStopAfterimage
+  name: time stop afterimage
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Trail
+    lerpTime: 0.01
+    frequency: 0.01
+    maxParticleAmount: 1
+    lifetime: 1.2
+    alphaLerpAmount: 0.06
+    color: "#FFE6B0C0"
+    shader: unshaded
+    spawnRemainingTrail: false
+  - type: Transform
+    noRot: true
+  - type: Tag
+    tags:
+    - HideContextMenu
+  - type: TimedDespawn
+    lifetime: 1.6
+
+# Wolf Dance finisher: a silver katana shadow of the user standing around the victim.
+- type: entity
+  id: ProperKungFuKatanaClone
+  name: katana shadow
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Trail
+    lerpTime: 0.01
+    frequency: 0.01
+    maxParticleAmount: 1
+    lifetime: 1.2
+    alphaLerpAmount: 0.02
+    color: "#D8E4FFD0"
+    shader: unshaded
+    spawnRemainingTrail: false
+  - type: PointLight
+    color: "#C8D8FF"
+    radius: 1.2
+    energy: 1
+  - type: Tag
+    tags:
+    - HideContextMenu
+  - type: TimedDespawn
+    lifetime: 1.5
+
+# The katana in a shadow's hands.
+- type: entity
+  id: ProperKungFuKatanaBlade
+  name: shadow katana
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    layers:
+    - shader: unshaded
+      sprite: Objects/Weapons/Melee/katana.rsi
+      state: icon
+      color: "#E8F0FFE0"
+  - type: Tag
+    tags:
+    - HideContextMenu
+  - type: TimedDespawn
+    lifetime: 1.5
+
+# Afterimages along a shadow's dash through the victim.
+- type: entity
+  id: ProperKungFuKatanaAfterimage
+  name: katana afterimage
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Trail
+    lerpTime: 0.01
+    frequency: 0.01
+    maxParticleAmount: 1
+    lifetime: 0.4
+    alphaLerpAmount: 0.15
+    color: "#D8E4FF90"
+    shader: unshaded
+    spawnRemainingTrail: false
+  - type: Tag
+    tags:
+    - HideContextMenu
+  - type: TimedDespawn
+    lifetime: 0.6
+
+# The silver cut each shadow leaves across the victim.
+- type: entity
+  id: ProperKungFuKatanaSlash
+  name: katana slash
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_kunai_slash.rsi
+      state: dash_slash
+      scale: 1.2, 1.2
+      color: "#E0ECFF"
+  - type: PointLight
+    color: "#C8D8FF"
+    radius: 2
+    energy: 2
+  - type: TimedDespawn
+    lifetime: 0.44
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Judgment: one stroke of the huge X claw over the 3 by 6 area.
+- type: entity
+  id: ProperKungFuJudgmentClaw
+  name: judgment claw
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_v13.rsi
+      state: judgment_claw
+      scale: 3.4, 1.6
+  - type: PointLight
+    color: "#FF2030"
+    radius: 4
+    energy: 3
+  - type: ProperKungFuDissolve
+    hold: 0.35
+    fade: 0.4
+    scaleFrom: 0.7
+    scaleTo: 1
+    scaleTime: 0.12
+  - type: TimedDespawn
+    lifetime: 0.8
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Judgment flurry: a golden triple claw on every hit.
+- type: entity
+  id: ProperKungFuJudgmentGoldClaw
+  name: golden claw
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_v13.rsi
+      state: gold_claw
+  - type: PointLight
+    color: "#FFC040"
+    radius: 2
+    energy: 2
+  - type: ProperKungFuDissolve
+    hold: 0.1
+    fade: 0.25
+    scaleFrom: 0.8
+    scaleTo: 1.1
+  - type: TimedDespawn
+    lifetime: 0.4
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Judgment barrage: white afterimages striking from every side.
+- type: entity
+  id: ProperKungFuJudgmentWhiteDouble
+  name: white afterimage
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Trail
+    lerpTime: 0.01
+    frequency: 0.01
+    maxParticleAmount: 1
+    lifetime: 0.5
+    alphaLerpAmount: 0.12
+    color: "#FFFFFFD0"
+    shader: unshaded
+    spawnRemainingTrail: false
+  - type: Tag
+    tags:
+    - HideContextMenu
+  - type: TimedDespawn
+    lifetime: 0.7
+
+# Wolf Judgment aftermath: 狼 burning where it happened.
+- type: entity
+  id: ProperKungFuWolfKanji
+  name: wolf kanji
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_v13.rsi
+      state: wolf
+  - type: PointLight
+    color: "#FF3030"
+    radius: 3
+    energy: 3
+  - type: ProperKungFuDissolve
+    fadeIn: 0.15
+    hold: 1.2
+    fade: 1
+    drift: 0, 0.5
+    scaleFrom: 1.4
+    scaleTo: 1
+    scaleTime: 0.25
+  - type: TimedDespawn
+    lifetime: 2.3
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Judgment aftermath: the user's eyes flashing red.
+- type: entity
+  id: ProperKungFuJudgmentEyeFlash
+  name: red eyes
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_v13.rsi
+      state: eye_flash
+      scale: 0.6, 0.6
+  - type: PointLight
+    color: "#FF1010"
+    radius: 1.5
+    energy: 3
+  - type: ProperKungFuDissolve
+    hold: 0.5
+    fade: 0.5
+  - type: TimedDespawn
+    lifetime: 1.1
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Gaze catch: a white flash crossed by black radial lines.
+- type: entity
+  id: ProperKungFuGazeFlash
+  name: gaze flash
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_v13.rsi
+      state: gaze_flash
+      scale: 2.5, 2.5
+  - type: PointLight
+    color: "#FFFFFF"
+    radius: 6
+    energy: 8
+  - type: ProperKungFuDissolve
+    hold: 0.15
+    fade: 0.4
+    scaleFrom: 0.5
+    scaleTo: 1.2
+    scaleTime: 0.2
+  - type: TimedDespawn
+    lifetime: 0.6
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Gaze tension: the orange-red eye with pulsing rings over the user's head.
+- type: entity
+  id: ProperKungFuGazeEye
+  name: wolf gaze
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_v13.rsi
+      state: gaze_eye
+      scale: 0.9, 0.9
+  - type: PointLight
+    color: "#FF6020"
+    radius: 2
+    energy: 2.5
+  - type: ProperKungFuDissolve
+    fadeIn: 0.4
+    hold: 4
+    fade: 0.3
+  - type: TimedDespawn
+    lifetime: 6
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Wolf Gaze thrust: a flash with speed lines along the strike.
+- type: entity
+  id: ProperKungFuGazeStrike
+  name: gaze strike
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_v13.rsi
+      state: gaze_strike
+      scale: 2.4, 1.6
+  - type: PointLight
+    color: "#FFD0A0"
+    radius: 4
+    energy: 6
+  - type: ProperKungFuDissolve
+    hold: 0.4
+    fade: 0.4
+  - type: TimedDespawn
+    lifetime: 0.9
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Claw Mastery look (client-side only): the red light of the glowing eyes.
+- type: entity
+  id: ProperKungFuUltEyeLight
+  name: glowing eyes
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: PointLight
+    color: "#FF1A1A"
+    radius: 1.6
+    energy: 2.2
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Claw Mastery look (client-side only): a short fading red streak left by the eyes while moving.
+- type: entity
+  id: ProperKungFuUltEyeStreak
+  name: eye trail
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_v13.rsi
+      state: eye_streak
+      scale: 0.7, 0.7
+  - type: ProperKungFuDissolve
+    hold: 0.05
+    fade: 0.28
+    scaleTo: 0.5
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# ---- v13: Wolf Seal ----
+
+# Jagged white flash of a palm landing (rotated per palm).
+- type: entity
+  id: ProperKungFuSealImpact
+  name: seal impact
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_v13.rsi
+      state: seal_impact
+      scale: 1.6, 1.6
+  - type: PointLight
+    color: "#FFFFFF"
+    radius: 4
+    energy: 6
+  - type: ProperKungFuDissolve
+    hold: 0.15
+    fade: 0.25
+    scaleFrom: 0.6
+    scaleTo: 1.3
+    scaleTime: 0.15
+  - type: TimedDespawn
+    lifetime: 0.45
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Large translucent spherical shockwave ripple of the release.
+- type: entity
+  id: ProperKungFuSealShockwave
+  name: seal shockwave
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/wolf_dance_shockwave.rsi
+      state: shockwave
+      color: "#E8F0FFA0"
+      scale: 3, 3
+  - type: ProperKungFuDissolve
+    hold: 0.2
+    fade: 0.5
+    scaleFrom: 0.3
+    scaleTo: 1.4
+    scaleTime: 0.6
+  - type: TimedDespawn
+    lifetime: 0.8
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Big brown-grey dust cloud of the release.
+- type: entity
+  id: ProperKungFuSealDust
+  name: seal dust
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - sprite: _CorvaxGoob/Effects/proper_kung_fu_v13.rsi
+      state: seal_dust
+      scale: 3, 3
+  - type: ProperKungFuDissolve
+    hold: 0.4
+    fade: 0.9
+    scaleFrom: 0.5
+    scaleTo: 1.5
+    scaleTime: 0.8
+  - type: TimedDespawn
+    lifetime: 1.4
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Horizontal white speed lines over the black apex (rotated along the strike).
+- type: entity
+  id: ProperKungFuSealSpeedLines
+  name: seal speed lines
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_v13.rsi
+      state: seal_lines
+      scale: 2.5, 2.5
+  - type: ProperKungFuDissolve
+    hold: 0.3
+    fade: 0.1
+    scaleFrom: 1
+    scaleTo: 1.2
+    scaleTime: 0.4
+  - type: TimedDespawn
+    lifetime: 0.45
+  - type: Tag
+    tags:
+    - HideContextMenu

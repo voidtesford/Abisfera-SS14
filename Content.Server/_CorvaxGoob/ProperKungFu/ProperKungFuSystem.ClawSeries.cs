@@ -267,8 +267,11 @@ public sealed partial class ProperKungFuSystem
         return coefficient <= StrongTorsoSlashCoefficient + 0.0001f;
     }
 
-    private void SeverRandomLimb(EntityUid victim, BodyPartType type)
+    private void SeverRandomLimb(EntityUid victim, BodyPartType type, EntityUid? source = null)
     {
+        if (source is { } src && IsWolfPackClone(src))
+            return;
+
         var first = _instinctRandom.Prob(0.5f) ? BodyPartSymmetry.Left : BodyPartSymmetry.Right;
         var second = first == BodyPartSymmetry.Left ? BodyPartSymmetry.Right : BodyPartSymmetry.Left;
 

@@ -225,7 +225,7 @@ public sealed partial class ProperKungFuSystem
         // No shield rule here: the target is already in the air.
         // The Blunt lands on the torso; the skull fracture and brain trauma below still go to the head.
         DealKungFuDamage(target, args.Damage, origin: user, targetPart: SkillTargetPart, canMiss: false);
-        InflictHeadTrauma(target, args.BrainTraumaSeverity);
+        InflictHeadTrauma(target, args.BrainTraumaSeverity, user);
 
         if (args.ImpactEffect is { } effect)
         {
@@ -249,10 +249,10 @@ public sealed partial class ProperKungFuSystem
     /// <summary>
     /// Shitmed: breaks the head's bone (skull) and damages the brain, the same way wound traumas do it.
     /// </summary>
-    private void InflictHeadTrauma(EntityUid target, FixedPoint2 brainSeverity)
+    private void InflictHeadTrauma(EntityUid target, FixedPoint2 brainSeverity, EntityUid? source = null)
     {
         InflictPartTrauma(target, TargetBodyPart.Head, "Blunt",
-            (organ, _) => HasComp<BrainComponent>(organ) ? brainSeverity : null);
+            (organ, _) => HasComp<BrainComponent>(organ) ? brainSeverity : null, source: source);
     }
 
     /// <summary>
@@ -263,8 +263,13 @@ public sealed partial class ProperKungFuSystem
         TargetBodyPart targetPart,
         string woundType,
         Func<EntityUid, OrganComponent, FixedPoint2?> organSeverity,
-        bool breakBones = true)
+        bool breakBones = true,
+        EntityUid? source = null)
     {
+        // Wolf Pack clones and the ultimate's shadows never break bones or hurt organs.
+        if (source is { } src && IsWolfPackClone(src))
+            return;
+
         if (!TryComp<BodyComponent>(target, out var body))
             return;
 

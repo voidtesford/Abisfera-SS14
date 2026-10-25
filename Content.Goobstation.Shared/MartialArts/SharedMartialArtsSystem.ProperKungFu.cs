@@ -25,7 +25,11 @@ public partial class SharedMartialArtsSystem
         if (args.Weapon != args.User || !ent.Comp.HasPassives)
             return;
 
-        args.Multipliers *= ent.Comp.UnarmedAttackRateMultiplier;
+        // CorvaxGoob-ProperKungFu-Start: v13 - Claw Mastery replaces the passive multiplier (not stacked)
+        args.Multipliers *= ent.Comp.UltimateActive
+            ? ent.Comp.UltimateAttackRateMultiplier
+            : ent.Comp.UnarmedAttackRateMultiplier;
+        // CorvaxGoob-ProperKungFu-End
     }
 
     /// <summary>

@@ -172,7 +172,8 @@ public sealed class ProperKungFuV122Test
 
                         break;
                     case 15:
-                        // Everything left expires.
+                        // Everything left expires; the one-by-one shadow wave (0.5 s each) is stopped first.
+                        entMan.RemoveComponent<ProperKungFuUltimateSpawnerComponent>(user);
                         var all = entMan.EntityQueryEnumerator<ProperKungFuCloneComponent>();
                         while (all.MoveNext(out _, out var c))
                         {
@@ -412,7 +413,7 @@ public sealed class ProperKungFuV122Test
 
         await server.WaitRunTicks(5);
 
-        // Melee, wielded by someone untrained: plain 2 s stun, no finisher.
+        // Melee, wielded by someone untrained: no stun at all (v13: only thrown kunai stun), no finisher.
         await server.WaitAssertion(() =>
         {
             Assert.That(Remaining(victimPlain), Is.Zero);
@@ -420,8 +421,8 @@ public sealed class ProperKungFuV122Test
             weapon.NextAttack = TimeSpan.Zero; // Skip the swing cooldown from picking it up.
             Assert.That(melee.AttemptLightAttack(stranger, kunaiStranger, weapon, victimPlain), "Swung");
             Assert.That(entMan.GetComponent<DamageableComponent>(victimPlain).TotalDamage.Float(), Is.GreaterThan(0f), "The swing landed");
-            Assert.That(entMan.HasComponent<StunnedComponent>(victimPlain), "A melee kunai hit stuns");
-            Assert.That(Remaining(victimPlain), Is.EqualTo(ProperKungFuSystem.KunaiHitStun.TotalSeconds).Within(0.05), "for 2 s");
+            Assert.That(entMan.HasComponent<StunnedComponent>(victimPlain), Is.False, "A melee kunai hit never stuns");
+            Assert.That(Remaining(victimPlain), Is.Zero, "No melee kunai stun");
             Assert.That(entMan.HasComponent<ProperKungFuKunaiFinisherComponent>(stranger), Is.False);
         });
 
@@ -436,8 +437,8 @@ public sealed class ProperKungFuV122Test
             Assert.That(Remaining(victimFinisher), Is.EqualTo(3).Within(0.05), "The finisher's 3 s stun, not 2 + 3");
         });
 
-        // Thrown at an unhurt victim: plain 2 s stun.
-        await server.WaitRunTicks(timing.TickRate * 8);
+        // Thrown at an unhurt victim: plain 2 s stun (after the melee finisher and its time stop are over).
+        await server.WaitRunTicks(timing.TickRate * 13);
         await server.WaitPost(() =>
         {
             Assert.That(entMan.HasComponent<ProperKungFuKunaiFinisherComponent>(user), Is.False, "Finisher over");
@@ -533,12 +534,12 @@ public sealed class ProperKungFuV122Test
             ["en-US"] = new[]
             {
                 "wolf dance", "claw series", "claw whirlwind", "wolf grip", "cross slash", "hammer", "wolf instinct",
-                "perfect flow", "wolf pack", "twenty shadows", "one-inch", "death punch", "counter", "finisher", "ultimate",
+                "perfect flow", "wolf pack", "twenty shadows", "one-inch", "death punch", "counter", "finisher", "ultimate", "seal", "fan kunai", "claw mastery",
             },
             ["ru-RU"] = new[]
             {
                 "волч", "серию когтей", "серия когтей", "вихр", "крестовый", "молот", "инстинкт", "идеальн", "поток",
-                "двадцать теней", "одного дюйма", "смертельн", "контратак", "добивани", "ульт",
+                "двадцать теней", "одного дюйма", "смертельн", "контратак", "добивани", "ульт", "печат", "веерн", "мастерств",
             },
         };
 

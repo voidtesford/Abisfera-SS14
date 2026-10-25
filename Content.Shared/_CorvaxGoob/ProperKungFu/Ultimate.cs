@@ -13,7 +13,7 @@ public sealed partial class ProperKungFuUltimateActionEvent : InstantActionEvent
 
 /// <summary>
 /// Ultimate-only "Twenty Shadows" (Двадцать теней): the first use in a mode brings twenty fragile copies of the user,
-/// five per second, each with a random weapon, attacking every living thing around except the user and the Pack Dogs.
+/// one every <see cref="FirstInterval"/> (0.5 s, 10 s in all), each with a random weapon, attacking every living thing around except the user and the Pack Dogs.
 /// Every later use in the same mode brings <see cref="ReuseCount"/> more. Each copy lives <see cref="CloneLifetime"/>
 /// and they all vanish early if the mode ends first.
 /// </summary>
@@ -28,8 +28,17 @@ public sealed partial class ProperKungFuUltimateClonesActionEvent : InstantActio
     [DataField]
     public int ReuseCount = 5;
 
+    /// <summary>
+    /// Copies per second of a later (smaller) wave.
+    /// </summary>
     [DataField]
     public int PerSecond = 5;
+
+    /// <summary>
+    /// The first use in a mode brings its copies one at a time, one every this long.
+    /// </summary>
+    [DataField]
+    public TimeSpan FirstInterval = TimeSpan.FromSeconds(0.5);
 
     [DataField]
     public TimeSpan CloneLifetime = TimeSpan.FromSeconds(60);

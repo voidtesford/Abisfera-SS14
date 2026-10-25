@@ -1619,12 +1619,13 @@ public sealed class ProperKungFuTest
             Assert.That(Total(victim, "Slash"), Is.EqualTo(0f), "No final strike yet");
         });
 
-        // Wait for the end of the sequence.
-        for (var i = 0; i < 120; i++)
+        // Wait for the end of the sequence (v13: then the 6 katana shadows' phase, ~2.4 s).
+        for (var i = 0; i < 300; i++)
         {
             await server.WaitRunTicks(1);
             var running = false;
-            await server.WaitPost(() => running = entMan.HasComponent<ProperKungFuDanceFinisherComponent>(user));
+            await server.WaitPost(() => running = entMan.HasComponent<ProperKungFuDanceFinisherComponent>(user)
+                                                  || entMan.HasComponent<ProperKungFuKatanaClonesComponent>(user));
             if (!running)
                 break;
         }
@@ -1632,6 +1633,7 @@ public sealed class ProperKungFuTest
         await server.WaitAssertion(() =>
         {
             Assert.That(entMan.HasComponent<ProperKungFuDanceFinisherComponent>(user), Is.False, "Finisher over");
+            Assert.That(entMan.HasComponent<ProperKungFuKatanaClonesComponent>(user), Is.False, "Katana shadows over");
             // 85 pre + 20 first pass + 10 x 5.
             Assert.That(Total(victim, "Blunt"), Is.EqualTo(155f).Within(0.5f), "20 + 10 passes x 5 Blunt");
             Assert.That(PartDamage(entMan, victim, BodyPartType.Chest, "Blunt"), Is.EqualTo(155f).Within(0.5f), "All the Blunt on the torso");

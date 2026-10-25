@@ -169,7 +169,7 @@ public sealed partial class ProperKungFuSystem
 
         var fraction = args.GripLungDamageFraction;
         InflictPartTrauma(target, TargetBodyPart.Chest, "Blunt",
-            (organ, organComp) => HasComp<LungComponent>(organ) ? organComp.IntegrityCap * fraction : null);
+            (organ, organComp) => HasComp<LungComponent>(organ) ? organComp.IntegrityCap * fraction : null, source: user);
 
         BlockBreathing(target, args.GripBreathBlockTime);
 

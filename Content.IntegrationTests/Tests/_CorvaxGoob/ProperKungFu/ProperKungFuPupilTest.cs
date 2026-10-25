@@ -316,8 +316,8 @@ public sealed class ProperKungFuPupilTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Combo), Is.EqualTo(3));
-            Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Skill), Is.EqualTo(10));
+            Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Combo), Is.EqualTo(6), "Three full combos and their three Claw Mastery versions");
+            Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Skill), Is.EqualTo(14), "Including Wolf Judgment, Wolf Gaze, Wolf Seal and the fan kunai");
             Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Synergy), Is.EqualTo(5));
             Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Finisher), Is.EqualTo(8));
             Assert.That(owner.Where(e => e.Kind == ProperKungFuInfo.Kind.Finisher).All(e => e.Threshold is > 0f));

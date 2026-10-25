@@ -73,6 +73,36 @@ public sealed partial class ProperKungFuKunaiFinisherComponent : Component
     /// </summary>
     [ViewVariables]
     public TimeSpan EndBy;
+
+    /// <summary>
+    /// Melee finisher: the time stop zone around the death punch.
+    /// </summary>
+    [ViewVariables]
+    public EntityUid? Zone;
+
+    /// <summary>
+    /// Melee finisher: time starts again (the rest of the knockback follows).
+    /// </summary>
+    [ViewVariables]
+    public TimeSpan ZoneEnd;
+
+    /// <summary>
+    /// Melee finisher: the victim's flight inside the stopped time.
+    /// </summary>
+    [ViewVariables]
+    public Vector2 FlightFrom;
+
+    [ViewVariables]
+    public Vector2 FlightTo;
+
+    [ViewVariables]
+    public TimeSpan FlightStart;
+
+    [ViewVariables]
+    public TimeSpan NextTrail;
+
+    [ViewVariables]
+    public int Trails;
 }
 
 public enum FlyingKunaiKind : byte

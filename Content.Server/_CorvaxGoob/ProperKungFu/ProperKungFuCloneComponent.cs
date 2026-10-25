@@ -64,6 +64,12 @@ public sealed partial class ProperKungFuUltimateSpawnerComponent : Component
     [ViewVariables]
     public int Remaining;
 
+    /// <summary>
+    /// The first wave of a mode: one copy at a time, every <see cref="ProperKungFuUltimateClonesActionEvent.FirstInterval"/>.
+    /// </summary>
+    [ViewVariables]
+    public bool OneByOne;
+
     [ViewVariables]
     public TimeSpan NextBatch;
 

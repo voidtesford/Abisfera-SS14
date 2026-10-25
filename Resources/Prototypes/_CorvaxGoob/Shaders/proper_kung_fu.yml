@@ -2,3 +2,15 @@
   id: ProperKungFuDisoriented
   kind: source
   path: "/Textures/_CorvaxGoob/Shaders/proper_kung_fu_disoriented.swsl"
+
+# v13: the time stop / crimson / noir circles.
+- type: shader
+  id: ProperKungFuTint
+  kind: source
+  path: "/Textures/_CorvaxGoob/Shaders/proper_kung_fu_tint.swsl"
+
+# v13: the Wolf Gaze cutscene vignette and zoom.
+- type: shader
+  id: ProperKungFuGaze
+  kind: source
+  path: "/Textures/_CorvaxGoob/Shaders/proper_kung_fu_gaze.swsl"

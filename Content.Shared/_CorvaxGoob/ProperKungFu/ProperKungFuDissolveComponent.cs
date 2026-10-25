@@ -14,6 +14,12 @@ public sealed partial class ProperKungFuDissolveComponent : Component
     [DataField]
     public float Hold;
 
+    // CorvaxGoob-ProperKungFu-v13-Start
+    /// <summary>Seconds of fading in from transparent at spawn (counted inside <see cref="Hold"/>).</summary>
+    [DataField]
+    public float FadeIn;
+    // CorvaxGoob-ProperKungFu-v13-End
+
     /// <summary>Seconds of fading out, ending fully transparent.</summary>
     [DataField]
     public float Fade = 1f;

@@ -89,7 +89,7 @@ public sealed partial class ProperKungFuSystem
     private static readonly TimeSpan KunaiThrownVictimStun = TimeSpan.FromSeconds(4);
 
     /// <summary>
-    /// Any kunai hit, melee or thrown, by anyone (the ultimate's shadows included), stuns for this long.
+    /// Any THROWN kunai hit, by anyone (the ultimate's shadows included), stuns for this long; melee kunai hits don't.
     /// Stuns are refreshed, never accumulated: with a finisher's own stun the longer one wins.
     /// </summary>
     public static readonly TimeSpan KunaiHitStun = TimeSpan.FromSeconds(2);
@@ -110,7 +110,16 @@ public sealed partial class ProperKungFuSystem
     private void OnKungFuBeforeThrow(Entity<ProperKungFuComponent> ent, ref BeforeThrowEvent args)
     {
         if (TryComp<ProperKungFuKunaiComponent>(args.ItemUid, out var kunai) && kunai.Summoner == ent.Owner)
+        {
             args.ThrowSpeed *= KunaiThrowSpeedMultiplier;
+
+            // The fan kunai throws the rest of its fan the same way.
+            if (TryComp<ProperKungFuFanKunaiComponent>(args.ItemUid, out var fan) && !fan.Child)
+            {
+                fan.Direction = args.Direction;
+                fan.Speed = args.ThrowSpeed;
+            }
+        }
     }
 
     private bool CanStartKunaiFinisher(EntityUid user, EntityUid target, float preDamage)
@@ -140,13 +149,9 @@ public sealed partial class ProperKungFuSystem
 
     private void OnKunaiMeleeHit(Entity<ProperKungFuKunaiComponent> ent, ref MeleeHitEvent args)
     {
+        // Melee kunai hits never stun (only thrown ones do).
         if (!args.IsHit || args.Handled || args.HitEntities.Count == 0)
             return;
-
-        foreach (var hit in args.HitEntities)
-        {
-            StunKunaiVictim(hit, args.User);
-        }
 
         if (args.User != ent.Comp.Summoner)
             return;
@@ -256,6 +261,9 @@ public sealed partial class ProperKungFuSystem
 
     private void UpdateKunaiMeleeFinisher(EntityUid user, ProperKungFuKunaiFinisherComponent finisher, TimeSpan now)
     {
+        if (UpdateDeathPunchTimeStop(user, finisher, now))
+            return;
+
         var victim = finisher.Victim;
         switch (finisher.Phase)
         {
@@ -541,8 +549,8 @@ public sealed partial class ProperKungFuSystem
                 DealKungFuDamage(victim, damage, origin: userValid ? user : null, targetPart: SkillTargetPart, canMiss: false);
                 if (userValid && TryComp<ProperKungFuKunaiFinisherComponent>(user, out var finisher) && finisher.Victim == victim)
                 {
-                    DoDeathPunch(user, victim, finisher);
-                    RemCompDeferred(user, finisher);
+                    // v13: time stops; the punch lands 3 s later (UpdateDeathPunchTimeStop).
+                    StartDeathPunchTimeStop(user, victim, finisher);
                 }
 
                 return;
@@ -571,7 +579,8 @@ public sealed partial class ProperKungFuSystem
     /// 一寸死拳: the user appears next to the victim and lands a one-inch punch. 90 Blunt to the chest, heart, lungs,
     /// stomach, kidneys and liver lose 60% of their integrity, 20 tiles of knockback and no breathing for 2 minutes.
     /// </summary>
-    private void DoDeathPunch(EntityUid user, EntityUid victim, ProperKungFuKunaiFinisherComponent finisher)
+    private void DoDeathPunch(EntityUid user, EntityUid victim, ProperKungFuKunaiFinisherComponent finisher,
+        bool knockback = true, bool kanji = true)
     {
         var map = finisher.Map;
         var userPos = _transform.GetWorldPosition(user);
@@ -594,7 +603,8 @@ public sealed partial class ProperKungFuSystem
         var kanjiPos = victimPos + dir * DeathPunchKanjiDistance;
         if (IsPathBlocked(victim, map, victimPos, kanjiPos, out var kanjiFree))
             kanjiPos = kanjiFree;
-        Spawn(DeathPunchKanji, new MapCoordinates(kanjiPos, map));
+        if (kanji)
+            Spawn(DeathPunchKanji, new MapCoordinates(kanjiPos, map));
         SpawnDeathPunchImpact(map, victimPos);
 
         DealChunkedDamage(user, victim, DeathPunchDamage, TargetBodyPart.Chest);
@@ -613,7 +623,9 @@ public sealed partial class ProperKungFuSystem
         }
 
         RemComp<ProperKungFuSlidingComponent>(victim);
-        StartKnockback(victim, dir, DeathPunchKnockback, DeathPunchKnockbackDuration, dust: true);
+        finisher.DashDirection = dir;
+        if (knockback)
+            StartKnockback(victim, dir, DeathPunchKnockback, DeathPunchKnockbackDuration, dust: true);
 
         HealFinisherUser(user);
         _audio.PlayPvs(DeathPunchSound, victim);
