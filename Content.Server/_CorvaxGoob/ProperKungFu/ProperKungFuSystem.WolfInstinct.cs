@@ -145,6 +145,8 @@ public sealed partial class ProperKungFuSystem
             _transform.SetWorldRotation(fx, _instinctRandom.NextAngle());
         }
 
+        SpawnSkillFlashes(attacker);
+
         _audio.PlayPvs(args.CounterSound, attacker);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-instinct-counter-user", ("target", attacker)), user, user, PopupType.Medium);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-instinct-counter-target", ("user", user)), attacker, attacker, PopupType.MediumCaution);

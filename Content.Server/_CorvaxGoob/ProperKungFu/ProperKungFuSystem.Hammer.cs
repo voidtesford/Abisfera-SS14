@@ -115,9 +115,10 @@ public sealed partial class ProperKungFuSystem
             RemComp<ProperKungFuWolfGripMarkComponent>(target);
             DealHammerHeadDamage(user, target, args.LyingDamage);
             InflictHammerTrauma(target, args);
-            // After the damage, so the hit itself doesn't wake it up again.
-            _statusNew.TryAddStatusEffectDuration(target, args.SleepStatusEffect, args.SleepTime);
-            FinishHammer(user, target, "proper-kung-fu-hammer-sleep-user", "proper-kung-fu-hammer-sleep-target", args.HitSound);
+            // Pinned and dazed: knocked down, stunned and disoriented for 10 s.
+            _stun.TryParalyze(target, args.LyingStunTime, true);
+            ApplyDisorientation(target, args.LyingDisorientEffect, args.LyingStunTime);
+            FinishHammer(user, target, "proper-kung-fu-hammer-lying-user", "proper-kung-fu-hammer-lying-target", args.HitSound);
             return;
         }
 
@@ -137,6 +138,7 @@ public sealed partial class ProperKungFuSystem
     private void FinishHammer(EntityUid user, EntityUid target, string userLoc, string targetLoc, Robust.Shared.Audio.SoundSpecifier? sound)
     {
         _audio.PlayPvs(sound, target);
+        SpawnSkillFlashes(target);
         _popup.PopupEntity(Loc.GetString(userLoc, ("target", target)), user, user, PopupType.Medium);
         _popup.PopupEntity(Loc.GetString(targetLoc, ("user", user)), target, target, PopupType.LargeCaution);
 
@@ -349,17 +351,60 @@ public sealed partial class ProperKungFuSystem
 
             if (finisher.Step == 4 && elapsed >= args.FinisherSpinDelay)
             {
+                finisher.Step = 5;
+                var landing = DoHammerFinisherSpin(uid, victim, finisher, args);
+                finisher.NextAt = now + landing + args.FinisherDashPause;
+                continue;
+            }
+
+            if (finisher.Step == 5 && now >= finisher.NextAt)
+            {
+                // Step 6: dash at the victim wherever it landed after the fling.
+                finisher.Step = 6;
+                var toVictim = _transform.GetWorldPosition(victim) - _transform.GetWorldPosition(uid);
+                var gap = MathF.Max(0f, toVictim.Length() - 1f);
+                var dashDir = toVictim.LengthSquared() > 0.0001f ? Vector2.Normalize(toVictim) : finisher.Direction;
+                finisher.Direction = dashDir;
+                var dash = TimeSpan.FromSeconds(MathF.Max(0.05f, gap / MathF.Max(0.1f, args.FinisherDashSpeed)));
+                finisher.NextAt = now + dash;
+                _transform.SetWorldRotation(uid, dashDir.ToWorldAngle());
+                RemComp<ProperKungFuSlidingComponent>(uid);
+                if (gap > 0.01f)
+                    StartKnockback(uid, dashDir, gap, dash, dust: true);
+                // The victim stays down until the cross lands.
+                _stun.TryStun(victim, dash + TimeSpan.FromSeconds(0.3), true);
+                continue;
+            }
+
+            if (finisher.Step == 6 && now >= finisher.NextAt)
+            {
                 RemCompDeferred(uid, finisher);
-                DoHammerFinisherSpin(uid, victim, finisher, args);
+                DoHammerFinisherCross(uid, victim, args);
             }
         }
+    }
+
+    /// <summary>
+    /// Last hit of the Hammer finisher: a cross of claws into the torso of the landed victim, ignoring armor.
+    /// </summary>
+    private void DoHammerFinisherCross(EntityUid user, EntityUid victim, HammerActionEvent args)
+    {
+        RemComp<ProperKungFuSlidingComponent>(user);
+        DealKungFuDamage(victim, args.FinisherCrossDamage, origin: user, targetPart: SkillTargetPart, canMiss: false,
+            ignoreResistances: true);
+        if (args.FinisherCrossEffect is { } cross)
+            Spawn(cross, _transform.GetMapCoordinates(victim));
+        _audio.PlayPvs(args.FinisherCrossSound, victim);
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-hammer-finisher-cross-user", ("target", victim)), user, user, PopupType.Large);
+        _popup.PopupEntity(Loc.GetString("proper-kung-fu-hammer-finisher-cross-target", ("user", user)), victim, victim, PopupType.LargeCaution);
     }
 
     /// <summary>
     /// Step 4: the user spins, diagonal claws across the head (50 Blunt), the victim spins sideways through the air
     /// and lands knocked down 5 tiles from the user.
     /// </summary>
-    private void DoHammerFinisherSpin(EntityUid user, EntityUid victim, ProperKungFuHammerFinisherComponent finisher, HammerActionEvent args)
+    /// <returns>How long the victim flies before landing.</returns>
+    private TimeSpan DoHammerFinisherSpin(EntityUid user, EntityUid victim, ProperKungFuHammerFinisherComponent finisher, HammerActionEvent args)
     {
         RaiseNetworkEvent(new ProperKungFuFlowSpinEvent(GetNetEntity(user), (float) args.FinisherSpinDuration.TotalSeconds),
             Filter.Pvs(user, entityManager: EntityManager));
@@ -385,6 +430,7 @@ public sealed partial class ProperKungFuSystem
         _audio.PlayPvs(args.FinisherFinalSound, victim);
         HealFinisherUser(user);
         FinishHammer(user, victim, "proper-kung-fu-hammer-finisher-final-user", "proper-kung-fu-hammer-finisher-final-target", args.HitSound);
+        return slide;
     }
 
     private void SpawnRotatedEffect(Robust.Shared.Prototypes.EntProtoId? effect, Robust.Shared.Map.MapCoordinates coords, Angle rotation)

@@ -196,6 +196,7 @@ public sealed partial class ProperKungFuSystem
 
         _audio.PlayPvs(args.HitSound, target);
         DealKungFuDamage(target, args.Damage, origin: user, targetPart: SkillTargetPart, canMiss: false);
+        SpawnWeakSkillFlashes(target);
 
         // Tossed straight up on the spot: no knockback. Stunned now, knocked down on landing (2 s in total).
         RemComp<ProperKungFuSlidingComponent>(target);

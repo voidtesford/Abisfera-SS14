@@ -168,7 +168,7 @@
   parent: BaseAction
   id: ActionProperKungFuHammer
   name: Hammer
-  description: "One sweeping downward claw strike into the head of a target within fist reach (15 Blunt, eyes and brain lose 30 percent). The target is floored and can't get up for 5 seconds. Right after a Wolf Grip it deals 20 Blunt to the head and you backflip away, and a Wolf Dance within 2 seconds becomes an instant dash into the target. Within 2 seconds after a Wolf Dance hit it deals 20 Blunt to the body and sends the target exactly 5 tiles away. If a living target already had at least 80 damage, it becomes a finisher on the locked target: a light claw strike (1 damage), a straight strike (5 Blunt to the torso) that pushes them 2 tiles, a front flip into another strike (5 Blunt to the torso), and a spinning claw strike across the head (50 Blunt) that spins them sideways and lands them knocked down 5 tiles from you; the skull is never broken and the finisher heals you for 25. A target that was already lying takes 50 Blunt to the head and falls asleep for 30 seconds."
+  description: "One sweeping downward claw strike into the head of a target within fist reach (15 Blunt, eyes and brain lose 30 percent). The target is floored and can't get up for 5 seconds. Right after a Wolf Grip it deals 20 Blunt to the head and you backflip away, and a Wolf Dance within 2 seconds becomes an instant dash into the target. Within 2 seconds after a Wolf Dance hit it deals 20 Blunt to the body and sends the target exactly 5 tiles away. If a living target already had at least 80 damage, it becomes a finisher on the locked target: a light claw strike (1 damage), a straight strike (5 Blunt to the torso) that pushes them 2 tiles, a front flip into another strike (5 Blunt to the torso), and a spinning claw strike across the head (50 Blunt) that spins them sideways and lands them knocked down 5 tiles from you, then you dash at them wherever they landed and slash them with a cross of claws (90 Slash to the torso, ignoring armor); the skull is never broken and the finisher heals you for 25. A target that was already lying takes 50 Blunt to the head, is paralyzed for 10 seconds and is disoriented as long."
   components:
   - type: Action
     useDelay: 20
@@ -195,7 +195,7 @@
       lyingDamage:
         types:
           Blunt: 50
-      sleepTime: 30
+      lyingStunTime: 10
       gripDamage:
         types:
           Blunt: 20
@@ -305,7 +305,7 @@
   parent: BaseAction
   id: ActionProperKungFuWolfPack
   name: Wolf Pack
-  description: Call 1 to 3 wolves in your own image out of white-red smoke around you for 30 seconds. They wear harmless copies of your clothes, know Proper Kung Fu, have 20 health and deal half damage. They go for the chosen target, for whoever attacks you and for whoever you attack, and never touch you or each other. When slain or when time runs out they vanish in red smoke and leave nothing behind.
+  description: "Call 1 to 3 wolves in your own image out of white-red smoke around you for 30 seconds. They wear harmless copies of your clothes, know Proper Kung Fu without its passives, have 20 health, deal a quarter of the damage and use a skill at most once every 5 seconds. They go for the chosen target, for whoever attacks you and for whoever you attack, and never touch you or each other. When slain or when time runs out they vanish in red smoke and leave nothing behind."
   components:
   - type: Action
     useDelay: 80
@@ -326,7 +326,7 @@
       maxClones: 3
       lifetime: 30
       cloneHealth: 20
-      damageModifier: 0.5
+      damageModifier: 0.25
       spawnEffect: ProperKungFuWolfPackSmoke
       vanishEffect: ProperKungFuWolfPackVanish
       sound:
@@ -336,7 +336,7 @@
   parent: BaseAction
   id: ActionProperKungFuKunai
   name: Kunai
-  description: Summon a kunai into your hand out of white-red smoke. It cuts like a combat knife (15 Slash). Thrown, it sticks into whatever it hits (15 Slash to a body), and wherever it lands or sticks you teleport to it in a puff of smoke and the kunai is gone. Only one summoned kunai exists at a time; an unused one fades after 60 seconds. Allowed despite the ban on ranged weapons.
+  description: "Summon a kunai into your hand out of white-red smoke. It cuts like a combat knife (15 Slash) and flies twice as fast as a normal throw. Thrown, it sticks into whatever it hits (15 Slash to a body), and wherever it lands or sticks you teleport to it in a puff of smoke and the kunai is gone. A hit on a living target that already has at least 80 damage starts a kunai finisher instead (heals you for 25): in melee a kick, a kunai to the neck that drains all blood and the one-inch death punch; thrown a backflip, ten crimson doubles and a volley of ten kunai. Only one summoned kunai exists at a time; an unused one fades after 60 seconds. Allowed despite the ban on ranged weapons."
   components:
   - type: Action
     useDelay: 10
@@ -372,3 +372,58 @@
       - HumanoidAppearance
     event: !type:JoinPackActionEvent
       delay: 10
+
+- type: entity
+  parent: BaseAction
+  id: ActionProperKungFuUltimate
+  name: Ultimate
+  description: "With a full ultimate bar, enter the ultimate mode for 5 minutes: your skills (not combos) are replaced by Twenty Shadows and Summon the Dogs. The bar fills from fighting; if you fall into crit with a full bar, 5 seconds later you get up fully healed in the mode."
+  components:
+  - type: Action
+    useDelay: 1
+    itemIconStyle: BigAction
+    icon:
+      sprite: _CorvaxGoob/Interface/Actions/proper_kung_fu.rsi
+      state: ultimate
+  - type: InstantAction
+    event: !type:ProperKungFuUltimateActionEvent
+
+# Ultimate-only: 20 shadows on the first use in a mode, 5 more on every later use; each lives 60 s.
+- type: entity
+  parent: BaseAction
+  id: ActionProperKungFuUltimateClones
+  name: Twenty Shadows
+  description: "Howl and call twenty fragile copies of yourself out of smoke, five per second. Each has 5 health and a random weapon (kunai, katana, monk staff, combat knife or bare hands), knows no martial art and attacks every living thing nearby except you and your Pack Dogs. Every later use in the same ultimate mode calls 5 more. Each copy lives 60 seconds; all of them vanish when the mode ends."
+  components:
+  - type: Action
+    useDelay: 10
+    itemIconStyle: BigAction
+    icon:
+      sprite: _CorvaxGoob/Interface/Actions/proper_kung_fu.rsi
+      state: ultimate_clones
+  - type: InstantAction
+    event: !type:ProperKungFuUltimateClonesActionEvent
+      count: 20
+      reuseCount: 5
+      perSecond: 5
+      cloneHealth: 5
+      cloneLifetime: 60
+      sound:
+        path: /Audio/_DV/Voice/Vulpkanin/howl.ogg
+
+# Ultimate-only: the 2 nearest able Pack Dogs to the user's sides.
+- type: entity
+  parent: BaseAction
+  id: ActionProperKungFuSummonPack
+  name: Summon the Dogs
+  description: "Teleport up to 2 of your nearest living, conscious and uncuffed Pack Dogs (pupils) to your sides in white-red smoke. They hear your call: \"Tear apart those the alpha points at\". If nobody can come, the skill is not spent."
+  components:
+  - type: Action
+    useDelay: 30
+    itemIconStyle: BigAction
+    icon:
+      sprite: _CorvaxGoob/Interface/Actions/proper_kung_fu.rsi
+      state: summon_pack
+  - type: InstantAction
+    event: !type:ProperKungFuSummonPackActionEvent
+      maxPupils: 2

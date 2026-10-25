@@ -44,6 +44,7 @@ public static class ProperKungFuInfo
     public const float ClawWhirlwindFinisherThreshold = 80f;
     public const float HammerFinisherThreshold = 80f;
     public const float WolfInstinctFinisherThreshold = 85f;
+    public const float KunaiFinisherThreshold = 80f;
 
     /// <summary>
     /// The intent icon state for a combo input.
@@ -91,12 +92,16 @@ public static class ProperKungFuInfo
             Make(Kind.Skill, Action("wolf_pack"), "wolf-pack"),
             Make(Kind.Skill, Action("kunai"), "kunai"),
             Make(Kind.Skill, Action("join_pack"), "join-pack"),
+            Make(Kind.Skill, Action("ultimate"), "ultimate"),
+            Make(Kind.Skill, Action("ultimate_clones"), "ultimate-clones"),
+            Make(Kind.Skill, Action("summon_pack"), "summon-pack"),
 
             Make(Kind.Passive, null, "passive-speed"),
             Make(Kind.Passive, null, "passive-gunshot"),
             Make(Kind.Passive, null, "passive-bleed"),
             Make(Kind.Passive, null, "passive-no-guns"),
             Make(Kind.Passive, null, "passive-heal"),
+            Make(Kind.Passive, null, "passive-bloodlust"),
 
             Make(Kind.Synergy, Combo("claw_series"), "synergy-series-dance"),
             Make(Kind.Synergy, Action("claw_whirlwind"), "synergy-whirlwind-dance"),
@@ -111,6 +116,7 @@ public static class ProperKungFuInfo
             Make(Kind.Finisher, Action("claw_whirlwind"), "finisher-claw-whirlwind", threshold: ClawWhirlwindFinisherThreshold),
             Make(Kind.Finisher, Action("hammer"), "finisher-hammer", threshold: HammerFinisherThreshold),
             Make(Kind.Finisher, Action("wolf_instinct"), "finisher-wolf-instinct", threshold: WolfInstinctFinisherThreshold),
+            Make(Kind.Finisher, Action("kunai"), "finisher-kunai", threshold: KunaiFinisherThreshold),
         };
     }
 

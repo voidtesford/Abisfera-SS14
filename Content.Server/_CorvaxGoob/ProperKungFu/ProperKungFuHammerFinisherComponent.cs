@@ -26,10 +26,17 @@ public sealed partial class ProperKungFuHammerFinisherComponent : Component
     public TimeSpan StartTime;
 
     /// <summary>
-    /// 1 = the first strike landed, 2 = straight strike, 3 = flip started, 4 = flip strike, 5 = spinning strike.
+    /// 1 = the first strike landed, 2 = straight strike, 3 = flip started, 4 = flip strike,
+    /// 5 = spinning strike (the victim is flung), 6 = dash at the landed victim (the cross slash follows).
     /// </summary>
     [ViewVariables]
     public int Step;
+
+    /// <summary>
+    /// Steps 5 and 6: when the next one starts (the victim landed / the dash arrived).
+    /// </summary>
+    [ViewVariables]
+    public TimeSpan NextAt;
 
     [ViewVariables]
     public HammerActionEvent? Event;

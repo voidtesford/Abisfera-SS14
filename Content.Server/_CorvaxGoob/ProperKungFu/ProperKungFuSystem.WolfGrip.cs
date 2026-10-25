@@ -176,6 +176,8 @@ public sealed partial class ProperKungFuSystem
         if (args.GripImpactEffect is { } effect)
             Spawn(effect, _transform.GetMapCoordinates(target));
 
+        SpawnSkillFlashes(target);
+
         _stun.TryKnockdown(target, args.GripKnockdownTime, true);
         StartKnockback(target,
             direction,

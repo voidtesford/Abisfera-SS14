@@ -317,9 +317,9 @@ public sealed class ProperKungFuPupilTest
         Assert.Multiple(() =>
         {
             Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Combo), Is.EqualTo(3));
-            Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Skill), Is.EqualTo(7));
+            Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Skill), Is.EqualTo(10));
             Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Synergy), Is.EqualTo(5));
-            Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Finisher), Is.EqualTo(7));
+            Assert.That(owner.Count(e => e.Kind == ProperKungFuInfo.Kind.Finisher), Is.EqualTo(8));
             Assert.That(owner.Where(e => e.Kind == ProperKungFuInfo.Kind.Finisher).All(e => e.Threshold is > 0f));
 
             Assert.That(pupil.Count(e => e.Kind == ProperKungFuInfo.Kind.Combo), Is.EqualTo(3));

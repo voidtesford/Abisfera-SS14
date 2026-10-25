@@ -620,3 +620,193 @@
     color: "#FF2020"
     radius: 1.5
     energy: 1.5
+
+# Claw Series finisher: the claw cut left on the victim by each blink strike, at a random slant.
+- type: entity
+  id: ProperKungFuSeriesClawCut
+  name: claw series cut
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_claw.rsi
+      state: claw_scratch
+  - type: PointLight
+    color: "#FF4040"
+    radius: 1.2
+    energy: 1.5
+  - type: TimedDespawn
+    lifetime: 0.3
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Perfect Flow on a weaker skill (Wolf Dance): a smaller, fainter flow flash.
+- type: entity
+  parent: ProperKungFuFlowFlash
+  id: ProperKungFuFlowFlashWeak
+  name: weak perfect flow flash
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    sprite: Effects/arcs.rsi
+    layers:
+    - state: smash
+      shader: unshaded
+      color: "#FF2A2A90"
+      scale: 0.4, 0.4
+    - state: smash
+      shader: unshaded
+      color: "#FFFFFFB0"
+      scale: 0.22, 0.22
+  - type: PointLight
+    radius: 0.8
+    energy: 1
+    color: "#FF6060"
+
+# Kunai finishers: a kunai flying on its own (moved by the system, no physics), drawn along its flight.
+- type: entity
+  id: ProperKungFuFlyingKunai
+  name: flying kunai
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - sprite: _CorvaxGoob/Objects/Weapons/Melee/proper_kung_fu_kunai.rsi
+      state: thrown
+  - type: TimedDespawn
+    lifetime: 3
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Kunai to the neck: a red slash across the victim's throat.
+- type: entity
+  id: ProperKungFuKunaiNeckSlash
+  name: kunai neck slash
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_claw.rsi
+      state: claw_scratch
+      color: "#FF2020"
+      scale: 0.9, 0.5
+  - type: PointLight
+    color: "#FF2020"
+    radius: 1.2
+    energy: 1.8
+  - type: TimedDespawn
+    lifetime: 0.45
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Every kunai finisher hit: a small white-red pierce burst.
+- type: entity
+  id: ProperKungFuKunaiPierce
+  name: kunai pierce
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_knee.rsi
+      state: knee_burst
+      scale: 0.55, 0.55
+  - type: PointLight
+    color: "#FF6060"
+    radius: 0.8
+    energy: 1.2
+  - type: TimedDespawn
+    lifetime: 0.25
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Thrown kunai finisher: a crimson double of the user that throws one kunai and fades.
+- type: entity
+  id: ProperKungFuKunaiDouble
+  name: kunai double
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Trail
+    lerpTime: 0.01
+    frequency: 0.01
+    maxParticleAmount: 1
+    lifetime: 0.9
+    alphaLerpAmount: 0.05
+    color: "#B0102A"
+    shader: unshaded
+    spawnRemainingTrail: false
+  - type: PointLight
+    color: "#B0102A"
+    radius: 1.2
+    energy: 1.2
+  - type: Tag
+    tags:
+    - HideContextMenu
+  - type: TimedDespawn
+    lifetime: 1.1
+
+# Melee kunai finisher: the claw trail of the kick, stretched along the kick direction.
+- type: entity
+  id: ProperKungFuKunaiKickTrail
+  name: kunai kick trail
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_claw.rsi
+      state: claw_scratch
+      scale: 2.2, 1.1
+      rotation: 90
+  - type: PointLight
+    color: "#FF4040"
+    radius: 2
+    energy: 2
+  - type: TimedDespawn
+    lifetime: 0.5
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# One-inch death punch: golden-orange 一寸死拳 burning behind the victim, then fading.
+- type: entity
+  id: ProperKungFuOneInchKanji
+  name: one-inch death punch kanji
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_kanji.rsi
+      state: kanji
+  - type: PointLight
+    color: "#FF9020"
+    radius: 3
+    energy: 3
+  - type: FadingTimedDespawn
+    lifetime: 0.6
+    fadeOutTime: 1
+  - type: AnimationPlayer
+  - type: Tag
+    tags:
+    - HideContextMenu

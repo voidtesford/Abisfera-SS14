@@ -111,6 +111,19 @@ public sealed class RiposteeSystem : EntitySystem
         }
     }
 
+    // CorvaxGoob-ProperKungFu-Start
+    /// <summary>
+    /// A harm attempt by a Proper Kung Fu master (not a pupil or a clone) with an empty active hand: a plain fist hit.
+    /// </summary>
+    private bool IsProperKungFuFistHit(BeforeHarmfulActionEvent args)
+    {
+        return args.Type == HarmfulActionType.Harm
+            && TryComp<Content.Shared._CorvaxGoob.ProperKungFu.ProperKungFuComponent>(args.User, out var kungFu)
+            && kungFu.HasPassives
+            && !_hands.TryGetActiveItem(args.User, out _);
+    }
+    // CorvaxGoob-ProperKungFu-End
+
     private void OnHarmAttempt(Entity<RiposteeComponent> ent, ref BeforeHarmfulActionEvent args)
     {
         if (args.Cancelled)
@@ -132,6 +145,11 @@ public sealed class RiposteeSystem : EntitySystem
 
             if (args.User == ent.Owner)
                 continue;
+
+            // CorvaxGoob-ProperKungFu-Start: CQC never counters a Proper Kung Fu master's plain fist hits.
+            if (data.CanRiposteEvent is CanDoCQCEvent && IsProperKungFuFistHit(args))
+                continue;
+            // CorvaxGoob-ProperKungFu-End
 
             if (data.CanRiposteEvent != null)
             {

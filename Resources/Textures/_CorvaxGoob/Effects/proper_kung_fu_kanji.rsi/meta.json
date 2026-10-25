@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "One-inch death punch kanji (\u4e00\u5bf8\u6b7b\u62f3) made for Abisfera, rendered from Noto Serif CJK (SIL OFL 1.1)",
+  "size": {
+    "x": 128,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "kanji",
+      "delays": [
+        [
+          0.12,
+          0.12,
+          0.12,
+          0.12
+        ]
+      ]
+    }
+  ]
+}

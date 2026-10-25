@@ -25,6 +25,7 @@ public sealed partial class ProperKungFuComponent : Component
         "ActionProperKungFuWolfPack",
         "ActionProperKungFuKunai",
         "ActionProperKungFuJoinPack",
+        "ActionProperKungFuUltimate",
     };
 
     /// <summary>
@@ -33,6 +34,19 @@ public sealed partial class ProperKungFuComponent : Component
     /// </summary>
     [DataField, AutoNetworkedField]
     public bool Pupil;
+
+    /// <summary>
+    /// A Wolf Pack clone: keeps the skills and combos but has none of the passives (attack rate, sprint, stamina,
+    /// gunshot and bleed modifiers, the CQC / dragon bypass, Bloodlust, finisher heal) and never charges the ultimate.
+    /// Set before the component is added so its startup already sees it.
+    /// </summary>
+    [DataField, AutoNetworkedField]
+    public bool Clone;
+
+    /// <summary>
+    /// Whether the master's passives apply: not for a pupil and not for a Wolf Pack clone.
+    /// </summary>
+    public bool HasPassives => !Pupil && !Clone;
 
     /// <summary>
     /// Scale of the non-damage effects of a pupil's Claw Series and Wolf Grip (stun time, knockback, breath block).
@@ -90,7 +104,7 @@ public sealed partial class ProperKungFuComponent : Component
     [ViewVariables]
     public float AppliedBonusStamina;
 
-    // TODO ProperKungFu ultimate: show this as a red 0-100 bar with a percentage above the hotbar (client UI).
+    // Ultimate: a red 0-100 bar with a percentage above the hotbar (client ProperKungFuUltimateBarSystem).
     // Spec: +1 per point of damage taken, +5 per combo, +5 per special move hit (already wired via ProperKungFuSpecialHitEvent).
     // When the owner enters crit with a full bar: after 5 s fully heal, stand up, and enable the ultimate mode
     // for 5 minutes (swap BaseActions for UltimateActions), then reset the bar to 0.
@@ -129,10 +143,56 @@ public sealed partial class ProperKungFuComponent : Component
     public float ChargePerDamage = 1f;
 
     /// <summary>
-    /// Action prototypes that replace <see cref="BaseActions"/> during the ultimate (not implemented yet).
+    /// Action prototypes that replace <see cref="BaseActions"/> during the ultimate.
     /// </summary>
     [DataField]
-    public List<EntProtoId> UltimateActions = new();
+    public List<EntProtoId> UltimateActions = new()
+    {
+        "ActionProperKungFuUltimateClones",
+        "ActionProperKungFuSummonPack",
+    };
+
+    /// <summary>
+    /// When the running ultimate mode ends (for the client bar), null outside of it.
+    /// </summary>
+    [DataField, AutoNetworkedField]
+    public TimeSpan? UltimateEndTime;
+
+    /// <summary>
+    /// Set when the ultimate is about to start (the 5 s delay after a full-bar crit); null otherwise.
+    /// </summary>
+    [ViewVariables]
+    public TimeSpan? UltimatePendingAt;
+
+    /// <summary>
+    /// Ultimate-mode action entities, removed again when the mode ends.
+    /// </summary>
+    [ViewVariables]
+    public List<EntityUid> UltimateActionEntities = new();
+
+    /// <summary>
+    /// Whether "Twenty Shadows" was already used in the running ultimate mode: later uses add a smaller wave.
+    /// </summary>
+    [ViewVariables]
+    public bool UltimateClonesUsed;
+
+    /// <summary>
+    /// Bloodlust: how long a victim hurt by the user stays marked with "Blood Harvest".
+    /// </summary>
+    [DataField]
+    public TimeSpan BloodlustDuration = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Bloodlust: a marked victim heals the user only while within this many tiles of them.
+    /// </summary>
+    [DataField]
+    public float BloodlustRange = 10f;
+
+    /// <summary>
+    /// Bloodlust: healed per bleed tick of a marked victim (the bloodstream's own bleed tick rate-limits it).
+    /// </summary>
+    [DataField]
+    public float BloodlustHeal = 5f;
 
     [DataField]
     public TimeSpan UltimateDuration = TimeSpan.FromMinutes(5);

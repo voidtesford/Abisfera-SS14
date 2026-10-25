@@ -56,7 +56,10 @@ public sealed partial class ProperKungFuSystem
     private const string CloneHtnCompound = "ProperKungFuCloneCompound";
     private const string FallbackCloneSpecies = "MobHuman";
     private static readonly TimeSpan CloneThinkInterval = TimeSpan.FromSeconds(0.25);
-    private static readonly TimeSpan CloneSkillGap = TimeSpan.FromSeconds(1.5);
+    /// <summary>
+    /// Internal delay before every clone skill (on top of the skill's own cooldown), also counted from the spawn.
+    /// </summary>
+    private static readonly TimeSpan CloneSkillGap = TimeSpan.FromSeconds(5);
 
     /// <summary>
     /// Slots whose items are never copied onto a clone: identity, pockets and suit storage only ever hold loot.
@@ -118,6 +121,44 @@ public sealed partial class ProperKungFuSystem
 
     private EntityUid SpawnClone(EntityUid user, MapCoordinates coords, WolfPackActionEvent args, EntityUid target)
     {
+        var clone = SpawnCloneBody(user, coords, args.CloneHealth);
+
+        // Proper Kung Fu without the summoning skills: a clone never calls more clones or kunai,
+        // and has none of the master's buffs or passives.
+        var kungFu = Factory.GetComponent<ProperKungFuComponent>();
+        kungFu.Clone = true;
+        kungFu.BaseActions.RemoveAll(a => a == WolfPackAction || a == KunaiAction || a == JoinPackAction || a == UltimateAction);
+        AddComp(clone, kungFu);
+        _martialArts.GrantProperKungFu(clone);
+
+        var cloneComp = EnsureComp<ProperKungFuCloneComponent>(clone);
+        cloneComp.Summoner = user;
+        cloneComp.ExpiresAt = _timing.CurTime + TimeSpan.FromSeconds(args.Lifetime);
+        cloneComp.DamageModifier = args.DamageModifier;
+        cloneComp.VanishEffect = args.VanishEffect;
+        cloneComp.Target = target;
+        cloneComp.NextSkill = _timing.CurTime + CloneSkillGap;
+
+        StartCloneBrain(clone, cloneComp);
+        Spawn(args.SpawnEffect, coords);
+        return clone;
+    }
+
+    private void StartCloneBrain(EntityUid clone, ProperKungFuCloneComponent cloneComp)
+    {
+        var htn = EnsureComp<HTNComponent>(clone);
+        htn.RootTask = new HTNCompoundTask { Task = CloneHtnCompound };
+        htn.Blackboard.SetValue(NPCBlackboard.Owner, clone);
+        UpdateCloneBlackboard(clone, cloneComp);
+        _npc.WakeNPC(clone, htn);
+    }
+
+    /// <summary>
+    /// A body that looks like the user: same species and appearance, name, cosmetic copies of the clothes,
+    /// the user's factions, and the given total health.
+    /// </summary>
+    private EntityUid SpawnCloneBody(EntityUid user, MapCoordinates coords, float health)
+    {
         EntProtoId species = FallbackCloneSpecies;
         if (TryComp<HumanoidAppearanceComponent>(user, out var humanoid)
             && _proto.TryIndex<SpeciesPrototype>(humanoid.Species, out var speciesProto))
@@ -131,7 +172,7 @@ public sealed partial class ProperKungFuSystem
         _transform.SetWorldRotation(clone, _transform.GetWorldRotation(user));
 
         CopyCosmeticClothing(user, clone);
-        ScaleCloneHealth(clone, args.CloneHealth);
+        ScaleCloneHealth(clone, health);
 
         if (TryComp<NpcFactionMemberComponent>(user, out var factions))
         {
@@ -139,27 +180,6 @@ public sealed partial class ProperKungFuSystem
             _faction.AddFactions(clone, new HashSet<ProtoId<Content.Shared.NPC.Prototypes.NpcFactionPrototype>>(factions.Factions));
         }
 
-        // Proper Kung Fu without the summoning skills: a clone never calls more clones or kunai.
-        var kungFu = Factory.GetComponent<ProperKungFuComponent>();
-        kungFu.BaseActions.RemoveAll(a => a == WolfPackAction || a == KunaiAction || a == JoinPackAction);
-        AddComp(clone, kungFu);
-        _martialArts.GrantProperKungFu(clone);
-
-        var cloneComp = EnsureComp<ProperKungFuCloneComponent>(clone);
-        cloneComp.Summoner = user;
-        cloneComp.ExpiresAt = _timing.CurTime + TimeSpan.FromSeconds(args.Lifetime);
-        cloneComp.DamageModifier = args.DamageModifier;
-        cloneComp.VanishEffect = args.VanishEffect;
-        cloneComp.Target = target;
-        cloneComp.NextSkill = _timing.CurTime + TimeSpan.FromSeconds(0.5);
-
-        var htn = EnsureComp<HTNComponent>(clone);
-        htn.RootTask = new HTNCompoundTask { Task = CloneHtnCompound };
-        htn.Blackboard.SetValue(NPCBlackboard.Owner, clone);
-        UpdateCloneBlackboard(clone, cloneComp);
-        _npc.WakeNPC(clone, htn);
-
-        Spawn(args.SpawnEffect, coords);
         return clone;
     }
 
@@ -246,7 +266,11 @@ public sealed partial class ProperKungFuSystem
         if (!TryComp<ProperKungFuCloneComponent>(attacker, out var clone))
             return false;
 
-        return target == clone.Summoner || target == attacker || IsPackMember(clone.Summoner, target);
+        if (target == clone.Summoner || target == attacker || IsPackMember(clone.Summoner, target))
+            return true;
+
+        // The ultimate's clones spare the Pack Dogs.
+        return clone.Ultimate && TryComp<ProperKungFuComponent>(target, out var pupil) && pupil.Pupil;
     }
 
     private void OnCloneAttackAttempt(EntityUid uid, ProperKungFuCloneComponent comp, AttackAttemptEvent args)
@@ -260,10 +284,11 @@ public sealed partial class ProperKungFuSystem
     /// </summary>
     private void OnCloneAttacked(EntityUid uid, ProperKungFuCloneComponent comp, AttackedEvent args)
     {
-        if (comp.Vanished || IsCloneFriend(uid, args.User))
+        if (comp.Vanished || comp.Ultimate || IsCloneFriend(uid, args.User) || _timing.CurTime < comp.NextSkill)
             return;
 
-        TryCloneSkill(uid, "ActionProperKungFuWolfInstinct", null);
+        if (TryCloneSkill(uid, "ActionProperKungFuWolfInstinct", null))
+            comp.NextSkill = _timing.CurTime + CloneSkillGap;
     }
 
     private void OnLeaderAttacked(EntityUid uid, ProperKungFuPackLeaderComponent comp, AttackedEvent args)
@@ -402,6 +427,13 @@ public sealed partial class ProperKungFuSystem
                     || Transform(current).MapID != xform.MapID
                     || IsCloneFriend(uid, current)))
                 clone.Target = null;
+
+            if (clone.Ultimate)
+            {
+                clone.Target ??= FindUltimateCloneTarget(uid, xform);
+                UpdateCloneBlackboard(uid, clone);
+                continue;
+            }
 
             UpdateCloneBlackboard(uid, clone);
 

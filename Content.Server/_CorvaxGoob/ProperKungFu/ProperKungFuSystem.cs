@@ -103,7 +103,9 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         InitializePassives();
         InitializeWolfPack();
         InitializeKunai();
+        InitializeKunaiFinishers();
         InitializeJoinPack();
+        InitializeUltimate();
     }
 
     private void OnStartup(Entity<ProperKungFuComponent> ent, ref ComponentStartup args)
@@ -115,7 +117,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         }
 
         // Passive +stamina (zero for a pupil). Attack rate and sprint speed are applied by SharedMartialArtsSystem.ProperKungFu.
-        if (!ent.Comp.Pupil && TryComp<StaminaComponent>(ent, out var stamina))
+        if (ent.Comp.HasPassives && TryComp<StaminaComponent>(ent, out var stamina))
         {
             stamina.CritThreshold += ent.Comp.BonusStamina;
             ent.Comp.AppliedBonusStamina = ent.Comp.BonusStamina;
@@ -146,6 +148,13 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         }
 
         ent.Comp.ActionEntities.Clear();
+
+        foreach (var action in ent.Comp.UltimateActionEntities)
+        {
+            _actions.RemoveAction(ent.Owner, action);
+        }
+
+        ent.Comp.UltimateActionEntities.Clear();
 
         if (TerminatingOrDeleted(ent))
             return;
@@ -478,6 +487,9 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         UpdateGripSuplexes(now);
         UpdateWolfPack(now);
         UpdateKunai(now);
+        UpdateKunaiFinishers(now);
+        UpdateBloodlust(now);
+        UpdateUltimate(now);
 
         var marks = EntityQueryEnumerator<ProperKungFuClawMarkComponent>();
         while (marks.MoveNext(out var uid, out var mark))

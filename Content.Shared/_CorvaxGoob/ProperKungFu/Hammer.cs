@@ -47,13 +47,13 @@ public sealed partial class HammerActionEvent : EntityTargetActionEvent
     public DamageSpecifier LyingDamage = new();
 
     /// <summary>
-    /// A target that was already lying falls asleep this long.
+    /// A target that was already lying is knocked down, stunned and disoriented this long.
     /// </summary>
     [DataField]
-    public TimeSpan SleepTime = TimeSpan.FromSeconds(30);
+    public TimeSpan LyingStunTime = TimeSpan.FromSeconds(10);
 
     [DataField]
-    public EntProtoId SleepStatusEffect = "StatusEffectForcedSleeping";
+    public EntProtoId LyingDisorientEffect = "StatusEffectProperKungFuDisoriented";
 
     /// <summary>
     /// Wolf Grip synergy: damage to the head (no knockdown, so the Wolf Dance follow-up connects).
@@ -186,6 +186,30 @@ public sealed partial class HammerActionEvent : EntityTargetActionEvent
 
     [DataField]
     public SoundSpecifier? FinisherFinalSound;
+
+    /// <summary>
+    /// Finisher, last hit: once the victim lands after the fling, the user dashes at it this fast (tiles per second)...
+    /// </summary>
+    [DataField]
+    public float FinisherDashSpeed = 16f;
+
+    /// <summary>
+    /// ...after this pause on landing...
+    /// </summary>
+    [DataField]
+    public TimeSpan FinisherDashPause = TimeSpan.FromSeconds(0.15);
+
+    /// <summary>
+    /// ...and slashes it with a cross of claws: this damage to the torso, armor and resistances ignored.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier FinisherCrossDamage = new() { DamageDict = { ["Slash"] = 90 } };
+
+    [DataField]
+    public EntProtoId? FinisherCrossEffect = "ProperKungFuInstinctFinisherCross";
+
+    [DataField]
+    public SoundSpecifier? FinisherCrossSound = new SoundPathSpecifier("/Audio/Weapons/Xeno/alien_claw_flesh3.ogg");
 }
 
 /// <summary>
