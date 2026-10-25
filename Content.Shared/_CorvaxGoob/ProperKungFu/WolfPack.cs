@@ -35,7 +35,7 @@ public sealed partial class WolfPackActionEvent : EntityTargetActionEvent
     /// Multiplier for every bit of damage a clone deals.
     /// </summary>
     [DataField]
-    public float DamageModifier = 0.5f;
+    public float DamageModifier = 0.25f;
 
     /// <summary>
     /// Clones appear this far from the user.

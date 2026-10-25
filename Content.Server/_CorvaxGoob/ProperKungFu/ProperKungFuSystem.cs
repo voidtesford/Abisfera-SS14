@@ -103,7 +103,15 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         InitializePassives();
         InitializeWolfPack();
         InitializeKunai();
+        InitializeKunaiFinishers();
         InitializeJoinPack();
+        InitializeUltimate();
+        // CorvaxGoob-ProperKungFu-Start: v13
+        InitializeTimeStop();
+        InitializeWolfJudgment();
+        InitializeWolfGaze();
+        InitializeWolfSeal();
+        // CorvaxGoob-ProperKungFu-End
     }
 
     private void OnStartup(Entity<ProperKungFuComponent> ent, ref ComponentStartup args)
@@ -115,7 +123,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         }
 
         // Passive +stamina (zero for a pupil). Attack rate and sprint speed are applied by SharedMartialArtsSystem.ProperKungFu.
-        if (!ent.Comp.Pupil && TryComp<StaminaComponent>(ent, out var stamina))
+        if (ent.Comp.HasPassives && TryComp<StaminaComponent>(ent, out var stamina))
         {
             stamina.CritThreshold += ent.Comp.BonusStamina;
             ent.Comp.AppliedBonusStamina = ent.Comp.BonusStamina;
@@ -146,6 +154,13 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         }
 
         ent.Comp.ActionEntities.Clear();
+
+        foreach (var action in ent.Comp.UltimateActionEntities)
+        {
+            _actions.RemoveAction(ent.Owner, action);
+        }
+
+        ent.Comp.UltimateActionEntities.Clear();
 
         if (TerminatingOrDeleted(ent))
             return;
@@ -213,13 +228,14 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         // Finisher threshold is measured before the combo bonus lands.
         var preDamage = TryComp<DamageableComponent>(target, out var preDamageable) ? preDamageable.TotalDamage.Float() : 0f;
         var scale = EffectScale(ent);
-        var finisher = !ent.Comp.Pupil && ent.Comp.ClawSeriesFinisherThreshold > 0f && preDamage >= ent.Comp.ClawSeriesFinisherThreshold
+        var finisher = !ent.Comp.Pupil && !IsWolfPackClone(ent) && ent.Comp.ClawSeriesFinisherThreshold > 0f && preDamage >= ent.Comp.ClawSeriesFinisherThreshold
                        && !_mobState.IsDead(target)
                        && !HasComp<ProperKungFuSeriesFinisherComponent>(ent);
 
         var damage = new DamageSpecifier();
         damage.DamageDict.Add(proto.DamageType, proto.ExtraDamage);
         DealKungFuDamage(target, damage, origin: ent, targetPart: targetPart);
+        SpawnScratchSparks(_transform.GetMapCoordinates(target));
 
         // Standing stun: StunnedComponent only, no knockdown and nothing is dropped.
         _stun.TryStun(target, TimeSpan.FromSeconds(proto.ParalyzeTime * scale), true);
@@ -443,6 +459,17 @@ public sealed partial class ProperKungFuSystem : EntitySystem
                 continue;
             }
 
+            // CorvaxGoob-ProperKungFu-Start: v13 - a slide waits while its body is held in stopped time.
+            if (HasComp<ProperKungFuTimeStoppedComponent>(uid))
+            {
+                var pause = TimeSpan.FromSeconds(frameTime);
+                sliding.StartTime += pause;
+                sliding.EndTime += pause;
+                sliding.NextPuff += pause;
+                continue;
+            }
+            // CorvaxGoob-ProperKungFu-End
+
             var total = (sliding.EndTime - sliding.StartTime).TotalSeconds;
             var t = total <= 0 ? 1f : (float) Math.Clamp((now - sliding.StartTime).TotalSeconds / total, 0, 1);
             var eased = 1f - (1f - t) * (1f - t); // fast start, skids to a stop
@@ -478,6 +505,16 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         UpdateGripSuplexes(now);
         UpdateWolfPack(now);
         UpdateKunai(now);
+        UpdateKunaiFinishers(now);
+        UpdateBloodlust(now);
+        UpdateUltimate(now);
+        // CorvaxGoob-ProperKungFu-Start: v13
+        UpdateTimeStops(now);
+        UpdateKatanaClones(now);
+        UpdateJudgments(now);
+        UpdateWolfGaze(now);
+        UpdateWolfSeals(now);
+        // CorvaxGoob-ProperKungFu-End
 
         var marks = EntityQueryEnumerator<ProperKungFuClawMarkComponent>();
         while (marks.MoveNext(out var uid, out var mark))

@@ -48,7 +48,7 @@ public sealed partial class ProperKungFuSystem
             ? targetDamageable.TotalDamage.Float()
             : 0f;
         var scale = EffectScale(ent);
-        var finisher = !ent.Comp.Pupil && args.FinisherThreshold > 0f
+        var finisher = !ent.Comp.Pupil && !IsWolfPackClone(ent) && args.FinisherThreshold > 0f
                        && preDamage >= args.FinisherThreshold
                        && !_mobState.IsDead(target)
                        && !HasComp<ProperKungFuGripSuplexComponent>(target);
@@ -99,6 +99,7 @@ public sealed partial class ProperKungFuSystem
         if (blocked.BlockedTime < until)
             blocked.BlockedTime = until;
         Dirty(target, blocked);
+        SpawnChokeBreath(target);
     }
 
     private void TakeIntoHardGrab(EntityUid user, EntityUid target, float holdDistance)
@@ -169,12 +170,14 @@ public sealed partial class ProperKungFuSystem
 
         var fraction = args.GripLungDamageFraction;
         InflictPartTrauma(target, TargetBodyPart.Chest, "Blunt",
-            (organ, organComp) => HasComp<LungComponent>(organ) ? organComp.IntegrityCap * fraction : null);
+            (organ, organComp) => HasComp<LungComponent>(organ) ? organComp.IntegrityCap * fraction : null, source: user);
 
         BlockBreathing(target, args.GripBreathBlockTime);
 
         if (args.GripImpactEffect is { } effect)
             Spawn(effect, _transform.GetMapCoordinates(target));
+
+        SpawnSkillFlashes(target);
 
         _stun.TryKnockdown(target, args.GripKnockdownTime, true);
         StartKnockback(target,

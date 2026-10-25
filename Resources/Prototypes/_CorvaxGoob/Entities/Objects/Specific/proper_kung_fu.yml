@@ -20,7 +20,7 @@
   parent: BaseItem
   id: ProperKungFuKunai
   name: kunai
-  description: A grey kunai with a ring pommel and a wrapped grip. It smells faintly of smoke.
+  description: A dark kunai with a red-wrapped grip and a ring pommel. It smells faintly of smoke.
   categories: [ HideSpawnMenu ]
   components:
   - type: Sprite
@@ -78,3 +78,20 @@
         restitution: 0.3
         friction: 0.2
   - type: ProperKungFuKunai
+
+# CorvaxGoob-ProperKungFu v13: the Claw Mastery kunai. Splits into a fan of five when its summoner throws it; every
+# kunai of the fan is deleted after it hits or lands (ProperKungFuSystem).
+- type: entity
+  parent: ProperKungFuKunai
+  id: ProperKungFuFanKunai
+  name: crimson kunai
+  description: A kunai wreathed in crimson haze. It feels like several blades at once.
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Weapons/Melee/proper_kung_fu_kunai.rsi
+    color: "#ff9a9a"
+    layers:
+    - state: icon
+      map: [ "base" ]
+  - type: ProperKungFuFanKunai

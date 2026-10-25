@@ -35,7 +35,7 @@ public abstract partial class SharedMartialArtsSystem
             return;
 
         // CorvaxGoob-ProperKungFu-Start: Proper Kung Fu strikes go straight through the dragon's defensive reflex.
-        if (TryComp<Content.Shared._CorvaxGoob.ProperKungFu.ProperKungFuComponent>(args.User, out var properKungFu) && !properKungFu.Pupil)
+        if (TryComp<Content.Shared._CorvaxGoob.ProperKungFu.ProperKungFuComponent>(args.User, out var properKungFu) && properKungFu.HasPassives)
             return;
         // CorvaxGoob-ProperKungFu-End
 

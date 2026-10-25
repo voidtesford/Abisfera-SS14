@@ -68,7 +68,8 @@ public sealed partial class ProperKungFuSystem
         }
 
         // A battered target gets both arms broken. A pupil forces no fractures (bones only break from damage as usual).
-        if (!ent.Comp.Pupil && total >= args.FractureThreshold)
+        // Wolf Pack clones and the ultimate's shadows never break bones either.
+        if (!ent.Comp.Pupil && !IsWolfPackClone(user) && total >= args.FractureThreshold)
         {
             InflictPartTrauma(target, TargetBodyPart.LeftArm, args.DamageType, (_, _) => null, breakBones: true);
             InflictPartTrauma(target, TargetBodyPart.RightArm, args.DamageType, (_, _) => null, breakBones: true);
@@ -89,7 +90,7 @@ public sealed partial class ProperKungFuSystem
         }
         _audio.PlayPvs(args.HitSound, target);
 
-        if (!ent.Comp.Pupil && total >= args.FinisherThreshold && !TerminatingOrDeleted(target) && !_mobState.IsDead(target))
+        if (!ent.Comp.Pupil && !IsWolfPackClone(ent) && total >= args.FinisherThreshold && !TerminatingOrDeleted(target) && !_mobState.IsDead(target))
         {
             DoPerfectFlowFinisher(user, target, args);
         }
@@ -105,14 +106,22 @@ public sealed partial class ProperKungFuSystem
 
     private void ApplyPerfectFlowDisorientation(EntityUid target, ProperKungFuPerfectFlowPerformedEvent args, TimeSpan time)
     {
-        _statusNew.TryUpdateStatusEffectDuration(target, args.DisorientEffect, time);
+        ApplyDisorientation(target, args.DisorientEffect, time);
+    }
+
+    /// <summary>
+    /// The Perfect Flow disorientation: the status effect (staggering, screen overlay), jitter and slurred speech.
+    /// </summary>
+    private void ApplyDisorientation(EntityUid target, EntProtoId disorientEffect, TimeSpan time)
+    {
+        _statusNew.TryUpdateStatusEffectDuration(target, disorientEffect, time);
 
         if (TryComp<ProperKungFuDisorientedComponent>(target, out var disoriented))
             disoriented.NextStagger = _timing.CurTime + TimeSpan.FromSeconds(disoriented.StaggerInterval.X);
 
         var amplitude = 18f;
         var frequency = 7f;
-        if (_proto.TryIndex(args.DisorientEffect, out var effectProto)
+        if (_proto.TryIndex(disorientEffect, out var effectProto)
             && effectProto.TryGetComponent<ProperKungFuDisorientedStatusEffectComponent>(out var effectComp, EntityManager.ComponentFactory))
         {
             amplitude = effectComp.JitterAmplitude;
@@ -123,9 +132,6 @@ public sealed partial class ProperKungFuSystem
         _slurred.DoSlur(target, time);
     }
 
-    /// <summary>
-    /// Bright claw cuts on both arms and two scarlet palm prints on the chest, attached to the target.
-    /// </summary>
     /// <summary>
     /// Flash offsets on the target, in hit order: left arm, right arm, chest.
     /// </summary>
@@ -138,6 +144,11 @@ public sealed partial class ProperKungFuSystem
 
     private readonly List<(TimeSpan Due, EntityUid Target, EntProtoId Proto, Vector2 Offset)> _pendingFlowFlashes = new();
 
+    private static readonly EntProtoId SkillFlashEffect = "ProperKungFuFlowFlash";
+    private static readonly EntProtoId WeakSkillFlashEffect = "ProperKungFuFlowFlashWeak";
+    private const float SkillFlashInterval = 0.1f;
+    private const float WeakSkillFlashInterval = 0.06f;
+
     /// <summary>
     /// Sequential white-red flashes, one per hit location, <see cref="ProperKungFuPerfectFlowPerformedEvent.FlashInterval"/> apart.
     /// </summary>
@@ -146,11 +157,39 @@ public sealed partial class ProperKungFuSystem
         if (args.FlashEffect is not { } flash)
             return;
 
+        SpawnFlashSequence(target, flash, args.FlashInterval);
+    }
+
+    /// <summary>
+    /// The Perfect Flow white-red flash sequence (left arm, right arm, chest), also used by Hammer, the Wolf Grip +
+    /// Claw Whirlwind synergy, Wolf Instinct and (with a weaker flash) Wolf Dance.
+    /// </summary>
+    private void SpawnFlashSequence(EntityUid target, EntProtoId flash, float interval)
+    {
+        if (TerminatingOrDeleted(target))
+            return;
+
         SpawnAttachedTo(flash, new EntityCoordinates(target, PerfectFlowFlashOffsets[0]));
         for (var i = 1; i < PerfectFlowFlashOffsets.Length; i++)
         {
-            _pendingFlowFlashes.Add((_timing.CurTime + TimeSpan.FromSeconds(args.FlashInterval * i), target, flash, PerfectFlowFlashOffsets[i]));
+            _pendingFlowFlashes.Add((_timing.CurTime + TimeSpan.FromSeconds(interval * i), target, flash, PerfectFlowFlashOffsets[i]));
         }
+    }
+
+    /// <summary>
+    /// Full-strength flash sequence for Hammer, the grip synergy and Wolf Instinct.
+    /// </summary>
+    private void SpawnSkillFlashes(EntityUid target)
+    {
+        SpawnFlashSequence(target, SkillFlashEffect, SkillFlashInterval);
+    }
+
+    /// <summary>
+    /// Shorter, fainter flash sequence for Wolf Dance.
+    /// </summary>
+    private void SpawnWeakSkillFlashes(EntityUid target)
+    {
+        SpawnFlashSequence(target, WeakSkillFlashEffect, WeakSkillFlashInterval);
     }
 
     private void UpdatePerfectFlowFlashes(TimeSpan now)

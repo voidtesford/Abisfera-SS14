@@ -118,6 +118,7 @@ public sealed partial class ProperKungFuSystem
         held.Landed = false;
         // The threshold is checked on the damage the target had before the whirlwind.
         held.Finisher = args.FinisherThreshold > 0
+            && !IsWolfPackClone(user)
             && !_mobState.IsDead(target)
             && TryComp<DamageableComponent>(target, out var damageable)
             && damageable.TotalDamage >= args.FinisherThreshold;
@@ -224,7 +225,7 @@ public sealed partial class ProperKungFuSystem
         // No shield rule here: the target is already in the air.
         // The Blunt lands on the torso; the skull fracture and brain trauma below still go to the head.
         DealKungFuDamage(target, args.Damage, origin: user, targetPart: SkillTargetPart, canMiss: false);
-        InflictHeadTrauma(target, args.BrainTraumaSeverity);
+        InflictHeadTrauma(target, args.BrainTraumaSeverity, user);
 
         if (args.ImpactEffect is { } effect)
         {
@@ -232,6 +233,8 @@ public sealed partial class ProperKungFuSystem
             var burst = Spawn(effect, _transform.GetMapCoordinates(target));
             _transform.SetWorldRotation(burst, direction.ToWorldAngle() + Math.PI);
         }
+
+        SpawnWindSwirl(target);
 
         var mark = EnsureComp<ProperKungFuWhirlwindMarkComponent>(target);
         mark.Marker = user;
@@ -248,10 +251,10 @@ public sealed partial class ProperKungFuSystem
     /// <summary>
     /// Shitmed: breaks the head's bone (skull) and damages the brain, the same way wound traumas do it.
     /// </summary>
-    private void InflictHeadTrauma(EntityUid target, FixedPoint2 brainSeverity)
+    private void InflictHeadTrauma(EntityUid target, FixedPoint2 brainSeverity, EntityUid? source = null)
     {
         InflictPartTrauma(target, TargetBodyPart.Head, "Blunt",
-            (organ, _) => HasComp<BrainComponent>(organ) ? brainSeverity : null);
+            (organ, _) => HasComp<BrainComponent>(organ) ? brainSeverity : null, source: source);
     }
 
     /// <summary>
@@ -262,8 +265,13 @@ public sealed partial class ProperKungFuSystem
         TargetBodyPart targetPart,
         string woundType,
         Func<EntityUid, OrganComponent, FixedPoint2?> organSeverity,
-        bool breakBones = true)
+        bool breakBones = true,
+        EntityUid? source = null)
     {
+        // Wolf Pack clones and the ultimate's shadows never break bones or hurt organs.
+        if (source is { } src && IsWolfPackClone(src))
+            return;
+
         if (!TryComp<BodyComponent>(target, out var body))
             return;
 
@@ -336,6 +344,7 @@ public sealed partial class ProperKungFuSystem
 
         if ((up ? args.FinisherUpEffect : args.FinisherDownEffect) is { } effect)
             Spawn(effect, _transform.GetMapCoordinates(target));
+        SpawnWindSwirl(target);
 
         _audio.PlayPvs(up ? args.FinisherUpSound : args.FinisherDownSound, target);
 
@@ -361,6 +370,7 @@ public sealed partial class ProperKungFuSystem
         var coords = _transform.GetMapCoordinates(target);
         foreach (var effect in args.FinisherImpactEffects)
             Spawn(effect, coords);
+        SpawnSlamFlourish(coords, ripple: true);
 
         _audio.PlayPvs(args.FinisherSlamSound, target);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-whirlwind-finisher-slam-target"), target, target, PopupType.LargeCaution);

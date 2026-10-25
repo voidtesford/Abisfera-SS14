@@ -1,0 +1,30 @@
+# Proper Kung Fu ultimate (Twenty Shadows): the shadows are hostile to every faction. The summoner and the
+# Pack Dogs are spared through faction exceptions set by the ProperKungFuSystem.
+# ProperKungFuShadowFactionTest fails if a faction is added without being listed here.
+- type: npcFaction
+  id: ProperKungFuShadow
+  hostile:
+  - AllHostile
+  - Balloon
+  - Blob
+  - Changeling
+  - DevilFaction
+  - Dragon
+  - Heretic
+  - Lavafauna
+  - Monkey
+  - Mouse
+  - NanoTrasen
+  - Passive
+  - PetsNT
+  - PirateFaction
+  - Revolutionary
+  - Shadowling
+  - SimpleHostile
+  - SimpleNeutral
+  - Syndicate
+  - Wizard
+  - Wraith
+  - Xeno
+  - Xenoborg
+  - Zombie

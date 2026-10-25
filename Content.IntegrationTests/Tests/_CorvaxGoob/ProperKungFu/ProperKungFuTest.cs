@@ -97,7 +97,7 @@ public sealed class ProperKungFuTest
             Assert.That(entMan.TryGetComponent<MartialArtsKnowledgeComponent>(user, out var knowledge));
             Assert.That(knowledge!.MartialArtsForm, Is.EqualTo(MartialArtsForms.ProperKungFu));
             Assert.That(entMan.TryGetComponent<ProperKungFuComponent>(user, out var kungFu));
-            Assert.That(kungFu!.ActionEntities, Has.Count.EqualTo(7));
+            Assert.That(kungFu!.ActionEntities, Has.Count.EqualTo(8));
             Assert.That(entMan.Deleted(book), "The manual should be consumed");
 
             var actionUid = kungFu.ActionEntities[0];
@@ -991,6 +991,8 @@ public sealed class ProperKungFuTest
             }
 
             user = SpawnMob(entMan, new EntityCoordinates(map.Grid, 0.5f, 0.5f));
+            // Airless test map: suffocation damage would charge the ultimate (v12) and break the exact counts.
+            entMan.RemoveComponent<RespiratorComponent>(user);
             baseTarget = SpawnMob(entMan, new EntityCoordinates(map.Grid, 1.5f, 0.5f));
             farTarget = SpawnMob(entMan, new EntityCoordinates(map.Grid, 5.5f, 2.5f));
             lyingTarget = SpawnMob(entMan, new EntityCoordinates(map.Grid, 1.5f, -2.5f));
@@ -1007,7 +1009,7 @@ public sealed class ProperKungFuTest
         await server.WaitAssertion(() =>
         {
             var kungFu = entMan.GetComponent<ProperKungFuComponent>(user);
-            Assert.That(kungFu.ActionEntities, Has.Count.EqualTo(7));
+            Assert.That(kungFu!.ActionEntities, Has.Count.EqualTo(8));
             foreach (var uid in kungFu.ActionEntities)
             {
                 var id = entMan.GetComponent<MetaDataComponent>(uid).EntityPrototype!.ID;
@@ -1080,10 +1082,13 @@ public sealed class ProperKungFuTest
             Assert.That(Blunt(entMan.GetComponent<DamageableComponent>(lyingTarget)), Is.GreaterThanOrEqualTo(49.5f), "50 Blunt");
             AssertHeadOrgans(lyingTarget, "Lying hit");
 
-            Assert.That(statusNew.TryGetTime(lyingTarget, "StatusEffectForcedSleeping", out var sleep), "Forced sleep");
-            Assert.That(sleep.EndEffectTime, Is.Not.Null);
-            Assert.That((sleep.EndEffectTime!.Value - timing.CurTime).TotalSeconds, Is.EqualTo(30).Within(0.3), "for 30 s");
-            Assert.That(entMan.HasComponent<SleepingComponent>(lyingTarget), "Asleep");
+            // v12: no sleep any more, 10 s paralysis and disorientation instead.
+            Assert.That(entMan.HasComponent<SleepingComponent>(lyingTarget), Is.False, "No sleep");
+            Assert.That(entMan.HasComponent<StunnedComponent>(lyingTarget), "Paralyzed");
+            Assert.That(entMan.HasComponent<KnockedDownComponent>(lyingTarget), "Still down");
+            Assert.That(statusNew.TryGetTime(lyingTarget, "StatusEffectProperKungFuDisoriented", out var dis), "Disoriented");
+            Assert.That(dis.EndEffectTime, Is.Not.Null);
+            Assert.That((dis.EndEffectTime!.Value - timing.CurTime).TotalSeconds, Is.EqualTo(10).Within(0.3), "for 10 s");
             Assert.That(entMan.GetComponent<ProperKungFuComponent>(user).UltimateCharge, Is.EqualTo(10f).Within(0.01f), "+5 ult");
         });
 
@@ -1342,7 +1347,7 @@ public sealed class ProperKungFuTest
         await server.WaitAssertion(() =>
         {
             var kungFu = entMan.GetComponent<ProperKungFuComponent>(user);
-            Assert.That(kungFu.ActionEntities, Has.Count.EqualTo(7));
+            Assert.That(kungFu!.ActionEntities, Has.Count.EqualTo(8));
             foreach (var uid in kungFu.ActionEntities)
             {
                 if (entMan.GetComponent<MetaDataComponent>(uid).EntityPrototype!.ID == "ActionProperKungFuWolfInstinct")
@@ -1614,12 +1619,13 @@ public sealed class ProperKungFuTest
             Assert.That(Total(victim, "Slash"), Is.EqualTo(0f), "No final strike yet");
         });
 
-        // Wait for the end of the sequence.
-        for (var i = 0; i < 120; i++)
+        // Wait for the end of the sequence (v13: then the 6 katana shadows' phase, ~2.4 s).
+        for (var i = 0; i < 300; i++)
         {
             await server.WaitRunTicks(1);
             var running = false;
-            await server.WaitPost(() => running = entMan.HasComponent<ProperKungFuDanceFinisherComponent>(user));
+            await server.WaitPost(() => running = entMan.HasComponent<ProperKungFuDanceFinisherComponent>(user)
+                                                  || entMan.HasComponent<ProperKungFuKatanaClonesComponent>(user));
             if (!running)
                 break;
         }
@@ -1627,6 +1633,7 @@ public sealed class ProperKungFuTest
         await server.WaitAssertion(() =>
         {
             Assert.That(entMan.HasComponent<ProperKungFuDanceFinisherComponent>(user), Is.False, "Finisher over");
+            Assert.That(entMan.HasComponent<ProperKungFuKatanaClonesComponent>(user), Is.False, "Katana shadows over");
             // 85 pre + 20 first pass + 10 x 5.
             Assert.That(Total(victim, "Blunt"), Is.EqualTo(155f).Within(0.5f), "20 + 10 passes x 5 Blunt");
             Assert.That(PartDamage(entMan, victim, BodyPartType.Chest, "Blunt"), Is.EqualTo(155f).Within(0.5f), "All the Blunt on the torso");

@@ -3,6 +3,7 @@ using Content.Goobstation.Maths.FixedPoint;
 using Content.Shared._CorvaxGoob.ProperKungFu;
 using Content.Shared._Shitmed.CCVar;
 using Content.Shared._Shitmed.Damage;
+using Content.Shared._Shitmed.Medical.Surgery.Traumas;
 using Content.Shared._Shitmed.Medical.Surgery.Traumas.Components;
 using Content.Shared._Shitmed.Medical.Surgery.Wounds;
 using Content.Shared._Shitmed.Medical.Surgery.Wounds.Components;
@@ -36,6 +37,7 @@ public sealed partial class ProperKungFuSystem
         SubscribeLocalEvent<ProperKungFuComponent, HitScanReflectAttemptEvent>(OnPassiveHitscan);
         SubscribeLocalEvent<ProperKungFuComponent, DamageModifyEvent>(OnPassiveDamageModify);
         SubscribeLocalEvent<ProperKungFuComponent, MeleeHitEvent>(OnPassiveMeleeHit);
+        SubscribeLocalEvent<WoundableComponent, BeforeTraumaInducedEvent>(OnBeforeTraumaInduced);
         SubscribeLocalEvent<ProperKungFuComponent, WoundAddedOnBodyEvent>(OnOwnWoundAdded);
         SubscribeLocalEvent<ProperKungFuComponent, WoundSeverityPointChangedOnBodyEvent>(OnOwnWoundChanged);
         SubscribeLocalEvent<ProperKungFuBleedBoostComponent, WoundAddedOnBodyEvent>(OnBoostWoundAdded);
@@ -55,7 +57,7 @@ public sealed partial class ProperKungFuSystem
     private void OnPassiveDamageModify(EntityUid uid, ProperKungFuComponent comp, DamageModifyEvent args)
     {
         var ent = new Entity<ProperKungFuComponent>(uid, comp);
-        if (!_gunshotPending.Remove(ent, out var tick) || tick != _timing.CurTick || comp.Pupil)
+        if (!_gunshotPending.Remove(ent, out var tick) || tick != _timing.CurTick || !comp.HasPassives)
             return;
 
         if (!args.Damage.AnyPositive())
@@ -76,6 +78,8 @@ public sealed partial class ProperKungFuSystem
         foreach (var hit in args.HitEntities)
         {
             MarkBleedBoost(ent, hit);
+            if (args.IsHit)
+                MarkBloodHarvest(ent, hit);
         }
 
         if (args.IsHit && args.HitEntities.Count > 0 && !HasComp<ProperKungFuCloneComponent>(ent))
@@ -85,7 +89,7 @@ public sealed partial class ProperKungFuSystem
     private void MarkBleedBoost(EntityUid attacker, EntityUid target)
     {
         // A pupil has none of the master's passives, the extra bleeding included.
-        if (attacker == target || !TryComp<ProperKungFuComponent>(attacker, out var kungFu) || kungFu.Pupil)
+        if (attacker == target || !TryComp<ProperKungFuComponent>(attacker, out var kungFu) || !kungFu.HasPassives)
             return;
 
         var boost = EnsureComp<ProperKungFuBleedBoostComponent>(target);
@@ -98,7 +102,7 @@ public sealed partial class ProperKungFuSystem
     /// Every damage dealt by a Proper Kung Fu move goes through here, so the victim's wounds bleed more.
     /// </summary>
     private DamageSpecifier? DealKungFuDamage(EntityUid target, DamageSpecifier damage, EntityUid? origin = null,
-        TargetBodyPart? targetPart = null, bool canMiss = true)
+        TargetBodyPart? targetPart = null, bool canMiss = true, bool ignoreResistances = false)
     {
         if (origin is { } attacker && damage.AnyPositive())
         {
@@ -116,9 +120,37 @@ public sealed partial class ProperKungFuSystem
             }
 
             MarkBleedBoost(attacker, target);
+            MarkBloodHarvest(attacker, target);
         }
 
-        return _damageable.TryChangeDamage(target, damage, origin: origin, targetPart: targetPart, canMiss: canMiss);
+        // Clones never break bones, hurt organs or sever limbs: Shitmed's random traumas are cancelled while their damage lands.
+        var cloneDamage = origin is { } source && IsWolfPackClone(source);
+        if (cloneDamage)
+            _cloneDamageDepth++;
+        try
+        {
+            var dealt = _damageable.TryChangeDamage(target, damage, ignoreResistances: ignoreResistances, origin: origin, targetPart: targetPart, canMiss: canMiss);
+            // v13.1: a spark (and blood flecks on cuts) for every hit that landed.
+            if (dealt is { } landed && landed.AnyPositive())
+                SpawnHitFlourish(target, origin, landed);
+            return dealt;
+        }
+        finally
+        {
+            if (cloneDamage)
+                _cloneDamageDepth--;
+        }
+    }
+
+    /// <summary>
+    /// Above zero while a Wolf Pack clone's (or ultimate shadow's) skill damage is being applied.
+    /// </summary>
+    private int _cloneDamageDepth;
+
+    private void OnBeforeTraumaInduced(Entity<WoundableComponent> ent, ref BeforeTraumaInducedEvent args)
+    {
+        if (_cloneDamageDepth > 0)
+            args.Cancelled = true;
     }
 
     private void OnOwnWoundAdded(Entity<ProperKungFuComponent> ent, ref WoundAddedOnBodyEvent args)
@@ -156,7 +188,7 @@ public sealed partial class ProperKungFuSystem
             return;
 
         var factor = 1f;
-        if (TryComp<ProperKungFuComponent>(body, out var own) && !own.Pupil)
+        if (TryComp<ProperKungFuComponent>(body, out var own) && own.HasPassives)
             factor *= own.OwnBleedModifier;
 
         if (TryComp<ProperKungFuBleedBoostComponent>(body, out var boost)
@@ -195,10 +227,22 @@ public sealed partial class ProperKungFuSystem
     /// </summary>
     private void HealFinisherUser(EntityUid user)
     {
-        if (HasComp<ProperKungFuCloneComponent>(user)
-            || TryComp<ProperKungFuComponent>(user, out var pupil) && pupil.Pupil
+        if (IsWolfPackClone(user) || !TryComp<ProperKungFuComponent>(user, out var kungFu))
+            return;
+
+        HealKungFuUser(user, kungFu.FinisherHeal);
+    }
+
+    /// <summary>
+    /// Heals a Proper Kung Fu master (not a pupil or a clone) by up to <paramref name="amount"/>,
+    /// spread over the damage types they have.
+    /// </summary>
+    private void HealKungFuUser(EntityUid user, float amount)
+    {
+        if (amount <= 0f
+            || HasComp<ProperKungFuCloneComponent>(user)
             || !TryComp<ProperKungFuComponent>(user, out var kungFu)
-            || kungFu.FinisherHeal <= 0f
+            || !kungFu.HasPassives
             || !TryComp<DamageableComponent>(user, out var damageable))
             return;
 
@@ -206,7 +250,7 @@ public sealed partial class ProperKungFuSystem
         if (total <= 0f)
             return;
 
-        var amount = MathF.Min(kungFu.FinisherHeal, total);
+        amount = MathF.Min(amount, total);
         var heal = new DamageSpecifier();
         foreach (var (type, value) in damageable.Damage.DamageDict)
         {

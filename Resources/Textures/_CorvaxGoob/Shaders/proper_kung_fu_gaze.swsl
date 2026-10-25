@@ -1,0 +1,23 @@
+// Proper Kung Fu v13 "Wolf Gaze" cutscene: slow zoom toward the centre, a dark pulsing vignette during the tension,
+// then a short grey freeze-frame. Strength 0..1, Zoom >= 1, Pulse 0..1 (heartbeat), Grey 0..1.
+uniform sampler2D SCREEN_TEXTURE;
+uniform highp float Strength;
+uniform highp float Zoom;
+uniform highp float Pulse;
+uniform highp float Grey;
+
+void fragment() {
+    highp vec2 uv = FRAGCOORD.xy * SCREEN_PIXEL_SIZE.xy;
+    highp vec2 zoomed = vec2(0.5, 0.5) + (uv - vec2(0.5, 0.5)) / max(Zoom, 1.0);
+    highp vec3 col = zTextureSpec(SCREEN_TEXTURE, zoomed).rgb;
+
+    highp float lum = dot(col, vec3(0.299, 0.587, 0.114));
+    col = mix(col, vec3(lum), 0.35 * Strength);
+    col = mix(col, vec3(lum * 0.92 + 0.03), clamp(Grey, 0.0, 1.0));
+
+    highp float dist = length(uv - vec2(0.5, 0.5));
+    highp float vignette = smoothstep(0.18 - 0.05 * Pulse, 0.7, dist) * Strength * (0.75 + 0.2 * Pulse);
+    col = mix(col, vec3(0.05, 0.0, 0.0), clamp(vignette, 0.0, 0.95));
+
+    COLOR = vec4(col, 1.0);
+}

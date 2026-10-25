@@ -1345,6 +1345,7 @@
   description: "АХХАХАХАХАХАХАХАХАХАХХАХАХАХАХА."
   components:
   - type: Sprite
+    sprite: _Abisfera/Objects/Structures/Wallmounts/posters.rsi    
     state: poster_cat
 
 - type: entity
@@ -1354,4 +1355,5 @@
   description: "Категорический протест против грызлодёра."
   components:
   - type: Sprite
+    sprite: _Abisfera/Objects/Structures/Wallmounts/posters.rsi
     state: poster_no

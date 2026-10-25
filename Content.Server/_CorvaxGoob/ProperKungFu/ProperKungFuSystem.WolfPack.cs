@@ -47,6 +47,7 @@ public sealed partial class ProperKungFuSystem
     [Dependency] private readonly MobThresholdSystem _thresholds = default!;
     [Dependency] private readonly NpcFactionSystem _faction = default!;
     [Dependency] private readonly NPCSystem _npc = default!;
+    [Dependency] private readonly HTNSystem _htn = default!;
     [Dependency] private readonly SharedMartialArtsSystem _martialArts = default!;
 
     public const string WolfPackAction = "ActionProperKungFuWolfPack";
@@ -56,7 +57,10 @@ public sealed partial class ProperKungFuSystem
     private const string CloneHtnCompound = "ProperKungFuCloneCompound";
     private const string FallbackCloneSpecies = "MobHuman";
     private static readonly TimeSpan CloneThinkInterval = TimeSpan.FromSeconds(0.25);
-    private static readonly TimeSpan CloneSkillGap = TimeSpan.FromSeconds(1.5);
+    /// <summary>
+    /// Internal delay before every clone skill (on top of the skill's own cooldown), also counted from the spawn.
+    /// </summary>
+    private static readonly TimeSpan CloneSkillGap = TimeSpan.FromSeconds(5);
 
     /// <summary>
     /// Slots whose items are never copied onto a clone: identity, pockets and suit storage only ever hold loot.
@@ -118,6 +122,44 @@ public sealed partial class ProperKungFuSystem
 
     private EntityUid SpawnClone(EntityUid user, MapCoordinates coords, WolfPackActionEvent args, EntityUid target)
     {
+        var clone = SpawnCloneBody(user, coords, args.CloneHealth);
+
+        // Proper Kung Fu without the summoning skills: a clone never calls more clones or kunai,
+        // and has none of the master's buffs or passives.
+        var kungFu = Factory.GetComponent<ProperKungFuComponent>();
+        kungFu.Clone = true;
+        kungFu.BaseActions.RemoveAll(a => a == WolfPackAction || a == KunaiAction || a == JoinPackAction || a == UltimateAction);
+        AddComp(clone, kungFu);
+        _martialArts.GrantProperKungFu(clone);
+
+        var cloneComp = EnsureComp<ProperKungFuCloneComponent>(clone);
+        cloneComp.Summoner = user;
+        cloneComp.ExpiresAt = _timing.CurTime + TimeSpan.FromSeconds(args.Lifetime);
+        cloneComp.DamageModifier = args.DamageModifier;
+        cloneComp.VanishEffect = args.VanishEffect;
+        cloneComp.Target = target;
+        cloneComp.NextSkill = _timing.CurTime + CloneSkillGap;
+
+        StartCloneBrain(clone, cloneComp);
+        Spawn(args.SpawnEffect, coords);
+        return clone;
+    }
+
+    private void StartCloneBrain(EntityUid clone, ProperKungFuCloneComponent cloneComp)
+    {
+        var htn = EnsureComp<HTNComponent>(clone);
+        htn.RootTask = new HTNCompoundTask { Task = CloneHtnCompound };
+        htn.Blackboard.SetValue(NPCBlackboard.Owner, clone);
+        UpdateCloneBlackboard(clone, cloneComp);
+        _npc.WakeNPC(clone, htn);
+    }
+
+    /// <summary>
+    /// A body that looks like the user: same species and appearance, name, cosmetic copies of the clothes,
+    /// the user's factions, and the given total health.
+    /// </summary>
+    private EntityUid SpawnCloneBody(EntityUid user, MapCoordinates coords, float health)
+    {
         EntProtoId species = FallbackCloneSpecies;
         if (TryComp<HumanoidAppearanceComponent>(user, out var humanoid)
             && _proto.TryIndex<SpeciesPrototype>(humanoid.Species, out var speciesProto))
@@ -131,7 +173,7 @@ public sealed partial class ProperKungFuSystem
         _transform.SetWorldRotation(clone, _transform.GetWorldRotation(user));
 
         CopyCosmeticClothing(user, clone);
-        ScaleCloneHealth(clone, args.CloneHealth);
+        ScaleCloneHealth(clone, health);
 
         if (TryComp<NpcFactionMemberComponent>(user, out var factions))
         {
@@ -139,27 +181,6 @@ public sealed partial class ProperKungFuSystem
             _faction.AddFactions(clone, new HashSet<ProtoId<Content.Shared.NPC.Prototypes.NpcFactionPrototype>>(factions.Factions));
         }
 
-        // Proper Kung Fu without the summoning skills: a clone never calls more clones or kunai.
-        var kungFu = Factory.GetComponent<ProperKungFuComponent>();
-        kungFu.BaseActions.RemoveAll(a => a == WolfPackAction || a == KunaiAction || a == JoinPackAction);
-        AddComp(clone, kungFu);
-        _martialArts.GrantProperKungFu(clone);
-
-        var cloneComp = EnsureComp<ProperKungFuCloneComponent>(clone);
-        cloneComp.Summoner = user;
-        cloneComp.ExpiresAt = _timing.CurTime + TimeSpan.FromSeconds(args.Lifetime);
-        cloneComp.DamageModifier = args.DamageModifier;
-        cloneComp.VanishEffect = args.VanishEffect;
-        cloneComp.Target = target;
-        cloneComp.NextSkill = _timing.CurTime + TimeSpan.FromSeconds(0.5);
-
-        var htn = EnsureComp<HTNComponent>(clone);
-        htn.RootTask = new HTNCompoundTask { Task = CloneHtnCompound };
-        htn.Blackboard.SetValue(NPCBlackboard.Owner, clone);
-        UpdateCloneBlackboard(clone, cloneComp);
-        _npc.WakeNPC(clone, htn);
-
-        Spawn(args.SpawnEffect, coords);
         return clone;
     }
 
@@ -233,6 +254,15 @@ public sealed partial class ProperKungFuSystem
         }
     }
 
+    /// <summary>
+    /// Wolf Pack clones (and the ultimate's shadows) never get finishers or the finisher heal; their combos and
+    /// skills still work with the reduced clone damage.
+    /// </summary>
+    public bool IsWolfPackClone(EntityUid uid)
+    {
+        return HasComp<ProperKungFuCloneComponent>(uid);
+    }
+
     private bool IsPackMember(EntityUid summoner, EntityUid uid)
     {
         return TryComp<ProperKungFuCloneComponent>(uid, out var clone) && clone.Summoner == summoner;
@@ -246,7 +276,11 @@ public sealed partial class ProperKungFuSystem
         if (!TryComp<ProperKungFuCloneComponent>(attacker, out var clone))
             return false;
 
-        return target == clone.Summoner || target == attacker || IsPackMember(clone.Summoner, target);
+        if (target == clone.Summoner || target == attacker || IsPackMember(clone.Summoner, target))
+            return true;
+
+        // The ultimate's clones spare the Pack Dogs.
+        return clone.Ultimate && TryComp<ProperKungFuComponent>(target, out var pupil) && pupil.Pupil;
     }
 
     private void OnCloneAttackAttempt(EntityUid uid, ProperKungFuCloneComponent comp, AttackAttemptEvent args)
@@ -260,10 +294,11 @@ public sealed partial class ProperKungFuSystem
     /// </summary>
     private void OnCloneAttacked(EntityUid uid, ProperKungFuCloneComponent comp, AttackedEvent args)
     {
-        if (comp.Vanished || IsCloneFriend(uid, args.User))
+        if (comp.Vanished || comp.Ultimate || IsCloneFriend(uid, args.User) || _timing.CurTime < comp.NextSkill)
             return;
 
-        TryCloneSkill(uid, "ActionProperKungFuWolfInstinct", null);
+        if (TryCloneSkill(uid, "ActionProperKungFuWolfInstinct", null))
+            comp.NextSkill = _timing.CurTime + CloneSkillGap;
     }
 
     private void OnLeaderAttacked(EntityUid uid, ProperKungFuPackLeaderComponent comp, AttackedEvent args)
@@ -304,20 +339,62 @@ public sealed partial class ProperKungFuSystem
         }
     }
 
+    /// <summary>
+    /// Hands the clone's victim to its HTN. Only the clone's own key is written here: the Target and
+    /// TargetCoordinates keys the MoveTo/Melee operators read are set by <see cref="ProperKungFuCloneTargetOperator"/>
+    /// as planning effects of the same branch (the stock UtilityOperator pattern). Removing those keys from here
+    /// while a plan was being built made MoveToOperator.Startup throw a KeyNotFoundException and crash the server.
+    /// When the victim changes, the running plan is dropped so the clone replans for the new one right away.
+    /// </summary>
     private void UpdateCloneBlackboard(EntityUid clone, ProperKungFuCloneComponent comp)
     {
         if (!TryComp<HTNComponent>(clone, out var htn))
             return;
 
-        if (comp.Target is { } target && !TerminatingOrDeleted(target))
-        {
-            htn.Blackboard.SetValue("Target", target);
-            htn.Blackboard.SetValue("TargetCoordinates", Transform(target).Coordinates);
-        }
+        var key = ProperKungFuCloneTargetOperator.DefaultSourceKey;
+        htn.Blackboard.TryGetValue<EntityUid>(key, out var old, EntityManager);
+        EntityUid? current = comp.Target is { } target && !TerminatingOrDeleted(target) ? target : null;
+
+        if (current is { } wanted)
+            htn.Blackboard.SetValue(key, wanted);
         else
+            htn.Blackboard.Remove<EntityUid>(key);
+
+        if (old == (current ?? EntityUid.Invalid) || comp.Vanished || !htn.Enabled)
+            return;
+
+        // Stock API: shuts the current task and plan down cleanly, cancels a plan being built, and replans.
+        _htn.SetHTNEnabled((clone, htn), false);
+        _htn.SetHTNEnabled((clone, htn), true);
+    }
+
+    /// <summary>
+    /// The ultimate's shadows belong to a faction hostile to every faction, and only spare their summoner and the
+    /// Pack Dogs (faction exceptions). Kept in sync while they live so pupils taught later are spared too.
+    /// </summary>
+    private void SyncShadowExceptions(EntityUid clone, ProperKungFuCloneComponent comp)
+    {
+        if (!TerminatingOrDeleted(comp.Summoner))
+            _faction.IgnoreEntity(clone, comp.Summoner);
+
+        var pupils = EntityQueryEnumerator<ProperKungFuComponent>();
+        while (pupils.MoveNext(out var pupil, out var kungFu))
         {
-            htn.Blackboard.Remove<EntityUid>("Target");
-            htn.Blackboard.Remove<EntityCoordinates>("TargetCoordinates");
+            if (kungFu.Pupil && pupil != clone)
+                _faction.IgnoreEntity(clone, pupil);
+        }
+    }
+
+    /// <summary>
+    /// Makes every living shadow spare a newly taught Pack Dog.
+    /// </summary>
+    public void SpareNewPupil(EntityUid pupil)
+    {
+        var query = EntityQueryEnumerator<ProperKungFuCloneComponent>();
+        while (query.MoveNext(out var clone, out var comp))
+        {
+            if (comp.Ultimate && !comp.Vanished)
+                _faction.IgnoreEntity(clone, pupil);
         }
     }
 
@@ -402,6 +479,14 @@ public sealed partial class ProperKungFuSystem
                     || Transform(current).MapID != xform.MapID
                     || IsCloneFriend(uid, current)))
                 clone.Target = null;
+
+            if (clone.Ultimate)
+            {
+                SyncShadowExceptions(uid, clone);
+                clone.Target ??= FindUltimateCloneTarget(uid, xform);
+                UpdateCloneBlackboard(uid, clone);
+                continue;
+            }
 
             UpdateCloneBlackboard(uid, clone);
 

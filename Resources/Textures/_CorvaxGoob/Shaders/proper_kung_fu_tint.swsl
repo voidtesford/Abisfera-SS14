@@ -1,0 +1,46 @@
+// Proper Kung Fu v13: recolours a circle of the world. Mode 0 grey (time stop), 1 crimson, 2 black-and-white (noir),
+// 4 silhouette (Wolf Seal apex: black world, white edge silhouettes, horizontal white speed lines).
+// Center and Radius are in fragment pixels; Strength 0..1 fades the whole effect in and out.
+uniform sampler2D SCREEN_TEXTURE;
+uniform highp vec2 Center;
+uniform highp float Radius;
+uniform highp float Strength;
+uniform highp float Mode;
+
+void fragment() {
+    highp vec2 uv = FRAGCOORD.xy * SCREEN_PIXEL_SIZE.xy;
+    highp vec3 src = zTextureSpec(SCREEN_TEXTURE, uv).rgb;
+    highp float dist = distance(FRAGCOORD.xy, Center);
+    highp float inside = 1.0 - smoothstep(Radius * 0.96, Radius, dist);
+    highp float lum = dot(src, vec3(0.299, 0.587, 0.114));
+
+    highp vec3 col;
+    if (Mode < 0.5) {
+        // Cold grey with a faint blue tint and a thin bright rim.
+        col = vec3(lum * 0.9 + 0.03, lum * 0.92 + 0.035, lum * 0.95 + 0.06);
+        highp float rim = smoothstep(Radius * 0.93, Radius * 0.975, dist) * (1.0 - smoothstep(Radius * 0.975, Radius, dist));
+        col += vec3(0.35, 0.4, 0.5) * rim;
+    } else if (Mode < 1.5) {
+        col = vec3(min(1.0, lum * 1.3 + 0.15), lum * 0.12, lum * 0.16);
+    } else if (Mode > 3.5) {
+        // Black with white silhouettes: Sobel-like luminance edges of the scene.
+        highp vec2 px = SCREEN_PIXEL_SIZE.xy * 1.5;
+        highp vec3 w = vec3(0.299, 0.587, 0.114);
+        highp float l = dot(zTextureSpec(SCREEN_TEXTURE, uv - vec2(px.x, 0.0)).rgb, w);
+        highp float r = dot(zTextureSpec(SCREEN_TEXTURE, uv + vec2(px.x, 0.0)).rgb, w);
+        highp float d = dot(zTextureSpec(SCREEN_TEXTURE, uv - vec2(0.0, px.y)).rgb, w);
+        highp float u = dot(zTextureSpec(SCREEN_TEXTURE, uv + vec2(0.0, px.y)).rgb, w);
+        highp float edge = smoothstep(0.08, 0.2, abs(r - l) + abs(u - d));
+        // Horizontal speed lines: sparse rows with dashes racing sideways.
+        highp float row = floor(FRAGCOORD.y / 3.0);
+        highp float h = fract(sin(row * 12.9898) * 43758.5453);
+        highp float dash = step(fract((FRAGCOORD.x + TIME * 1400.0 * (0.6 + h)) / (160.0 + 240.0 * h)), 0.55);
+        highp float lines = step(0.9, h) * dash * 0.85;
+        col = vec3(max(edge, lines));
+    } else {
+        highp float hard = smoothstep(0.25, 0.45, lum);
+        col = vec3(hard * 0.95 + 0.02);
+    }
+
+    COLOR = vec4(mix(src, col, clamp(Strength, 0.0, 1.0) * inside), 1.0);
+}

@@ -20,7 +20,7 @@ public sealed partial class ProperKungFuCloneComponent : Component
     public TimeSpan ExpiresAt;
 
     [ViewVariables]
-    public float DamageModifier = 0.5f;
+    public float DamageModifier = 0.25f;
 
     [ViewVariables]
     public EntProtoId VanishEffect = "ProperKungFuWolfPackVanish";
@@ -36,6 +36,13 @@ public sealed partial class ProperKungFuCloneComponent : Component
 
     [ViewVariables]
     public bool Vanished;
+
+    /// <summary>
+    /// An ultimate-mode clone: no Proper Kung Fu at all, just a held weapon, attacks every living thing except
+    /// its summoner, the summoner's clones and Pack Dog pupils, and leaves when the ultimate ends.
+    /// </summary>
+    [ViewVariables]
+    public bool Ultimate;
 }
 
 /// <summary>
@@ -46,4 +53,29 @@ public sealed partial class ProperKungFuPackLeaderComponent : Component
 {
     [ViewVariables]
     public HashSet<EntityUid> Clones = new();
+}
+
+/// <summary>
+/// On the master while the ultimate's "Twenty Shadows" are still coming out, a batch per second.
+/// </summary>
+[RegisterComponent]
+public sealed partial class ProperKungFuUltimateSpawnerComponent : Component
+{
+    [ViewVariables]
+    public int Remaining;
+
+    /// <summary>
+    /// The first wave of a mode: one copy at a time, every <see cref="ProperKungFuUltimateClonesActionEvent.FirstInterval"/>.
+    /// </summary>
+    [ViewVariables]
+    public bool OneByOne;
+
+    [ViewVariables]
+    public TimeSpan NextBatch;
+
+    [ViewVariables]
+    public int Spawned;
+
+    [ViewVariables]
+    public Content.Shared._CorvaxGoob.ProperKungFu.ProperKungFuUltimateClonesActionEvent Args = default!;
 }

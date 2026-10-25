@@ -29,7 +29,10 @@ public sealed partial class ProperKungFuSystem
     private void OnPackHoundStartup(Entity<ProperKungFuPackHoundComponent> ent, ref ComponentStartup args)
     {
         if (!HasComp<MartialArtsKnowledgeComponent>(ent) && !HasComp<ProperKungFuComponent>(ent))
+        {
             _martialArts.GrantProperKungFuPupil(ent);
+            SpareNewPupil(ent);
+        }
 
         RemCompDeferred<ProperKungFuPackHoundComponent>(ent);
     }
@@ -114,6 +117,8 @@ public sealed partial class ProperKungFuSystem
 
         if (!_martialArts.GrantProperKungFuPupil(target))
             return;
+
+        SpareNewPupil(target);
 
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-join-pack-done-user", ("target", target)), user, user, PopupType.Large);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-join-pack-done-target", ("user", user)), target, target, PopupType.Large);
