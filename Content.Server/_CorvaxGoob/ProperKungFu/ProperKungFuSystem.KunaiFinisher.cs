@@ -16,6 +16,7 @@ using Content.Shared.Throwing;
 using Content.Shared.Weapons.Melee.Events;
 using Robust.Shared.Audio;
 using Robust.Shared.Map;
+using Robust.Shared.Physics.Events;
 using Robust.Shared.Player;
 using Robust.Shared.Prototypes;
 
@@ -24,7 +25,8 @@ namespace Content.Server._CorvaxGoob.ProperKungFu;
 /// <summary>
 /// Kunai finishers (master only, never on a dead target, at 80+ damage before the hit, +25 heal):
 /// a melee kunai hit kicks the victim away, a kunai cuts its neck (all blood out) and a second kunai carries the
-/// user in for the one-inch death punch; a thrown kunai hit calls ten crimson doubles and a ten-kunai volley.
+/// user in for the one-inch death punch; a thrown kunai hit calls ten crimson doubles that throw and vanish, then the
+/// user dashes through the victim with a long slash, turns, backflips and a ten-kunai volley flies in from behind.
 /// Kunai thrown by their summoner also fly twice as fast.
 /// </summary>
 public sealed partial class ProperKungFuSystem
@@ -41,10 +43,13 @@ public sealed partial class ProperKungFuSystem
     private static readonly EntProtoId DeathPunchKanji = "ProperKungFuOneInchKanji";
     private static readonly EntProtoId DeathPunchImpact = "ProperKungFuPalmFlash";
     private static readonly EntProtoId KunaiDouble = "ProperKungFuKunaiDouble";
+    private static readonly EntProtoId KunaiDoubleVanish = "ProperKungFuWolfPackVanish";
+    private static readonly EntProtoId KunaiDashSlash = "ProperKungFuKunaiDashSlash";
 
-    private static readonly SoundSpecifier KunaiKickSound = new SoundCollectionSpecifier("kick");
+    private static readonly SoundSpecifier KunaiKickSound = new SoundPathSpecifier("/Audio/Effects/hit_kick.ogg");
     private static readonly SoundSpecifier KunaiThrowSound = new SoundPathSpecifier("/Audio/Weapons/punchmiss.ogg", AudioParams.Default.WithVolume(-4f));
     private static readonly SoundSpecifier KunaiPierceSound = new SoundPathSpecifier("/Audio/Weapons/bladeslice.ogg", AudioParams.Default.WithVolume(-3f));
+    private static readonly SoundSpecifier KunaiDashSound = new SoundPathSpecifier("/Audio/Weapons/bladeslice.ogg", AudioParams.Default.WithVolume(2f));
     private static readonly SoundSpecifier DeathPunchSound = new SoundPathSpecifier("/Audio/Effects/explosion_small1.ogg", AudioParams.Default.WithVolume(2f));
 
     private const float KunaiKickDistance = 3f;
@@ -61,15 +66,23 @@ public sealed partial class ProperKungFuSystem
     private static readonly DamageSpecifier DeathPunchDamage = new() { DamageDict = { ["Blunt"] = 90 } };
     private static readonly HashSet<string> DeathPunchOrganSlots = new() { "heart", "lungs", "lung", "stomach", "liver", "kidneys" };
 
-    private const int KunaiDoubleCount = 10;
+    public const int KunaiDoubleCount = 10;
     private const float KunaiDoubleRadius = 3f;
     private static readonly TimeSpan KunaiDoubleInterval = TimeSpan.FromSeconds(0.1);
-    private const int KunaiVolleyCount = 10;
-    private static readonly TimeSpan KunaiVolleyInterval = TimeSpan.FromSeconds(0.06);
-    private const float KunaiVolleyDamage = 15f;
+    private static readonly TimeSpan KunaiDoubleAppearDelay = TimeSpan.FromSeconds(0.25);
+    private static readonly TimeSpan KunaiDashDelay = TimeSpan.FromSeconds(0.2);
+    private const float KunaiDashSpeed = 20f;
+    private const float KunaiDashBehind = 1.2f;
+    public const float KunaiDashDamage = 1f;
+    private const float KunaiDashSlashSegment = 0.9f;
+    private static readonly TimeSpan KunaiTurnDelay = TimeSpan.FromSeconds(0.08);
+    public const int KunaiVolleyCount = 10;
+    private static readonly TimeSpan KunaiVolleyStart = TimeSpan.FromSeconds(0.03);
+    private static readonly TimeSpan KunaiVolleyInterval = TimeSpan.FromSeconds(0.03);
+    public const float KunaiVolleyDamage = 15f;
     private const float KunaiBackflipDistance = 1f;
     private static readonly TimeSpan KunaiBackflipDuration = TimeSpan.FromSeconds(0.35);
-    private static readonly TimeSpan KunaiThrownVictimStun = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan KunaiThrownVictimStun = TimeSpan.FromSeconds(4);
 
     private const float FlyingKunaiFastSpeed = 25f;
     private const float FlyingKunaiArrive = 0.3f;
@@ -81,6 +94,7 @@ public sealed partial class ProperKungFuSystem
         SubscribeLocalEvent<ProperKungFuKunaiComponent, MeleeHitEvent>(OnKunaiMeleeHit);
         SubscribeLocalEvent<ProperKungFuKunaiComponent, ThrowDoHitEvent>(OnKunaiThrowHit,
             before: new[] { typeof(DamageOtherOnHitSystem) });
+        SubscribeLocalEvent<ProperKungFuKunaiFinisherComponent, PreventCollideEvent>(OnKunaiFinisherPreventCollide);
     }
 
     private void OnKungFuBeforeThrow(Entity<ProperKungFuComponent> ent, ref BeforeThrowEvent args)
@@ -137,8 +151,10 @@ public sealed partial class ProperKungFuSystem
         if (!CanStartKunaiFinisher(user, args.Target, GetTotalDamage(args.Target)))
             return;
 
-        // No pull to the kunai: the user flips back instead.
+        // No pull to the kunai, and the real kunai is gone right after this hit (never left stuck in the victim);
+        // everything the finisher throws is a visual kunai deleted on arrival.
         ent.Comp.ThrowOrigin = null;
+        ent.Comp.Consumed = true;
         StartKunaiFinisher(user, args.Target, KunaiFinisherKind.Thrown);
     }
 
@@ -252,44 +268,113 @@ public sealed partial class ProperKungFuSystem
         {
             case 0:
             {
-                // The user backflips one tile away.
-                StartKnockback(user, -finisher.Direction, KunaiBackflipDistance, KunaiBackflipDuration, dust: false);
-                RaiseNetworkEvent(new ProperKungFuBackflipEvent(GetNetEntity(user), (float) KunaiBackflipDuration.TotalSeconds, -finisher.Direction),
-                    Filter.Pvs(user, entityManager: EntityManager));
+                // a. Ten crimson doubles appear around the victim, 3 tiles out. Nobody teleports.
+                var victimPos = _transform.GetWorldPosition(victim);
+                finisher.Doubles.Clear();
+                for (var i = 0; i < KunaiDoubleCount; i++)
+                {
+                    var angle = finisher.Direction.ToAngle() + Angle.FromDegrees(180 + 360.0 / KunaiDoubleCount * i);
+                    var dir = angle.ToVec();
+                    var spot = victimPos + dir * KunaiDoubleRadius;
+                    if (IsPathBlocked(victim, finisher.Map, victimPos, spot, out var free))
+                        spot = free;
+
+                    var ghost = SpawnAfterimage(user, finisher.Map, spot, KunaiDouble);
+                    _transform.SetWorldRotation(ghost, (-dir).ToWorldAngle());
+                    finisher.Doubles.Add(ghost);
+                }
 
                 finisher.Phase = 1;
                 finisher.Count = 0;
-                finisher.NextStep = now + TimeSpan.FromSeconds(0.1);
+                finisher.NextStep = now + KunaiDoubleAppearDelay;
                 return;
             }
             case 1:
             {
-                // Ten crimson doubles around the victim, each throws one fast kunai and fades away.
-                var victimPos = _transform.GetWorldPosition(victim);
-                var angle = finisher.Direction.ToAngle() + Angle.FromDegrees(180 + 360.0 / KunaiDoubleCount * finisher.Count);
-                var dir = angle.ToVec();
-                var spot = victimPos + dir * KunaiDoubleRadius;
-                if (IsPathBlocked(victim, finisher.Map, victimPos, spot, out var free))
-                    spot = free;
-
-                var ghost = SpawnAfterimage(user, finisher.Map, spot, KunaiDouble);
-                _transform.SetWorldRotation(ghost, (-dir).ToWorldAngle());
-                LaunchFlyingKunai(user, finisher.Map, spot, victim, FlyingKunaiKind.Pierce, 1f, FlyingKunaiFastSpeed);
+                // Each double throws one fast 1-damage kunai, then vanishes.
+                if (finisher.Count < finisher.Doubles.Count)
+                {
+                    var ghost = finisher.Doubles[finisher.Count];
+                    if (!TerminatingOrDeleted(ghost))
+                    {
+                        var spot = _transform.GetWorldPosition(ghost);
+                        LaunchFlyingKunai(user, finisher.Map, spot, victim, FlyingKunaiKind.Pierce, 1f, FlyingKunaiFastSpeed);
+                        Spawn(KunaiDoubleVanish, new MapCoordinates(spot, finisher.Map));
+                        QueueDel(ghost);
+                    }
+                }
 
                 finisher.Count++;
                 finisher.NextStep = now + KunaiDoubleInterval;
                 if (finisher.Count >= KunaiDoubleCount)
                 {
+                    finisher.Doubles.Clear();
                     finisher.Phase = 2;
                     finisher.Count = 0;
-                    finisher.NextStep = now + TimeSpan.FromSeconds(0.25);
+                    // Wait for the last doubles' kunai to land.
+                    finisher.NextStep = now + KunaiDashDelay;
                 }
 
                 return;
             }
             case 2:
             {
-                // The volley: ten kunai from behind the user at normal damage.
+                // b. Only after every double has thrown: the dash through the victim with a long kunai slash.
+                if (HasFlyingKunai(user, victim) && now < finisher.EndBy - TimeSpan.FromSeconds(2))
+                {
+                    finisher.NextStep = now + TimeSpan.FromSeconds(0.05);
+                    return;
+                }
+
+                var userPos = _transform.GetWorldPosition(user);
+                var victimPos = _transform.GetWorldPosition(victim);
+                var delta = victimPos - userPos;
+                var dir = delta.LengthSquared() > 0.0001f ? Vector2.Normalize(delta) : finisher.Direction;
+                var end = victimPos + dir * KunaiDashBehind;
+                if (IsPathBlocked(user, finisher.Map, userPos, end, out var free))
+                    end = free;
+
+                var distance = (end - userPos).Length();
+                var duration = TimeSpan.FromSeconds(MathF.Max(0.06f, distance / KunaiDashSpeed));
+                finisher.DashDirection = dir;
+                finisher.Dashed = true;
+
+                SpawnAfterimage(user, finisher.Map, userPos, DashAfterimageEffect);
+                SpawnKunaiDashSlash(finisher.Map, userPos, end, dir);
+                _transform.SetWorldRotation(user, dir.ToWorldAngle());
+                StartKnockback(user, dir, distance, duration, dust: false);
+
+                var damage = new DamageSpecifier { DamageDict = { ["Slash"] = KunaiDashDamage } };
+                DealKungFuDamage(victim, damage, origin: user, targetPart: SkillTargetPart, canMiss: false);
+                _audio.PlayPvs(KunaiDashSound, victim);
+
+                finisher.Phase = 3;
+                finisher.NextStep = now + duration + KunaiTurnDelay;
+                return;
+            }
+            case 3:
+            {
+                // c. Behind the victim: turn to face it and backflip away.
+                RemComp<ProperKungFuSlidingComponent>(user);
+                var userPos = _transform.GetWorldPosition(user);
+                var victimPos = _transform.GetWorldPosition(victim);
+                var toVictim = victimPos - userPos;
+                var facing = toVictim.LengthSquared() > 0.0001f ? Vector2.Normalize(toVictim) : -finisher.DashDirection;
+                finisher.Direction = facing;
+                _transform.SetWorldRotation(user, facing.ToWorldAngle());
+
+                StartKnockback(user, -facing, KunaiBackflipDistance, KunaiBackflipDuration, dust: false);
+                RaiseNetworkEvent(new ProperKungFuBackflipEvent(GetNetEntity(user), (float) KunaiBackflipDuration.TotalSeconds, -facing),
+                    Filter.Pvs(user, entityManager: EntityManager));
+
+                finisher.Phase = 4;
+                finisher.Count = 0;
+                finisher.NextStep = now + KunaiVolleyStart;
+                return;
+            }
+            case 4:
+            {
+                // During the backflip: ten kunai fly from behind the user into the victim at full kunai damage.
                 var userPos = _transform.GetWorldPosition(user);
                 var victimPos = _transform.GetWorldPosition(victim);
                 var aim = victimPos - userPos;
@@ -315,6 +400,43 @@ public sealed partial class ProperKungFuSystem
                 RemCompDeferred(user, finisher);
                 return;
         }
+    }
+
+    private bool HasFlyingKunai(EntityUid user, EntityUid victim)
+    {
+        var query = EntityQueryEnumerator<ProperKungFuFlyingKunaiComponent>();
+        while (query.MoveNext(out _, out var kunai))
+        {
+            if (kunai.User == user && kunai.Target == victim)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// The long white-red slash line along the whole dash path.
+    /// </summary>
+    private void SpawnKunaiDashSlash(MapId map, Vector2 from, Vector2 to, Vector2 dir)
+    {
+        var length = (to - from).Length();
+        var segments = Math.Max(1, (int) MathF.Ceiling(length / KunaiDashSlashSegment));
+        var step = length / segments;
+        for (var i = 0; i < segments; i++)
+        {
+            var pos = from + dir * (step * (i + 0.5f));
+            var fx = Spawn(KunaiDashSlash, new MapCoordinates(pos, map));
+            _transform.SetWorldRotation(fx, dir.ToAngle());
+        }
+    }
+
+    /// <summary>
+    /// No collision with the victim while the user dashes through it.
+    /// </summary>
+    private void OnKunaiFinisherPreventCollide(Entity<ProperKungFuKunaiFinisherComponent> ent, ref PreventCollideEvent args)
+    {
+        if (ent.Comp.Kind == KunaiFinisherKind.Thrown && args.OtherEntity == ent.Comp.Victim)
+            args.Cancelled = true;
     }
 
     private void LaunchFlyingKunai(EntityUid user, MapId map, Vector2 from, EntityUid target, FlyingKunaiKind kind, float damage, float speed)

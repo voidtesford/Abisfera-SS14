@@ -112,6 +112,12 @@ public sealed partial class ProperKungFuSystem
         var query = EntityQueryEnumerator<ProperKungFuKunaiComponent, TransformComponent>();
         while (query.MoveNext(out var uid, out var kunai, out var xform))
         {
+            if (kunai.Consumed)
+            {
+                QueueDel(uid);
+                continue;
+            }
+
             if (kunai.Arrived && kunai.ThrowOrigin is { } origin && kunai.Summoner is { } user && !TerminatingOrDeleted(user))
             {
                 TeleportToKunai(user, (uid, kunai, xform), origin);

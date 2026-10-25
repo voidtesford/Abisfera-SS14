@@ -81,7 +81,7 @@ proper-kung-fu-info-finisher-hammer-desc = Серия ударов с сальт
 proper-kung-fu-info-finisher-wolf-instinct-name = Волчье чутьё
 proper-kung-fu-info-finisher-wolf-instinct-desc = Атакующий в вашей власти: 6 ударов когтями и крест на 100 режущего, отброс на 10 тайлов.
 proper-kung-fu-info-finisher-kunai-name = Кунай
-proper-kung-fu-info-finisher-kunai-desc = Вблизи: удар ногой на 3 тайла, кунай в шею выпускает всю кровь, удар с одного дюйма — 90 ударного в грудь, органы −60%, полёт на 20 тайлов, 2 мин без дыхания. Броском: сальто назад, 10 двойников и залп из 10 кунаев.
+proper-kung-fu-info-finisher-kunai-desc = Вблизи: удар ногой на 3 тайла, кунай в шею выпускает всю кровь, удар с одного дюйма — 90 ударного в грудь, органы −60%, полёт на 20 тайлов, 2 мин без дыхания. Броском: 10 двойников метают кунаи, рывок сквозь цель с разрезом, сальто назад и залп из 10 кунаев.
 
 proper-kung-fu-info-pupil-claw-series-name = Серия когтей
 proper-kung-fu-info-pupil-claw-series-desc = Три удара подряд: +10 ударного урона, оглушение на 1 с, цель отъезжает на 1,5 тайла.

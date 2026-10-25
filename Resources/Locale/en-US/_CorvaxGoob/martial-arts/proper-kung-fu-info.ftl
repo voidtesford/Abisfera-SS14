@@ -81,7 +81,7 @@ proper-kung-fu-info-finisher-hammer-desc = A string of strikes with a flip and a
 proper-kung-fu-info-finisher-wolf-instinct-name = Wolf Instinct
 proper-kung-fu-info-finisher-wolf-instinct-desc = The attacker is at your mercy: 6 claw strikes and a 100 Slash cross, 10 tile knockback.
 proper-kung-fu-info-finisher-kunai-name = Kunai
-proper-kung-fu-info-finisher-kunai-desc = Melee: a 3 tile kick, a kunai to the neck drains all blood, the one-inch punch: 90 Blunt to the chest, organs -60%, 20 tile flight, 2 min without breathing. Thrown: a backflip, 10 doubles and a volley of 10 kunai.
+proper-kung-fu-info-finisher-kunai-desc = Melee: a 3 tile kick, a kunai to the neck drains all blood, the one-inch punch: 90 Blunt to the chest, organs -60%, 20 tile flight, 2 min without breathing. Thrown: 10 doubles throw kunai, a slashing dash through the target, a backflip and a volley of 10 kunai.
 
 proper-kung-fu-info-pupil-claw-series-name = Claw Series
 proper-kung-fu-info-pupil-claw-series-desc = Three hits in a row: +10 Blunt, 1 s stun, the target slides back 1.5 tiles.

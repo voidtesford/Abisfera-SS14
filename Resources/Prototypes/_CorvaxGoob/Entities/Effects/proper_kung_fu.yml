@@ -759,7 +759,31 @@
     tags:
     - HideContextMenu
   - type: TimedDespawn
-    lifetime: 1.1
+    lifetime: 2
+
+# Thrown kunai finisher: one piece of the long white-red slash line left along the dash through the victim.
+- type: entity
+  id: ProperKungFuKunaiDashSlash
+  name: kunai dash slash
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - shader: unshaded
+      sprite: _CorvaxGoob/Effects/proper_kung_fu_kunai_slash.rsi
+      state: dash_slash
+      scale: 1.15, 1
+  - type: PointLight
+    color: "#FF3040"
+    radius: 1.2
+    energy: 1.5
+  - type: TimedDespawn
+    lifetime: 0.38
+  - type: Tag
+    tags:
+    - HideContextMenu
 
 # Melee kunai finisher: the claw trail of the kick, stretched along the kick direction.
 - type: entity

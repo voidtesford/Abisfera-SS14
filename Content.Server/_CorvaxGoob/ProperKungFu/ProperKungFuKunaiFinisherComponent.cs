@@ -11,7 +11,8 @@ public enum KunaiFinisherKind : byte
     Melee,
 
     /// <summary>
-    /// Thrown kunai hit: ten crimson doubles throw at the victim, then a volley of ten kunai from behind the user.
+    /// Thrown kunai hit: ten crimson doubles throw at the victim and vanish, the user dashes through the victim with
+    /// a long kunai slash, turns and backflips while a volley of ten kunai flies from behind them.
     /// </summary>
     Thrown,
 }
@@ -48,6 +49,24 @@ public sealed partial class ProperKungFuKunaiFinisherComponent : Component
 
     [ViewVariables]
     public TimeSpan NextStep;
+
+    /// <summary>
+    /// Thrown finisher: the crimson doubles still waiting to throw, in throw order.
+    /// </summary>
+    [ViewVariables]
+    public List<EntityUid> Doubles = new();
+
+    /// <summary>
+    /// Thrown finisher: the direction of the dash through the victim.
+    /// </summary>
+    [ViewVariables]
+    public Vector2 DashDirection;
+
+    /// <summary>
+    /// Thrown finisher: the user went through the victim and stands behind it.
+    /// </summary>
+    [ViewVariables]
+    public bool Dashed;
 
     /// <summary>
     /// Safety: the sequence is dropped after this time whatever happens.

@@ -32,6 +32,13 @@ public sealed partial class ProperKungFuKunaiComponent : Component
     [ViewVariables]
     public bool Embedded;
 
+    /// <summary>
+    /// The kunai started a thrown kunai finisher: it is deleted on the next update, without a teleport,
+    /// so it never stays stuck in the victim.
+    /// </summary>
+    [ViewVariables]
+    public bool Consumed;
+
     [DataField]
     public string SmokeEffect = "ProperKungFuWolfPackSmoke";
 }
