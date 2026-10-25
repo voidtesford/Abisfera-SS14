@@ -61,6 +61,7 @@ public sealed partial class ProperKungFuSystem
             return;
 
         args.Handled = true;
+        ReleasePulls(user, target);
         var dir = DirectionTo(user, target, _transform.GetWorldRotation(user).ToWorldVec());
 
         // Beyond arm's reach: a blink in, leaving afterimages.
@@ -74,6 +75,7 @@ public sealed partial class ProperKungFuSystem
                 SpawnAfterimage(user, map, Vector2.Lerp(userPos, spot, i / 3f), DashAfterimageEffect);
             }
 
+            SpawnSpeedLines(map, userPos, spot);
             _transform.SetWorldPosition(user, spot);
         }
 
@@ -180,6 +182,7 @@ public sealed partial class ProperKungFuSystem
         _audio.PlayPvs(args.ReleaseSound, victim);
 
         StartKnockback(victim, comp.Direction, args.KnockbackDistance, SealFlightTime, true);
+        KickFinisherCamera(user, comp.Direction, 0.45f);
         SendPose(victim, ProperKungFuPose.Launch, (float) SealFlightTime.TotalSeconds, 0.3f, 1f);
 
         // 20 s without breath (cleared on death, never shortening a longer block) and a strong 5 s daze.

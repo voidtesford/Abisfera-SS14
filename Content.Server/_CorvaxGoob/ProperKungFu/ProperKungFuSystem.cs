@@ -235,6 +235,7 @@ public sealed partial class ProperKungFuSystem : EntitySystem
         var damage = new DamageSpecifier();
         damage.DamageDict.Add(proto.DamageType, proto.ExtraDamage);
         DealKungFuDamage(target, damage, origin: ent, targetPart: targetPart);
+        SpawnScratchSparks(_transform.GetMapCoordinates(target));
 
         // Standing stun: StunnedComponent only, no knockdown and nothing is dropped.
         _stun.TryStun(target, TimeSpan.FromSeconds(proto.ParalyzeTime * scale), true);

@@ -99,6 +99,7 @@ public sealed partial class ProperKungFuSystem
         if (blocked.BlockedTime < until)
             blocked.BlockedTime = until;
         Dirty(target, blocked);
+        SpawnChokeBreath(target);
     }
 
     private void TakeIntoHardGrab(EntityUid user, EntityUid target, float holdDistance)

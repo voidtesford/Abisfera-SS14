@@ -193,6 +193,7 @@ public sealed partial class ProperKungFuSystem
         var now = _timing.CurTime;
         var userPos = _transform.GetWorldPosition(user);
         var victimPos = _transform.GetWorldPosition(victim);
+        ReleasePulls(user, victim);
         var delta = victimPos - userPos;
         var dir = delta.LengthSquared() > 0.0001f ? Vector2.Normalize(delta) : finisher.Direction;
         finisher.DashDirection = dir;
@@ -210,6 +211,7 @@ public sealed partial class ProperKungFuSystem
         RemComp<ProperKungFuSlidingComponent>(user);
         RemComp<ProperKungFuSlidingComponent>(victim);
         _physics.SetLinearVelocity(user, Vector2.Zero);
+        SpawnSpeedLines(map, userPos, spot);
         _transform.SetWorldPosition(user, spot);
         _transform.SetWorldRotation(user, dir.ToWorldAngle());
 

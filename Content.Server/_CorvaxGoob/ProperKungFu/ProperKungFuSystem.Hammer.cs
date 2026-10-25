@@ -124,6 +124,7 @@ public sealed partial class ProperKungFuSystem
         }
 
         SpawnHammerEffect(args.ImpactEffect, targetCoords);
+        SpawnSlamFlourish(targetCoords, ripple: true);
         DealHammerHeadDamage(user, target, args.Damage);
         InflictHammerTrauma(target, args, user);
         _stun.TryKnockdown(target, args.KnockdownTime, true);
@@ -396,6 +397,8 @@ public sealed partial class ProperKungFuSystem
             ignoreResistances: true);
         if (args.FinisherCrossEffect is { } cross)
             Spawn(cross, _transform.GetMapCoordinates(victim));
+        Spawn(GroundRippleEffect, _transform.GetMapCoordinates(victim));
+        KickFinisherCamera(user, _transform.GetWorldPosition(victim) - _transform.GetWorldPosition(user), 0.45f);
         _audio.PlayPvs(args.FinisherCrossSound, victim);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-hammer-finisher-cross-user", ("target", victim)), user, user, PopupType.Large);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-hammer-finisher-cross-target", ("user", user)), victim, victim, PopupType.LargeCaution);

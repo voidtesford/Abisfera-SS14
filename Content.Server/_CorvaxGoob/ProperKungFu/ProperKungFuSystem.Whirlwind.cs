@@ -234,6 +234,8 @@ public sealed partial class ProperKungFuSystem
             _transform.SetWorldRotation(burst, direction.ToWorldAngle() + Math.PI);
         }
 
+        SpawnWindSwirl(target);
+
         var mark = EnsureComp<ProperKungFuWhirlwindMarkComponent>(target);
         mark.Marker = user;
         mark.ExpiresAt = _timing.CurTime + args.MarkDuration;
@@ -342,6 +344,7 @@ public sealed partial class ProperKungFuSystem
 
         if ((up ? args.FinisherUpEffect : args.FinisherDownEffect) is { } effect)
             Spawn(effect, _transform.GetMapCoordinates(target));
+        SpawnWindSwirl(target);
 
         _audio.PlayPvs(up ? args.FinisherUpSound : args.FinisherDownSound, target);
 
@@ -367,6 +370,7 @@ public sealed partial class ProperKungFuSystem
         var coords = _transform.GetMapCoordinates(target);
         foreach (var effect in args.FinisherImpactEffects)
             Spawn(effect, coords);
+        SpawnSlamFlourish(coords, ripple: true);
 
         _audio.PlayPvs(args.FinisherSlamSound, target);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-whirlwind-finisher-slam-target"), target, target, PopupType.LargeCaution);

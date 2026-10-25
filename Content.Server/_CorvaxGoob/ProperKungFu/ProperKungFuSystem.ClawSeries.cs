@@ -193,6 +193,7 @@ public sealed partial class ProperKungFuSystem
             spot = free;
 
         SpawnAfterimage(user, finisher.Map, userPos, DashAfterimageEffect);
+        SpawnSpeedLines(finisher.Map, userPos, spot);
         _transform.SetWorldPosition(user, spot);
         _physics.SetLinearVelocity(user, Vector2.Zero);
 
@@ -206,6 +207,7 @@ public sealed partial class ProperKungFuSystem
         // The cut shows on the victim itself, at a random slant.
         var cut = Spawn(SeriesClawCutEffect, new MapCoordinates(victimPos, finisher.Map));
         _transform.SetWorldRotation(cut, Angle.FromDegrees(_instinctRandom.NextFloat(0f, 360f)));
+        SpawnScratchSparks(new MapCoordinates(victimPos, finisher.Map));
 
         DealKungFuDamage(victim, ent.Comp.ClawSeriesFinisherStrikeDamage, origin: user, targetPart: SkillTargetPart, canMiss: false);
         _audio.PlayPvs(ent.Comp.ClawSeriesFinisherStrikeSound, victim);
@@ -233,6 +235,7 @@ public sealed partial class ProperKungFuSystem
         {
             _stun.TryKnockdown(victim, comp.ClawSeriesFinisherKnockdownTime, true);
             StartKnockback(victim, finisher.Direction, comp.ClawSeriesFinisherKnockback, comp.ClawSeriesFinisherKnockbackDuration, dust: true);
+            KickFinisherCamera(user, finisher.Direction);
         }
 
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-claw-series-finisher-final-user", ("target", victim)), user, user, PopupType.Large);

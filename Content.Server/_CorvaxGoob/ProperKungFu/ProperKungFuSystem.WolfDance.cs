@@ -406,6 +406,7 @@ public sealed partial class ProperKungFuSystem
         }
 
         FinishDanceKnockback(victim, away, args);
+        KickFinisherCamera(user, away);
     }
 
     private void FinishDanceKnockback(EntityUid victim, Vector2 away, WolfDanceActionEvent args)

@@ -129,7 +129,11 @@ public sealed partial class ProperKungFuSystem
             _cloneDamageDepth++;
         try
         {
-            return _damageable.TryChangeDamage(target, damage, ignoreResistances: ignoreResistances, origin: origin, targetPart: targetPart, canMiss: canMiss);
+            var dealt = _damageable.TryChangeDamage(target, damage, ignoreResistances: ignoreResistances, origin: origin, targetPart: targetPart, canMiss: canMiss);
+            // v13.1: a spark (and blood flecks on cuts) for every hit that landed.
+            if (dealt is { } landed && landed.AnyPositive())
+                SpawnHitFlourish(target, origin, landed);
+            return dealt;
         }
         finally
         {

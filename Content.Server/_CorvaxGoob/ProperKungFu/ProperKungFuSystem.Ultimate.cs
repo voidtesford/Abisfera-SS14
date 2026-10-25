@@ -128,6 +128,7 @@ public sealed partial class ProperKungFuSystem
 
         Dirty(ent);
         SpawnSkillFlashes(ent);
+        SpawnUltimateMist(ent);
         _audio.PlayPvs(UltimateStartSound, ent);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-ultimate-start-user"), ent, ent, PopupType.Large);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-ultimate-start-others", ("user", ent.Owner)), ent,

@@ -68,6 +68,7 @@ public sealed partial class ProperKungFuSystem
 
         if (args.AuraPulseEffect is { } pulse)
             SpawnAttachedTo(pulse, new EntityCoordinates(user, Vector2.Zero));
+        SpawnPulseRing(user);
 
         _audio.PlayPvs(args.StanceSound, user);
         _audio.PlayPvs(args.StanceRingSound, user);
@@ -144,6 +145,8 @@ public sealed partial class ProperKungFuSystem
             var fx = Spawn(effect, _transform.GetMapCoordinates(attacker));
             _transform.SetWorldRotation(fx, _instinctRandom.NextAngle());
         }
+
+        SpawnPulseRing(user);
 
         SpawnSkillFlashes(attacker);
 
@@ -226,6 +229,7 @@ public sealed partial class ProperKungFuSystem
         dash.Map = userCoords.MapId;
         dash.From = userCoords.Position;
         dash.To = userCoords.Position + direction * length;
+        SpawnSpeedLines(userCoords.MapId, dash.From, dash.To);
         dash.StartTime = now;
         dash.EndTime = now + TimeSpan.FromSeconds(length / MathF.Max(1f, args.DashSpeed));
         dash.Event = args;
@@ -556,6 +560,7 @@ public sealed partial class ProperKungFuSystem
         var slide = TimeSpan.FromSeconds(args.FinisherKnockbackDistance / MathF.Max(0.1f, args.FinisherKnockbackSpeed));
         StartKnockback(victim, direction, args.FinisherKnockbackDistance, slide, dust: true);
         _stun.TryKnockdown(victim, slide + args.FinisherKnockdownTime, true);
+        KickFinisherCamera(user, direction);
 
         _audio.PlayPvs(args.FinisherCrossSound, victim);
         _popup.PopupEntity(Loc.GetString("proper-kung-fu-wolf-instinct-finisher-cross-user", ("target", victim)), user, user, PopupType.Large);

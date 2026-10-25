@@ -113,6 +113,9 @@ public sealed partial class ProperKungFuSystem
             Spawn(effect, coords);
         }
 
+        SpawnSlamFlourish(coords, ripple: true);
+        KickFinisherCamera(user, coords.Position - _transform.GetWorldPosition(user), 0.45f);
+
         _audio.PlayPvs(args.FinisherSound, target);
 
         // The mark is renewed so the Whirlwind/Hammer follow-ups on a Wolf-Gripped target are still possible.

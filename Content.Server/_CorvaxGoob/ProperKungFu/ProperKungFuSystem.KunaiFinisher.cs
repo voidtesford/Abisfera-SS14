@@ -594,10 +594,12 @@ public sealed partial class ProperKungFuSystem
             spot = free;
 
         SpawnAfterimage(user, map, userPos, DashAfterimageEffect);
+        SpawnSpeedLines(map, userPos, spot);
         RemComp<ProperKungFuSlidingComponent>(user);
         _physics.SetLinearVelocity(user, Vector2.Zero);
         _transform.SetWorldPosition(user, spot);
         _transform.SetWorldRotation(user, dir.ToWorldAngle());
+        KickFinisherCamera(user, dir, 0.45f);
 
         // The kanji glow behind the victim.
         var kanjiPos = victimPos + dir * DeathPunchKanjiDistance;

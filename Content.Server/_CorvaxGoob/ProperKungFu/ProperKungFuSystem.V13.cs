@@ -6,6 +6,7 @@ using Content.Shared._Shitmed.Targeting;
 using Content.Shared.Damage;
 using Content.Shared.Damage.Systems;
 using Content.Shared.Mobs.Components;
+using Content.Shared.Movement.Pulling.Components;
 using Content.Shared.Popups;
 using Robust.Shared.Audio;
 using Robust.Shared.Map;
@@ -49,6 +50,22 @@ public sealed partial class ProperKungFuSystem
         Dirty(zone, tint);
         EnsureComp<TimedDespawnComponent>(zone).Lifetime = (float) duration.TotalSeconds + 0.1f;
         return zone;
+    }
+
+    /// <summary>
+    /// Ends every pull between or by <paramref name="a"/> and <paramref name="b"/> before one of them is moved by a
+    /// skill: a pull joint left in place yanks the other body after every blink and slide.
+    /// </summary>
+    private void ReleasePulls(EntityUid a, EntityUid b)
+    {
+        foreach (var uid in new[] { a, b })
+        {
+            if (TryComp<PullableComponent>(uid, out var pullable) && pullable.BeingPulled)
+                _pulling.TryStopPull(uid, pullable, ignoreGrab: true);
+            if (TryComp<PullerComponent>(uid, out var puller) && puller.Pulling is { } pulled
+                && TryComp<PullableComponent>(pulled, out var pulledComp))
+                _pulling.TryStopPull(pulled, pulledComp, ignoreGrab: true);
+        }
     }
 
     private Vector2 DirectionTo(EntityUid from, EntityUid to, Vector2 fallback)
@@ -359,7 +376,9 @@ public sealed partial class ProperKungFuSystem
                     continue;
                 }
 
-                if (comp.Stage <= 4)
+                // v13.1: only from the flurry on, once Center is the victim's real spot. Holding during stage 2
+                // (before Center was set) pinned the victim to (0, 0) of the map, far from the cast.
+                if (comp.Stage is >= 3 and <= 4)
                 {
                     // Held in the air during the flurry and the barrage.
                     _transform.SetWorldPosition(comp.Victim, comp.Center);
@@ -429,6 +448,8 @@ public sealed partial class ProperKungFuSystem
                 kungFu.UltimateJudgmentUsed = true;
                 var userPos = _transform.GetWorldPosition(user);
                 comp.Victim = victims.MinBy(v => (_transform.GetWorldPosition(v) - userPos).LengthSquared());
+                comp.Center = _transform.GetWorldPosition(comp.Victim);
+                ReleasePulls(user, comp.Victim);
                 comp.Full = true;
                 comp.Stage = 2;
                 comp.NextStep = now + TimeSpan.FromSeconds(0.15);
@@ -439,6 +460,7 @@ public sealed partial class ProperKungFuSystem
                 // Dash in, the world turns crimson, the victim is thrown up for the flurry.
                 var victim = comp.Victim;
                 comp.Center = _transform.GetWorldPosition(victim);
+                ReleasePulls(user, victim);
                 var from = _transform.GetWorldPosition(user);
                 var dir = DirectionTo(user, victim, comp.Direction);
                 comp.Direction = dir;
@@ -450,6 +472,8 @@ public sealed partial class ProperKungFuSystem
                 {
                     SpawnAfterimage(user, map, Vector2.Lerp(from, spot, i / 4f), JudgmentRedDouble);
                 }
+
+                SpawnSpeedLines(map, from, spot);
 
                 RemComp<ProperKungFuSlidingComponent>(user);
                 RemComp<ProperKungFuSlidingComponent>(victim);
@@ -472,7 +496,7 @@ public sealed partial class ProperKungFuSystem
             }
             case 3:
             {
-                // Red flurry: the user blinks between the points of a star, a golden triple claw every hit.
+                // Red flurry: the user blinks between the points of a star, a crimson triple claw every hit.
                 var victim = comp.Victim;
                 var angle = comp.Direction.ToAngle() + Angle.FromDegrees(180 + 144 * comp.Count);
                 var spot = comp.Center + angle.ToVec() * 1.2f;
@@ -542,6 +566,7 @@ public sealed partial class ProperKungFuSystem
                 DealChunkedDamage(user, victim, Slash(JudgmentPalmDamage), SkillTargetPart);
 
                 StartKnockback(victim, dir, JudgmentKnockback, JudgmentKnockbackTime, dust: true);
+                KickFinisherCamera(user, dir, 0.5f);
                 SendPose(victim, ProperKungFuPose.Launch, (float) JudgmentKnockbackTime.TotalSeconds, 0.5f, 3f);
                 _stun.TryKnockdown(victim, JudgmentKnockbackTime + args.KnockdownTime, true);
                 _audio.PlayPvs(JudgmentPalmSound, victim);
@@ -758,6 +783,7 @@ public sealed partial class ProperKungFuSystem
         var dir = DirectionTo(user, attacker, _transform.GetWorldRotation(user).ToWorldVec());
         var userPos = _transform.GetWorldPosition(user);
         var attackerPos = _transform.GetWorldPosition(attacker);
+        ReleasePulls(user, attacker);
 
         // Out of arm's reach (thrown or shot): one blink in to catch them.
         if ((attackerPos - userPos).Length() > 1.0f)
@@ -770,6 +796,7 @@ public sealed partial class ProperKungFuSystem
                 SpawnAfterimage(user, map, Vector2.Lerp(userPos, spot, i / 3f), DashAfterimageEffect);
             }
 
+            SpawnSpeedLines(map, userPos, spot);
             _transform.SetWorldPosition(user, spot);
             userPos = spot;
         }
