@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Taken from tgstation at https://github.com/tgstation/tgstation/blob/1a2b4c66e573cac0e9eb0699b42890b287662de4/icons/obj/machines/gateway.dmi, recoloured crimson for Abisfera (CorvaxGoob); bluespace storage plinth and crystal sockets drawn for Abisfera in the gateway palette",
+  "size": {
+    "x": 96,
+    "y": 96
+  },
+  "states": [
+    {
+      "name": "frame"
+    },
+    {
+      "name": "on",
+      "delays": [
+        [
+          0.2,
+          0.2,
+          0.2
+        ]
+      ]
+    },
+    {
+      "name": "portal",
+      "delays": [
+        [
+          0.3,
+          0.3,
+          0.3
+        ]
+      ]
+    },
+    {
+      "name": "rack"
+    },
+    {
+      "name": "bs_0"
+    },
+    {
+      "name": "bs_1"
+    },
+    {
+      "name": "bs_2"
+    },
+    {
+      "name": "bs_3"
+    },
+    {
+      "name": "bs_4"
+    },
+    {
+      "name": "bs_5"
+    },
+    {
+      "name": "bs_6"
+    },
+    {
+      "name": "bs_7"
+    },
+    {
+      "name": "bs_8"
+    },
+    {
+      "name": "bs_9"
+    },
+    {
+      "name": "bs_10"
+    },
+    {
+      "name": "rs_0"
+    },
+    {
+      "name": "rs_1"
+    },
+    {
+      "name": "rs_2"
+    },
+    {
+      "name": "rs_3"
+    },
+    {
+      "name": "rs_4"
+    },
+    {
+      "name": "rs_5"
+    },
+    {
+      "name": "rs_6"
+    },
+    {
+      "name": "rs_7"
+    },
+    {
+      "name": "rs_8"
+    },
+    {
+      "name": "rs_9"
+    },
+    {
+      "name": "rs_10"
+    },
+    {
+      "name": "rs_11"
+    },
+    {
+      "name": "rs_12"
+    }
+  ]
+}

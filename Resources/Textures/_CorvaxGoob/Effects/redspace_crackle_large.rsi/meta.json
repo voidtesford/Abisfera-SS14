@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Redspace crackle overlays for the Euclidean portal and gate, made for Abisfera (CorvaxGoob)",
+  "size": {
+    "x": 96,
+    "y": 96
+  },
+  "states": [
+    {
+      "name": "portal",
+      "delays": [
+        [
+          0.07,
+          0.08,
+          0.09,
+          0.09,
+          0.08,
+          0.07,
+          0.2,
+          0.2
+        ]
+      ]
+    },
+    {
+      "name": "gate",
+      "delays": [
+        [
+          0.07,
+          0.08,
+          0.09,
+          0.09,
+          0.08,
+          0.07,
+          0.2,
+          0.2
+        ]
+      ]
+    },
+    {
+      "name": "gate_idle",
+      "delays": [
+        [
+          0.07,
+          0.08,
+          0.09,
+          0.09,
+          0.08,
+          0.07,
+          0.2,
+          0.2
+        ]
+      ]
+    },
+    {
+      "name": "portal_frame",
+      "delays": [
+        [
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08
+        ]
+      ]
+    },
+    {
+      "name": "gate_frame",
+      "delays": [
+        [
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08,
+          0.08
+        ]
+      ]
+    }
+  ]
+}

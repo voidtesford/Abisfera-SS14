@@ -1,0 +1,91 @@
+# Redspace crystals: item, stack and ambient effects only (no recipes or ore yet).
+- type: entity
+  parent: BaseItem
+  id: MaterialRedspaceCrystal
+  name: redspace crystal
+  description: Emits an ominously boundless energy from another dimension.
+  suffix: Full
+  components:
+  - type: RedspaceCrystal
+  - type: Stack
+    stackType: RedspaceCrystal
+    count: 10
+    baseLayer: base
+    layerFunction: Threshold
+    layerStates:
+    - crystal
+    - crystal_2
+    - crystal_3
+    - crystal_4
+  # 1 / 2-3 / 4-6 / 7-10
+  - type: StackLayerThreshold
+    thresholds: [2, 4, 7]
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Materials/redspace_crystal.rsi
+    state: crystal_4
+    layers:
+    - state: crystal_4
+      map: ["base"]
+    - sprite: _CorvaxGoob/Effects/redspace_crackle.rsi
+      state: crackle
+      map: ["enum.PeriodicCrackleLayers.Crackle"]
+      shader: unshaded
+      visible: false
+  - type: Item
+    sprite: _CorvaxGoob/Objects/Materials/redspace_crystal.rsi
+    size: Small
+  - type: Appearance
+  - type: PointLight
+    enabled: true
+    radius: 1.6
+    energy: 1.2
+    color: "#C0102A"
+    castShadows: false
+  - type: LightBehaviour
+    behaviours:
+    - !type:PulseBehaviour
+      interpolate: Cubic
+      maxDuration: 2.4
+      startValue: 0.7
+      endValue: 1.4
+      property: Energy
+      isLooped: true
+      enabled: true
+  - type: PeriodicCrackle
+    minInterval: 4
+    maxInterval: 9
+    duration: 0.6
+    # Bright arcs around the holder's hand while crackling (the in-hand sprite has no entity overlay).
+    inhandVisuals:
+      left:
+      - sprite: _CorvaxGoob/Objects/Materials/redspace_crystal.rsi
+        state: inhand-left-crackle
+        shader: unshaded
+      right:
+      - sprite: _CorvaxGoob/Objects/Materials/redspace_crystal.rsi
+        state: inhand-right-crackle
+        shader: unshaded
+    sound:
+      collection: sparks
+      params:
+        volume: -12
+        maxDistance: 4
+        variation: 0.1
+
+- type: entity
+  parent: MaterialRedspaceCrystal
+  id: MaterialRedspaceCrystal1
+  suffix: Single
+  components:
+  - type: Sprite
+    state: crystal
+    layers:
+    - state: crystal
+      map: ["base"]
+    - sprite: _CorvaxGoob/Effects/redspace_crackle.rsi
+      state: crackle
+      map: ["enum.PeriodicCrackleLayers.Crackle"]
+      shader: unshaded
+      visible: false
+  - type: Stack
+    count: 1

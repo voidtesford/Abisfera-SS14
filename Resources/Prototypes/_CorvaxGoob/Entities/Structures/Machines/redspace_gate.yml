@@ -1,0 +1,262 @@
+# Euclidean gate: a crystal-fuelled gate that opens a two-way portal to typed X,Y coordinates.
+# Based on the exploration gateway (Entities/Structures/Machines/gateway.yml).
+
+- type: entity
+  parent: BaseStructure
+  id: RedspaceGate
+  name: Euclidean gate
+  description: A device built to open corridors through the space between worlds. Can be used as a local teleportation bridge.
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Machines/redspace_gate.rsi
+    noRot: true
+    layers:
+    - state: frame
+    # Bluespace storage plinth built into the bottom of the gate (10 sockets) and the gate's crimson crystal sockets.
+    - state: rack
+    - state: rs_0
+      shader: unshaded
+      map: ["enum.RedspaceGateVisualLayers.RedspaceSockets"]
+    - state: bs_0
+      shader: unshaded
+      map: ["enum.RedspaceGateVisualLayers.BluespaceRack"]
+    - state: portal
+      shader: unshaded
+      visible: false
+      map: ["enum.RedspaceGateVisualLayers.Portal"]
+    # Constant looping arcs crawling around the ring while the portal is open (the periodic crackle stays on top).
+    - sprite: _CorvaxGoob/Effects/redspace_crackle_large.rsi
+      state: gate_frame
+      shader: unshaded
+      visible: false
+      map: ["enum.RedspaceGateVisualLayers.PortalFrame"]
+    - state: on
+      shader: unshaded
+      visible: false
+      map: ["enum.RedspaceGateVisualLayers.Fuel"]
+    # Idle: arcs along the frame/pillars; open: around the ring (switched by RedspaceGateVisuals.Active).
+    - sprite: _CorvaxGoob/Effects/redspace_crackle_large.rsi
+      state: gate_idle
+      map: ["enum.PeriodicCrackleLayers.Crackle"]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.RedspaceGateVisuals.Active:
+        enum.RedspaceGateVisualLayers.Portal:
+          True: { visible: true }
+          False: { visible: false }
+        enum.RedspaceGateVisualLayers.PortalFrame:
+          True: { visible: true }
+          False: { visible: false }
+        enum.PeriodicCrackleLayers.Crackle:
+          True: { state: gate }
+          False: { state: gate_idle }
+      enum.RedspaceGateVisuals.Fueled:
+        enum.RedspaceGateVisualLayers.Fuel:
+          True: { visible: true }
+          False: { visible: false }
+      # One socketed crystal per 5 bluespace (rack, 0-10) / per 2 redspace (frame, 0-12).
+      enum.RedspaceGateVisuals.BluespaceLevel:
+        enum.RedspaceGateVisualLayers.BluespaceRack:
+          0: { state: bs_0 }
+          1: { state: bs_1 }
+          2: { state: bs_2 }
+          3: { state: bs_3 }
+          4: { state: bs_4 }
+          5: { state: bs_5 }
+          6: { state: bs_6 }
+          7: { state: bs_7 }
+          8: { state: bs_8 }
+          9: { state: bs_9 }
+          10: { state: bs_10 }
+      enum.RedspaceGateVisuals.RedspaceLevel:
+        enum.RedspaceGateVisualLayers.RedspaceSockets:
+          0: { state: rs_0 }
+          1: { state: rs_1 }
+          2: { state: rs_2 }
+          3: { state: rs_3 }
+          4: { state: rs_4 }
+          5: { state: rs_5 }
+          6: { state: rs_6 }
+          7: { state: rs_7 }
+          8: { state: rs_8 }
+          9: { state: rs_9 }
+          10: { state: rs_10 }
+          11: { state: rs_11 }
+          12: { state: rs_12 }
+  - type: InteractionOutline
+  - type: Physics
+    bodyType: Static
+  - type: Transform
+    noRot: true
+  - type: Fixtures
+    fixtures:
+      # Must be called portalFixture, SharedPortalSystem teleports on collision with it.
+      portalFixture:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.25,-0.48,0.25,0.48"
+        mask:
+        - FullTileMask
+        layer:
+        - WallLayer
+        hard: false
+  - type: Appearance
+  - type: PointLight
+    enabled: false
+    color: "#C0102A"
+    radius: 4
+    energy: 2
+  - type: ActivatableUI
+    key: enum.RedspaceGateUiKey.Key
+  - type: UserInterface
+    interfaces:
+      enum.RedspaceGateUiKey.Key:
+        type: RedspaceGateBoundUserInterface
+  - type: ItemSlots
+    slots:
+      disk_slot:
+        insertSound:
+          path: /Audio/Machines/terminal_insert_disc.ogg
+        ejectSound:
+          path: /Audio/Machines/terminal_insert_disc.ogg
+        whitelist:
+          components:
+          - ShuttleDestinationCoordinates
+  - type: ContainerContainer
+    containers:
+      disk_slot: !type:ContainerSlot {}
+  - type: Damageable
+    damageContainer: StructuralInorganic
+    damageModifierSet: StructuralMetallic
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 400
+      behaviors:
+      - !type:DoActsBehavior
+        acts: ["Destruction"]
+      - !type:PlaySoundBehavior
+        sound:
+          collection: MetalBreak
+      - !type:SpawnEntitiesBehavior
+        spawn:
+          SheetSteel1:
+            min: 3
+            max: 5
+  - type: RedspaceGate
+  # Crackles like a crystal (4-9 s, along the frame) only while it holds crystals; RedspaceGateSystem
+  # enables it with fuel and switches it to 2-5 s around the ring while the portal is open.
+  - type: PeriodicCrackle
+    enabled: false
+    minInterval: 4
+    maxInterval: 9
+    duration: 0.6
+    crackleWhenHeld: false
+    sound:
+      collection: sparks
+      params:
+        volume: -10
+        maxDistance: 5
+        variation: 0.1
+  - type: StaticPrice
+    price: 4000
+
+- type: entity
+  parent: BaseItem
+  id: RedspaceGateFlatpack
+  name: Euclidean gate flatpack
+  description: A dense, folded Euclidean gate. Use a multitool on it to unfold it in place.
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Devices/redspace_gate_flatpack.rsi
+    state: icon
+    noRot: true
+  - type: Item
+    sprite: _CorvaxGoob/Objects/Devices/redspace_gate_flatpack.rsi
+    size: Large
+  - type: RedspaceGateFlatpack
+    unfolding: RedspaceGateUnfolding
+  - type: StaticPrice
+    price: 4000
+
+# Stand-in that plays the one-shot unfold (pillars rise from the base, join at the top, the ring lights up)
+# and is replaced by the real gate once it finishes. Spawned in place of the flatpack.
+- type: entity
+  id: RedspaceGateUnfolding
+  name: unfolding Euclidean gate
+  description: A Euclidean gate assembling itself. Better stand back.
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Transform
+    anchored: true
+    noRot: true
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Machines/redspace_gate_unfold.rsi
+    noRot: true
+    drawdepth: Objects
+    layers:
+    - state: unfold
+      map: ["enum.RedspaceGateUnfoldingLayers.Unfold"]
+  - type: Clickable
+  - type: InteractionOutline
+  # Client-side light: builds while the pillars rise, flares when they connect (RedspaceGateUnfoldingSystem).
+  - type: PointLight
+    netsync: false
+    radius: 1.5
+    energy: 0.4
+    color: "#E0203C"
+    castShadows: false
+  - type: RedspaceGateUnfolding
+    gate: RedspaceGate
+
+- type: entity
+  parent: BasePortal
+  id: RedspacePortal
+  name: Euclidean portal
+  description: A crimson tear held open by a Euclidean gate. It leads back to the gate.
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Transform
+    anchored: false
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/redspace_portal.rsi
+    # Always drawn upright, whatever the grid / eye rotation.
+    noRot: true
+    layers:
+    - state: portal
+      shader: unshaded
+    # Constant looping arcs crawling along the portal's rim (96x96, centred on the 32x32 portal).
+    - sprite: _CorvaxGoob/Effects/redspace_crackle_large.rsi
+      state: portal_frame
+      shader: unshaded
+      map: ["enum.RedspaceGateVisualLayers.PortalFrame"]
+    # 96x96 overlay centred on the 32x32 portal: arcs leap off its rim.
+    - sprite: _CorvaxGoob/Effects/redspace_crackle_large.rsi
+      state: portal
+      map: ["enum.PeriodicCrackleLayers.Crackle"]
+      shader: unshaded
+      visible: false
+  - type: Appearance
+  - type: PeriodicCrackle
+    minInterval: 2
+    maxInterval: 5
+    crackleWhenHeld: false
+    duration: 0.6
+    sound:
+      collection: sparks
+      params:
+        volume: -10
+        maxDistance: 5
+        variation: 0.1
+  - type: PointLight
+    color: "#C0102A"
+    radius: 3
+    energy: 1.5
+    netsync: false
+  - type: Portal
+    canTeleportToOtherMaps: true
+    randomTeleport: false
+  - type: RedspaceGatePortal

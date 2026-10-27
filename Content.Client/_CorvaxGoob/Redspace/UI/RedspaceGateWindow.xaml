@@ -1,0 +1,53 @@
+<controls:FancyWindow xmlns="https://spacestation14.io"
+                      xmlns:controls="clr-namespace:Content.Client.UserInterface.Controls"
+                      Title="{Loc 'redspace-gate-window-title'}"
+                      MinSize="440 400">
+    <BoxContainer Orientation="Vertical" Margin="8" SeparationOverride="6">
+        <Label Name="StatusLabel" FontColorOverride="#C0102A"/>
+
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'redspace-gate-window-target-zone'}" MinWidth="150"/>
+            <Label Name="MapLabel" Margin="6 0 0 0" HorizontalExpand="True" ClipText="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'redspace-gate-window-disk'}" MinWidth="150"/>
+            <Label Name="DiskLabel" Margin="6 0 0 0" HorizontalExpand="True"/>
+            <Button Name="EjectButton" Text="{Loc 'redspace-gate-window-eject'}" StyleClasses="OpenLeft"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'redspace-gate-window-gate-position'}" MinWidth="150"/>
+            <Label Name="GatePositionLabel" Margin="6 0 0 0" HorizontalExpand="True"/>
+        </BoxContainer>
+
+        <controls:HLine Color="#C0102A" Thickness="1"/>
+
+        <BoxContainer Orientation="Horizontal" SeparationOverride="4">
+            <Label Text="X:"/>
+            <LineEdit Name="XEdit" MinWidth="90" PlaceHolder="0.0"/>
+            <Label Text="Y:"/>
+            <LineEdit Name="YEdit" MinWidth="90" PlaceHolder="0.0"/>
+            <Button Name="UseGatePositionButton" Text="{Loc 'redspace-gate-window-use-gate-position'}" HorizontalExpand="True"/>
+        </BoxContainer>
+
+        <controls:HLine Color="#C0102A" Thickness="1"/>
+
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'redspace-gate-window-bluespace-rack'}" MinWidth="150"/>
+            <ProgressBar Name="BluespaceBar" Margin="6 0 0 0" HorizontalExpand="True" MinValue="0" MaxValue="1" SetHeight="20"/>
+            <Label Name="BluespaceCountLabel" Margin="6 0 0 0" MinWidth="50"/>
+        </BoxContainer>
+        <Label Name="BluespaceLabel" FontColorOverride="#5FA8FF"/>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'redspace-gate-window-redspace-sockets'}" MinWidth="150"/>
+            <ProgressBar Name="RedspaceBar" Margin="6 0 0 0" HorizontalExpand="True" MinValue="0" MaxValue="1" SetHeight="20"/>
+            <Label Name="RedspaceCountLabel" Margin="6 0 0 0" MinWidth="50"/>
+        </BoxContainer>
+        <Label Name="RedspaceLabel" FontColorOverride="#E0304A"/>
+
+        <BoxContainer Orientation="Horizontal" SeparationOverride="4" VerticalExpand="True" VerticalAlignment="Bottom">
+            <Button Name="OpenButton" Text="{Loc 'redspace-gate-window-open'}" HorizontalExpand="True" StyleClasses="OpenRight"/>
+            <Button Name="ClosePortalButton" Text="{Loc 'redspace-gate-window-close-portal'}" HorizontalExpand="True" StyleClasses="OpenBoth"/>
+            <Button Name="CloseWindowButton" Text="{Loc 'redspace-gate-window-close'}" HorizontalExpand="True" StyleClasses="OpenLeft"/>
+        </BoxContainer>
+    </BoxContainer>
+</controls:FancyWindow>
