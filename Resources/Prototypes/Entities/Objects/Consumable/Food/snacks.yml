@@ -162,6 +162,17 @@
     state: boritos
   - type: Item
     heldPrefix: boritos
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
+  - type: SolutionContainerManager
+    solutions:
+      food:
+        maxVol: 30
+        reagents:
+        - ReagentId: Nutriment
+          Quantity: 2
   - type: Food
     trash:
     - FoodPacketBoritosTrash
@@ -179,6 +190,17 @@
     state: cnds
   - type: Item
     heldPrefix: cnds
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
+  - type: SolutionContainerManager
+    solutions:
+      food:
+        maxVol: 30
+        reagents:
+        - ReagentId: Nutriment
+          Quantity: 2
   - type: Food
     trash:
     - FoodPacketCnDsTrash
@@ -197,6 +219,17 @@
     state: cheesiehonkers
   - type: Item
     heldPrefix: cheesiehonkers
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
+  - type: SolutionContainerManager
+    solutions:
+      food:
+        maxVol: 30
+        reagents:
+        - ReagentId: Nutriment
+          Quantity: 2
   - type: Food
     trash:
     - FoodPacketCheesieTrash
@@ -216,6 +249,17 @@
     state: chips
   - type: Item
     heldPrefix: chips
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
+  - type: SolutionContainerManager
+    solutions:
+      food:
+        maxVol: 30
+        reagents:
+        - ReagentId: Nutriment
+          Quantity: 2
   - type: Food
     trash:
     - FoodPacketChipsTrash
@@ -259,13 +303,14 @@
     tags:
       - FoodSnack
       - ReptilianFood
+      - JunkFood
   - type: SolutionContainerManager
     solutions:
       food:
         maxVol: 30
         reagents:
         - ReagentId: Nutriment
-          Quantity: 10
+          Quantity: 2
         - ReagentId: Theobromine
           Quantity: 3
         - ReagentId: CocoaPowder
@@ -304,6 +349,17 @@
     state: energybar-open
   - type: Item
     heldPrefix: energybar-open
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
+  - type: SolutionContainerManager
+    solutions:
+      food:
+        maxVol: 30
+        reagents:
+        - ReagentId: Nutriment
+          Quantity: 2
 
 - type: entity
   name: Sweetie's pistachios
@@ -326,6 +382,14 @@
     tags:
     - Fruit # Seed of a fruit, you can yell at me
     - Pistachios # Added tag due to CrateFoodGetMore interaction with BountyFruit.
+    - JunkFood
+  - type: SolutionContainerManager
+    solutions:
+      food:
+        maxVol: 30
+        reagents:
+        - ReagentId: Nutriment
+          Quantity: 2
 
 - type: entity
   name: popcorn
@@ -342,6 +406,17 @@
     state: popcorn
   - type: Item
     heldPrefix: popcorn
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
+  - type: SolutionContainerManager
+    solutions:
+      food:
+        maxVol: 30
+        reagents:
+        - ReagentId: Nutriment
+          Quantity: 2
   - type: Food
     trash:
     - FoodPacketPopcornTrash
@@ -365,6 +440,14 @@
   - type: Tag
     tags:
     - Fruit
+    - JunkFood
+  - type: SolutionContainerManager
+    solutions:
+      food:
+        maxVol: 30
+        reagents:
+        - ReagentId: Nutriment
+          Quantity: 2
 
 - type: entity
   name: bob's semki sunflower seeds
@@ -379,6 +462,17 @@
     state: semki
   - type: Item
     heldPrefix: semki
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
+  - type: SolutionContainerManager
+    solutions:
+      food:
+        maxVol: 30
+        reagents:
+        - ReagentId: Nutriment
+          Quantity: 2
   - type: Food
     trash:
     - FoodPacketSemkiTrash
@@ -402,6 +496,14 @@
   - type: Tag
     tags:
     - Meat
+    - JunkFood
+  - type: SolutionContainerManager
+    solutions:
+      food:
+        maxVol: 30
+        reagents:
+        - ReagentId: Nutriment
+          Quantity: 2
 
 - type: entity
   name: syndi-cakes
@@ -416,6 +518,17 @@
     state: syndicakes
   - type: Item
     heldPrefix: syndicakes
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
+  - type: SolutionContainerManager
+    solutions:
+      food:
+        maxVol: 30
+        reagents:
+        - ReagentId: Nutriment
+          Quantity: 2
   - type: Food
     trash:
     - FoodPacketSyndiTrash
@@ -478,13 +591,17 @@
     state: chinese1
   - type: Item
     heldPrefix: chinese1
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
   - type: SolutionContainerManager
     solutions:
       food:
         maxVol: 30 # Room for extra condiments
         reagents:
         - ReagentId: Nutriment
-          Quantity: 10
+          Quantity: 2
         - ReagentId: Soysauce
           Quantity: 2
   - type: Food
@@ -506,13 +623,17 @@
     state: chinese2
   - type: Item
     heldPrefix: chinese2
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
   - type: SolutionContainerManager
     solutions:
       food:
         maxVol: 30 # Room for extra condiments
         reagents:
         - ReagentId: Nutriment
-          Quantity: 10
+          Quantity: 2
         - ReagentId: CapsaicinOil
           Quantity: 2
         - ReagentId: Soysauce
@@ -532,6 +653,10 @@
       - fortunecookie
   - type: Sprite
     state: cookie_fortune
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
   - type: SolutionContainerManager
     solutions:
       food:
@@ -631,13 +756,17 @@
   - type: Item
     heldPrefix: mre-brownie-open
   - type: Food
+  - type: Tag
+    tags:
+      - FoodSnack
+      - JunkFood
   - type: SolutionContainerManager
     solutions:
       food:
         maxVol: 15
         reagents:
         - ReagentId: Nutriment
-          Quantity: 10
+          Quantity: 2
         - ReagentId: Theobromine
           Quantity: 3
 
@@ -658,6 +787,7 @@
     tags:
     - FoodSnack
     - ReptilianFood
+    - JunkFood
   - type: SolutionContainerManager
     solutions:
       food:
