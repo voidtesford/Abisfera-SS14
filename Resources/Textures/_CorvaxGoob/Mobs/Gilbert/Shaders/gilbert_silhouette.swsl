@@ -1,0 +1,36 @@
+// Gilbert's spawn: his sprite as a flat red energy silhouette that assembles from scattered sparks.
+// progress 0 -> 1 over the assembly; pixels appear in a random order, freshly-assembled ones burn hot.
+light_mode unshaded;
+
+uniform highp float progress;
+uniform mediump vec2 reference;
+
+highp float gilbert_hash(highp vec2 p) {
+    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+void fragment() {
+    highp vec4 sprite = zTexture(UV);
+    if (sprite.a == 0.0) {
+        discard;
+    }
+
+    // Noise cells stick to the entity on screen (same reference trick as the stealth shader).
+    highp vec2 coords = FRAGCOORD.xy + reference;
+    highp vec2 cell = floor(coords * 0.5);
+    highp float n = gilbert_hash(cell);
+
+    // Random order: each 2x2 cell lights up once progress passes its threshold.
+    highp float assembled = progress * 1.35 - n * 0.8 - 0.1;
+    if (assembled < 0.0) {
+        discard;
+    }
+
+    highp float fresh = 1.0 - clamp(assembled * 5.0, 0.0, 1.0);
+    highp float lum = dot(sprite.rgb, vec3(0.299, 0.587, 0.114));
+    highp float flicker = 0.85 + 0.15 * sin(TIME * 31.0 + cell.y * 1.7 + cell.x * 0.3);
+    highp vec3 red = vec3(0.95, 0.07, 0.05) * (0.6 + 0.7 * lum) * flicker;
+    highp vec3 hot = vec3(1.0, 0.72, 0.62);
+
+    COLOR = vec4(mix(red, hot, fresh), sprite.a * clamp(0.35 + progress * 0.75, 0.0, 1.0));
+}

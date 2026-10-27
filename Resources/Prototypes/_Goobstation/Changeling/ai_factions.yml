@@ -15,6 +15,7 @@
 - type: npcFaction
   id: Changeling
   hostile:
+  - Gilbert # CorvaxGoob - Gilbert
   - NanoTrasen
   - Syndicate
   - Zombie

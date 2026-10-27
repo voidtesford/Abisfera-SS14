@@ -12,6 +12,7 @@
 - type: npcFaction
   id: Heretic
   hostile:
+  - Gilbert # CorvaxGoob - Gilbert
   - NanoTrasen
   - Syndicate
   - Zombie

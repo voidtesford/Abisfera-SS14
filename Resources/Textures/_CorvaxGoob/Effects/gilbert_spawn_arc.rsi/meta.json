@@ -1,0 +1,22 @@
+{
+    "version": 1,
+    "license": "CC-BY-SA-3.0",
+    "copyright": "Made for Abisfera-SS14 (procedurally drawn electric arcs)",
+    "size": {
+        "x": 64,
+        "y": 64
+    },
+    "states": [
+        {
+            "name": "arc",
+            "delays": [
+                [
+                    0.05,
+                    0.05,
+                    0.05,
+                    0.07
+                ]
+            ]
+        }
+    ]
+}

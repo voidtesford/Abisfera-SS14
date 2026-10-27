@@ -9,6 +9,7 @@
 - type: npcFaction
   id: PirateFaction
   hostile:
+  - Gilbert # CorvaxGoob - Gilbert
   - NanoTrasen
   - Syndicate
   - SimpleHostile
