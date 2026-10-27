@@ -1,0 +1,6 @@
+- type: stack
+  id: RedspaceCrystal
+  name: stack-redspace-crystal
+  icon: { sprite: /Textures/_CorvaxGoob/Objects/Materials/redspace_crystal.rsi, state: crystal }
+  spawn: MaterialRedspaceCrystal1
+  maxCount: 10

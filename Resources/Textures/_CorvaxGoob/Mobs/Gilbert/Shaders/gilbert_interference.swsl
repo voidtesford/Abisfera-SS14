@@ -1,0 +1,169 @@
+// Gilbert's proximity effect (v8): NO static any more (no grain, tearing, wobble, scanlines or colour split).
+// What is left: a pulsing red frame round the screen and branching crimson lightning discharges with a glow
+// and a flicker, of varied sizes, more frequent / bigger / brighter the closer he is.
+// Written for Abisfera (CorvaxGoob). intensity: 0 = invisible, 1 = full (normal Gilbert close by),
+// 1..2 = his second phase (berserk): a stronger frame, more and bigger discharges, a faint red cast.
+
+uniform sampler2D SCREEN_TEXTURE;
+uniform highp float intensity;
+
+const highp vec3 RedCore = vec3(0.878, 0.125, 0.235);  // #E0203C
+const highp vec3 RedDeep = vec3(0.753, 0.063, 0.165);  // #C0102A
+const highp vec3 Crimson = vec3(0.863, 0.078, 0.235);  // #DC143C
+const highp vec3 HotCore = vec3(1.0, 0.82, 0.85);
+const highp float Pi = 3.14159265;
+const highp float Period = 1.1;
+const highp float Life = 0.42;
+
+highp float hash11(highp float p) {
+    return fract(sin(p * 127.1 + 311.7) * 43758.5453);
+}
+
+highp float vnoise(highp float x) {
+    highp float i = floor(x);
+    highp float f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(hash11(i), hash11(i + 1.0), f) * 2.0 - 1.0;
+}
+
+// Distance from p to a jagged arc a -> b; jaggedness grows with the arc's length, tapered at both ends.
+highp float arcDistance(highp vec2 p, highp vec2 a, highp vec2 b, highp float s, highp float taperEnd) {
+    highp vec2 ab = b - a;
+    highp float len = max(length(ab), 0.0001);
+    highp vec2 dir = ab / len;
+    highp vec2 nrm = vec2(-dir.y, dir.x);
+    highp vec2 ap = p - a;
+    highp float t = dot(ap, dir) / len;
+    highp float tc = clamp(t, 0.0, 1.0);
+    highp float taper = mix(sin(tc * Pi), sin(tc * Pi * 0.5), taperEnd);
+    highp float jag = (vnoise(tc * 7.0 + s) * 0.09 + vnoise(tc * 23.0 + s * 3.7) * 0.035
+        + vnoise(tc * 71.0 + s * 1.3) * 0.012) * len * taper;
+    highp float side = abs(dot(ap, nrm) - jag);
+    highp float along = max(max(-t, t - 1.0), 0.0) * len;
+    return length(vec2(side, along));
+}
+
+// Point on the jagged arc at parameter t (same shape as arcDistance), for hanging branches off it.
+highp vec2 arcPoint(highp vec2 a, highp vec2 b, highp float s, highp float t, highp float taperEnd) {
+    highp vec2 ab = b - a;
+    highp float len = max(length(ab), 0.0001);
+    highp vec2 dir = ab / len;
+    highp vec2 nrm = vec2(-dir.y, dir.x);
+    highp float taper = mix(sin(t * Pi), sin(t * Pi * 0.5), taperEnd);
+    highp float jag = (vnoise(t * 7.0 + s) * 0.09 + vnoise(t * 23.0 + s * 3.7) * 0.035
+        + vnoise(t * 71.0 + s * 1.3) * 0.012) * len * taper;
+    return a + ab * t + nrm * jag;
+}
+
+// One discharge: a main bolt with up to three forks, each fork with one twig. Returns (core, glow).
+highp vec2 discharge(highp vec2 p, highp float aspect, highp float slotIndex, highp float chance, highp float t,
+    highp float salt, highp float k) {
+    highp float slot = slotIndex + salt;
+    if (hash11(slot * 1.73) > chance)
+        return vec2(0.0);
+
+    highp float start = hash11(slot * 4.11) * (Period - Life);
+    highp float local = t - slotIndex * Period - start;
+    if (local < 0.0 || local > Life)
+        return vec2(0.0);
+
+    // Flicker: strobing on / half / off frames, re-striking (new shape) a couple of times.
+    highp float frame = floor(local * 30.0);
+    highp float fl = hash11(frame + slot * 9.1);
+    highp float flicker = fl < 0.18 ? 0.0 : (fl < 0.45 ? 0.45 : 1.0);
+    highp float env = (1.0 - local / Life);
+    env = env * flicker;
+    highp float strike = floor(local * 9.0);
+
+    // Size: from a small spark to one crossing the screen; bigger and thicker the closer he is.
+    highp float size = mix(0.18, 1.0, pow(hash11(slot * 5.21), 1.4)) * mix(0.55, 1.25, k);
+    highp float width = mix(0.7, 1.6, hash11(slot * 6.13)) * mix(0.8, 1.35, k);
+
+    // From a point on a screen edge inwards.
+    highp float side = floor(hash11(slot * 2.39) * 4.0);
+    highp float along = mix(0.08, 0.92, hash11(slot * 3.17));
+    highp vec2 a;
+    highp vec2 inward;
+    if (side < 1.0) { a = vec2(-0.02, along); inward = vec2(1.0, 0.0); }
+    else if (side < 2.0) { a = vec2(aspect + 0.02, along); inward = vec2(-1.0, 0.0); }
+    else if (side < 3.0) { a = vec2(along * aspect, -0.02); inward = vec2(0.0, 1.0); }
+    else { a = vec2(along * aspect, 1.02); inward = vec2(0.0, -1.0); }
+    highp float ang = (hash11(slot * 5.83) - 0.5) * 1.6;
+    highp vec2 dir = vec2(inward.x * cos(ang) - inward.y * sin(ang), inward.x * sin(ang) + inward.y * cos(ang));
+    highp vec2 b = a + dir * size * mix(0.7, 1.0, hash11(slot * 8.8)) * aspect * 0.75;
+
+    highp float seed = slot * 13.7 + strike * 2.31;
+    highp float d = arcDistance(p, a, b, seed, 1.0);
+
+    // Forks off the main bolt, and a twig off each fork.
+    for (int i = 0; i < 3; i++) {
+        highp float fi = float(i);
+        if (hash11(slot * 11.3 + fi * 7.1) > mix(0.45, 0.95, k))
+            continue;
+        highp float at = mix(0.2, 0.75, hash11(slot * 12.7 + fi * 3.3));
+        highp vec2 root = arcPoint(a, b, seed, at, 1.0);
+        highp float fang = (hash11(slot * 14.1 + fi * 5.9) - 0.5) * 2.2;
+        highp vec2 fdir = vec2(dir.x * cos(fang) - dir.y * sin(fang), dir.x * sin(fang) + dir.y * cos(fang));
+        highp float flen = length(b - a) * mix(0.2, 0.5, hash11(slot * 15.3 + fi));
+        highp vec2 tip = root + fdir * flen;
+        highp float fs = seed + 5.0 + fi * 17.0;
+        d = min(d, arcDistance(p, root, tip, fs, 1.0) * 1.35);
+
+        highp vec2 troot = arcPoint(root, tip, fs, 0.55, 1.0);
+        highp float tang = fang + (hash11(slot * 16.9 + fi) - 0.5) * 1.8;
+        highp vec2 tdir = vec2(dir.x * cos(tang) - dir.y * sin(tang), dir.x * sin(tang) + dir.y * cos(tang));
+        d = min(d, arcDistance(p, troot, troot + tdir * flen * 0.45, fs + 9.0, 1.0) * 1.8);
+    }
+
+    highp float core = (1.0 - smoothstep(0.0010 * width, 0.0032 * width, d)) * env;
+    highp float glow = (exp(-d * 38.0 / width) * 0.85 + exp(-d * 9.0 / width) * 0.25) * env;
+    return vec2(core, glow);
+}
+
+void fragment() {
+    highp vec2 uv = FRAGCOORD.xy * SCREEN_PIXEL_SIZE;
+    highp float k = clamp(intensity, 0.0, 1.0);
+    highp float r = clamp(intensity - 1.0, 0.0, 1.0);
+    highp vec2 res = 1.0 / SCREEN_PIXEL_SIZE;
+    highp float aspect = res.x / res.y;
+
+    // The picture itself, untouched (v8: no static of any kind).
+    highp vec3 col = zTextureSpec(SCREEN_TEXTURE, uv).rgb;
+
+    // Berserk: a faint red cast.
+    col = mix(col, col * vec3(1.12, 0.8, 0.8) + RedDeep * 0.04, 0.35 * r);
+
+    // --- Pulsing red frame: brighter and wider, then back.
+    highp float pulse = 0.5 + 0.5 * sin(TIME * 2.0 * Pi / 3.2);
+    pulse = pulse * pulse;
+    highp float edge = min(min(uv.x, 1.0 - uv.x) * aspect, min(uv.y, 1.0 - uv.y));
+    edge += vnoise(uv.x * 23.0 + uv.y * 17.0 + TIME * 1.5) * 0.006;
+    highp float width = mix(0.05, 0.17, pulse) * (0.55 + 0.45 * k) * (1.0 + 0.5 * r);
+    highp float vig = 1.0 - smoothstep(0.0, width, edge);
+    vig = vig * vig;
+    highp float vigStrength = mix(0.35, 0.85, pulse) * k * (1.0 + 0.3 * r);
+    col = mix(col, RedDeep * 0.6, vig * vigStrength * 0.65);
+    col += RedCore * vig * vigStrength * 0.35;
+
+    // --- Crimson discharges: two streams, three more in the berserk; more often and bigger when close.
+    highp vec2 p = vec2(uv.x * aspect, uv.y);
+    highp float kk = clamp(k + 0.35 * r, 0.0, 1.0);
+    highp float arcK = smoothstep(0.1, 0.45, k);
+    highp vec2 arc = vec2(0.0);
+    for (int s = 0; s < 5; s++) {
+        highp float fs = float(s);
+        highp float on = s < 2 ? arcK : r;
+        if (on <= 0.0)
+            continue;
+        highp float chance = s < 2 ? mix(0.2, 0.75, k) : mix(0.35, 0.9, r);
+        highp float ts = TIME + fs * 0.37;
+        highp vec2 one = discharge(p, aspect, floor(ts / Period), chance, ts, fs * 1000.0, kk) * on;
+        arc = max(arc, one);
+    }
+
+    col = mix(col, Crimson * 1.15, clamp(arc.y, 0.0, 1.0) * 0.8);
+    col += Crimson * clamp(arc.y - 1.0, 0.0, 1.0) * 0.3;
+    col = mix(col, HotCore, clamp(arc.x, 0.0, 1.0));
+
+    COLOR = vec4(col, 1.0);
+}

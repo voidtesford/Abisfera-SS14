@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "icon and equipped-NECK procedurally drawn for Abisfera (Gilbert v7, SHOGKK dog tag); in-hands are Clothing/Neck/Misc/bling.rsi (tgstation commit 5a73e8f825ff279e82949b9329783a9e3070e2da, in-hands by SeamLesss) recoloured to silver",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "icon"
+    },
+    {
+      "name": "equipped-NECK",
+      "directions": 4
+    },
+    {
+      "name": "inhand-left",
+      "directions": 4
+    },
+    {
+      "name": "inhand-right",
+      "directions": 4
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+# Gilbert's SHOGKK radio net. Handheld-style (no telecomms needed), frequency 1910.
+- type: radioChannel
+  id: GilbertShogkk
+  name: chat-radio-shogkk
+  keycode: '9' # must be unique (Handheld already owns the empty keycode); no headset carries this channel
+  frequency: 1910
+  color: "#c8202a"
+  longRange: true
+
+# Dark-recoloured handheld radio in Gilbert's pocket: tuned to 1910, speaker and microphone on from the start,
+# constant looping red energy crackle.
+- type: entity
+  parent: RadioHandheld
+  id: RadioHandheldShogkk
+  name: SHOGKK radio
+  description: A dark, battered handheld radio tuned to 1910. It hisses and crackles with red energy.
+  components:
+  - type: RadioMicrophone
+    broadcastChannel: GilbertShogkk
+    listenRange: 2
+    enabled: true
+  - type: RadioSpeaker
+    channels:
+    - GilbertShogkk
+    enabled: true
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Devices/shogkk_radio.rsi
+    layers:
+    - state: walkietalkie
+    - state: walkietalkie-on
+    state: walkietalkie
+  - type: Item
+    sprite: _CorvaxGoob/Objects/Devices/shogkk_radio.rsi
+    heldPrefix: walkietalkie
+  - type: GilbertCrackle
+    sprite: _CorvaxGoob/Effects/Gilbert/crackle_radio.rsi
+  - type: PointLight
+    radius: 1.1
+    energy: 0.5
+    color: "#ff2a2a"
+    castShadows: false

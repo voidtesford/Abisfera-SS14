@@ -1,0 +1,69 @@
+- files:
+  - gilbert_idle_1.ogg
+  - gilbert_idle_2.ogg
+  - gilbert_idle_3.ogg
+  - gilbert_idle_4.ogg
+  - gilbert_idle_5.ogg
+  - gilbert_idle_6.ogg
+  - gilbert_idle_7.ogg
+  - gilbert_found_1.ogg
+  - gilbert_found_2.ogg
+  - gilbert_surrender_1.ogg
+  - gilbert_noncomply_1.ogg
+  - gilbert_lost_1.ogg
+  - gilbert_lost_2.ogg
+  - gilbert_lost_3.ogg
+  - gilbert_halfhealth_1.ogg
+  - gilbert_halfhealth_2.ogg
+  - gilbert_halfhealth_3.ogg
+  - gilbert_reload_1.ogg
+  - gilbert_reload_2.ogg
+  - gilbert_shove_1.ogg
+  - gilbert_kill_1.ogg
+  - gilbert_kill_2.ogg
+  - gilbert_kill_3.ogg
+  - gilbert_kill_4.ogg
+  - gilbert_kill_5.ogg
+  - gilbert_kill_6.ogg
+  - gilbert_getout_1.ogg
+  license: "Custom"
+  copyright: "Voice lines of Gilbert from the Roblox game EXAMINATION, Russian fan dub by BDTE. Cut, converted to mono and loudness-normalised for Abisfera-SS14; provided by the server owner. All rights belong to their respective authors."
+  source: "https://www.youtube.com/watch?v=elgYziSQ-Q8"
+
+- files:
+  - gilbert_scream_1.ogg
+  license: "Custom"
+  copyright: "Wordless howl made from the \"Aaa\" yell (1:33.10-1:33.86) of Gilbert's voice from the Roblox game EXAMINATION, Russian fan dub by BDTE; pitch-layered (x1.0/x0.8/x0.62), reverbed and loudness-normalised for Abisfera-SS14; provided by the server owner. All rights belong to their respective authors."
+  source: "https://www.youtube.com/watch?v=elgYziSQ-Q8"
+
+- files:
+  - gilbert_berserk_punch_1.ogg
+  - gilbert_berserk_punch_2.ogg
+  - gilbert_berserk_punch_3.ogg
+  license: "CC-BY-SA-3.0"
+  copyright: "Heavy energy punch for Abisfera-SS14, mixed with ffmpeg from build sounds: boxingpunch1-3.ogg (Ryan Conway on freesound.org, CC-BY-3.0, https://freesound.org/people/ryanconway/sounds/260739/), explosion_small1-3.ogg low-passed as a thump (vgstation at c5edbfd7179288080f081e2b8ac2496b7e4455db, CC-BY-SA-3.0) and zapbang.ogg pitch-shifted/high-passed (tgstation, CC-BY-SA-3.0)."
+  source: "https://github.com/tgstation/tgstation/blob/80ab61c8c7741e1d95e5f168357a9e6e61b38f2c/sound/items/weapons/zapbang.ogg"
+
+- files:
+  - gilbert_berserk_skull_1.ogg
+  license: "Custom"
+  copyright: "Voice line «Я тебе череп проломлю!» of Gilbert from the Roblox game EXAMINATION, Russian fan dub by BDTE (2:01.72-2:04.95, without the laughter before it). Cut, converted to mono, loudness-normalised hotter than the other lines (about -11.5 LUFS, limited, no clipping) for Abisfera-SS14; provided by the server owner. All rights belong to their respective authors."
+  source: "https://www.youtube.com/watch?v=elgYziSQ-Q8"
+
+- files:
+  - gilbert_ambience_1.ogg
+  license: "Custom"
+  copyright: "Ambient soundtrack for Gilbert's first phase, provided by the server owner for Abisfera-SS14. Leading/trailing silence trimmed for a clean loop, converted to mono, loudness-normalised to about -16 LUFS (limited). All rights belong to their respective authors."
+  source: "https://github.com/CorvaxGoob"
+
+- files:
+  - gilbert_berserk_transition_1.ogg
+  license: "Custom"
+  copyright: "Berserk transition growl-into-roar made from two clips provided by the server owner for Abisfera-SS14: a low sustained growl followed by a roar, silence trimmed, joined with a 0.25 s crossfade, converted to mono and loudness-normalised to about -16 LUFS. All rights belong to their respective authors."
+  source: "https://github.com/CorvaxGoob"
+
+- files:
+  - gilbert_berserk_ambience_1.ogg
+  license: "Custom"
+  copyright: "Soundtrack for Gilbert's berserk phase, provided by the server owner for Abisfera-SS14. Silence trimmed, converted to mono Vorbis (~73 kbps), loudness-normalised to about -16 LUFS (limited). All rights belong to their respective authors."
+  source: "https://github.com/CorvaxGoob"

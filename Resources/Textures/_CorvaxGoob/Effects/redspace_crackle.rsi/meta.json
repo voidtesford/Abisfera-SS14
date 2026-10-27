@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Redspace crystal crackle overlay made for Abisfera (CorvaxGoob)",
+  "size": {
+    "x": 64,
+    "y": 64
+  },
+  "states": [
+    {
+      "name": "crackle",
+      "delays": [
+        [
+          0.07,
+          0.08,
+          0.09,
+          0.09,
+          0.08,
+          0.07,
+          0.2,
+          0.2
+        ]
+      ]
+    }
+  ]
+}

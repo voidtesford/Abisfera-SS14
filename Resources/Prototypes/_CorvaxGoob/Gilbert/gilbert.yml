@@ -1,0 +1,515 @@
+# Gilbert: hostile SHOGKK operative NPC. Names live in Locale/*/ss14-ru/prototypes/_corvaxgoob/entities/gilbert/gilbert.ftl
+
+- type: npcFaction
+  id: Gilbert
+  hostile:
+  - NanoTrasen
+  - Syndicate
+  - PirateFaction
+  - Revolutionary
+  - Heretic
+  - Changeling
+  - DevilFaction
+  - Shadowling
+  - Zombie
+  - Xeno
+  - SimpleHostile
+  # No station fauna (PetsNT / Passive / SimpleNeutral / Mouse): he leaves pets alone and they leave him alone.
+  - AllHostile
+  - Dragon
+  - Blob
+  - Xenoborg
+  - Wizard
+  - Wraith
+  - Lavafauna
+
+- type: damageModifierSet
+  id: GilbertModifiers
+  coefficients:
+    Cold: 0
+    Radiation: 0
+
+- type: startingGear
+  id: GilbertGear
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitShogkk
+    shoes: ClothingShoesBootsShogkk
+    head: ClothingHeadHelmetShogkk
+    mask: ClothingMaskGasSwat
+    neck: ClothingNeckDogtagShogkk # v7: silver SHOGKK dog tag
+    gloves: ClothingHandsGlovesCombat
+    outerClothing: ClothingOuterArmorBulletproof
+    belt: ClothingBeltShogkkWebbingFilled
+    back: ClothingBackpackDuffelMilitaryShogkkFilled
+    id: ShogkkIDCard
+    pocket1: RadioHandheldShogkk
+  inhand:
+  - WeaponShotgunCombatShogkk
+
+- type: entity
+  parent: BaseMobHuman
+  id: MobGilbert
+  name: Gilbert
+  description: ""
+  components:
+  - type: Gilbert
+  - type: GilbertAbilities
+  - type: GilbertAI
+  - type: GilbertBerserk
+  - type: GilbertFractureImmune
+  # Appearance (pale skin, black HumanHairBusiness3, red eyes) is applied by GilbertSystem on MapInit:
+  # humanoidProfile prototypes overflow the stack in HumanoidCharacterProfile.Equals during prototype load.
+  - type: HumanoidAppearance
+    species: Human
+    hideLayersOnEquip:
+    - Hair
+    - Snout
+  - type: MobThresholds
+    thresholds:
+      0: Alive
+      500: Dead
+  - type: Damageable
+    damageContainer: Biological
+    damageModifierSet: GilbertModifiers
+    radiationDamageTypes: []
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTypeTrigger
+        damageType: Blunt
+        damage: 5000
+      behaviors:
+      - !type:GibBehavior { }
+  # NPC: no combat-mode UI toggle sounds (the default paths are missing in this repo and would add linter errors).
+  - type: CombatMode
+    combatActivationSound: null
+    combatDeactivationSound: null
+  # Cold immunity: temperature damage ignores resistances, so the cold damage itself is removed.
+  - type: Temperature
+    heatDamageThreshold: 325
+    coldDamageThreshold: 0
+    currentTemperature: 310.15
+    specificHeat: 42
+    coldDamage: {}
+    heatDamage:
+      types:
+        Heat: 1.5
+  # Triple the default stamina pool (100): stun batons and shoves take three times as long to down him.
+  # The animation / stun-modifier thresholds are scaled by the same factor.
+  - type: Stamina
+    critThreshold: 300
+    animationThreshold: 150
+    stunModifierThresholds:
+      0: 1
+      180: 0.7
+      240: 0.5
+  - type: BreathingImmunity
+  - type: PressureImmunity
+  - type: MeleeWeapon
+    soundHit:
+      collection: Punch
+    angle: 30
+    animation: WeaponArcFist
+    attackRate: 1
+    damage:
+      types:
+        Blunt: 15
+  - type: MeleeThrowOnHit
+    speed: 6
+    distance: 1
+  # Heavy stomp of the Death Squad magboots (FootstepHeavySuit). On the body, so it always plays:
+  # the mover's own FootstepModifier wins over the shoes' and the tile's.
+  - type: FootstepModifier
+    footstepSoundCollection:
+      collection: FootstepHeavySuit
+      params:
+        volume: 3
+  # Red glow of his eyes in the dark. The offset turns with him, so the light spills just in front of his face
+  # (rotation 0 faces south = local -Y). Switched off on death by GilbertSystem.
+  - type: PointLight
+    color: "#ff1a1a"
+    radius: 2.2
+    energy: 1.1
+    softness: 1
+    offset: 0, -0.2
+    castShadows: false
+  - type: NpcFactionMember
+    factions:
+    - Gilbert
+  - type: Loadout
+    prototypes:
+    - GilbertGear
+  - type: InputMover
+  - type: MobMover
+
+# Short white-red electric arc crackling around Gilbert's body while he spawns (purely visual, never shocks).
+- type: entity
+  id: GilbertSpawnArc
+  name: electric arc
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_spawn_arc.rsi
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - state: arc
+      shader: unshaded
+  - type: PointLight
+    enabled: true
+    color: "#ff4040"
+    radius: 1.5
+    energy: 1.2
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.22
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# White shockwave of Gilbert's scream (5 tiles radius).
+- type: entity
+  id: GilbertShockwaveEffect
+  name: shockwave
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_shockwave.rsi
+    drawdepth: Effects
+    scale: 3.5, 3.5
+    layers:
+    - state: wave
+      shader: unshaded
+  - type: PointLight
+    color: "#ffffff"
+    radius: 5
+    energy: 1.5
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.4
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Gilbert's spawn sequence, part 1: red energy streaks converging into his silhouette (purely visual).
+- type: entity
+  id: GilbertSpawnConverge
+  name: red energy
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_energy_large.rsi
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - state: converge
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2020"
+    radius: 2.5
+    energy: 1.6
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 1.7
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Gilbert's spawn sequence, part 2: a small energy explosion (purely visual, never damages anything).
+- type: entity
+  id: GilbertSpawnBurst
+  name: energy burst
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_energy_large.rsi
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - state: burst
+      shader: unshaded
+  - type: PointLight
+    color: "#ff3030"
+    radius: 4
+    energy: 3
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.4
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Red energy crackling inside the white shockwave of Gilbert's scream (purely visual).
+- type: entity
+  id: GilbertScreamCrackle
+  name: red crackle
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_energy_large.rsi
+    drawdepth: Effects
+    scale: 2.5, 2.5
+    noRot: true
+    layers:
+    - state: scream_crackle
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2a2a"
+    radius: 4
+    energy: 2
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.4
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Red energy burst where Gilbert's dash starts and ends (purely visual).
+- type: entity
+  id: GilbertDashBurst
+  name: energy burst
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_energy.rsi
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - state: dash_burst
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2a2a"
+    radius: 2
+    energy: 2
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.3
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Red afterimage segment along Gilbert's dash path (purely visual).
+- type: entity
+  id: GilbertDashTrail
+  name: afterimage
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_energy_small.rsi
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - state: trail
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2a2a"
+    radius: 1
+    energy: 0.8
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.3
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Red impact flash on the victim of Gilbert's shove (purely visual).
+- type: entity
+  id: GilbertShoveImpact
+  name: red impact
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_energy.rsi
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - state: shove_impact
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2a2a"
+    radius: 1.5
+    energy: 1.5
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.3
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Small red spark where Gilbert's punch lands (purely visual).
+- type: entity
+  id: GilbertPunchSpark
+  name: spark
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_energy_small.rsi
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - state: spark
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2a2a"
+    radius: 1
+    energy: 1
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.16
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Berserk (v6): the charge bursting out of Gilbert, a 10 tile ring (96 px x 7 = 21 tiles across).
+- type: entity
+  id: GilbertBerserkBurstRing
+  name: energy burst
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_berserk_burst.rsi
+    drawdepth: Effects
+    noRot: false
+    scale: 7, 7
+    layers:
+    - state: ring
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2020"
+    radius: 10
+    energy: 3
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.48
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Berserk: one tile of an energy stream running out along the floor (art points east, rotated outwards).
+- type: entity
+  id: GilbertBerserkStream
+  name: energy stream
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_berserk_stream.rsi
+    drawdepth: FloorObjects
+    noRot: false
+    layers:
+    - state: stream
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2020"
+    radius: 1.5
+    energy: 1.4
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.3
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Berserk: chaotic crackle of energy in the air within the burst radius.
+- type: entity
+  id: GilbertBerserkCrackle
+  name: energy crackle
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_berserk_crackle.rsi
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - state: crackle
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2020"
+    radius: 1.2
+    energy: 1.2
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.2
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Berserk punch: a small energy explosion on whatever he hits.
+- type: entity
+  id: GilbertBerserkPunch
+  name: energy blast
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_berserk_punch.rsi
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - state: blast
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2020"
+    radius: 2
+    energy: 2
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.3
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Berserk punch: a bit of the cascade flying out of the blast (art flies east, rotated outwards).
+- type: entity
+  id: GilbertBerserkPunchShard
+  name: energy shard
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_berserk_shard.rsi
+    drawdepth: Effects
+    noRot: false
+    layers:
+    - state: shard
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2020"
+    radius: 0.8
+    energy: 1
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.25
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Berserk death: the energy explosion that kills him (purely visual, 96 px x 3).
+- type: entity
+  id: GilbertBerserkExplosion
+  name: energy explosion
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_berserk_explosion.rsi
+    drawdepth: Effects
+    noRot: false
+    scale: 3, 3
+    layers:
+    - state: explosion
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2020"
+    radius: 8
+    energy: 4
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.6
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# v6 berserk: heavy energy punch hit (thump + zap), mixed from build sounds.
+- type: soundCollection
+  id: GilbertBerserkPunch
+  files:
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_berserk_punch_1.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_berserk_punch_2.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_berserk_punch_3.ogg

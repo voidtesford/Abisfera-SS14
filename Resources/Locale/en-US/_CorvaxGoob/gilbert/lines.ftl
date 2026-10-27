@@ -1,0 +1,30 @@
+# Gilbert voice lines (English translation of the Russian dub).
+gilbert-line-idle-1 = What are those footsteps? Nah, a rat, probably.
+gilbert-line-idle-2 = Base, this is Gilbert. Do you copy? Is anybody here?
+gilbert-line-idle-3 = Damn! Base, can you hear me? Respond! Where did everyone go?
+gilbert-line-idle-4 = I swear Troy was just with me. Where did he go? Troy! Where are you? We need to regroup.
+gilbert-line-idle-5 = The radio's dead.
+gilbert-line-idle-6 = Is anybody here? Guys, say something!
+gilbert-line-idle-7 = What's this? My blood? No. No, it can't be. Not now.
+gilbert-line-found-1 = Contact! Engaging!
+gilbert-line-found-2 = I told you to stay away!
+gilbert-line-surrender-1 = You! Hands up! I won't repeat myself.
+gilbert-line-noncomply-1 = Why won't you listen? Engaging!
+gilbert-line-lost-1 = Where the hell did he go?
+gilbert-line-lost-2 = Since when do they run away? Cowards, am I right?
+gilbert-line-lost-3 = Run, run, and don't come back! Please.
+gilbert-line-halfhealth-1 = Troy! It's getting hot in here! Troy! Where's the flank cover?
+gilbert-line-halfhealth-2 = Troy! Get out, demons! Get out!
+gilbert-line-halfhealth-3 = Argh, I'm hit! I'm still in the fight! I won't go down that easily!
+gilbert-line-reload-1 = Reloading!
+gilbert-line-reload-2 = Empty!
+gilbert-line-shove-1 = You fight like a girl!
+# Scream is a wordless howl: emote only, never chat speech.
+gilbert-scream-emote = howls
+gilbert-line-kill-1 = Next time try aiming.
+gilbert-line-kill-2 = You're walking right into my bullets.
+gilbert-line-kill-3 = Next time? Next time what? There won't be a next time, kid!
+gilbert-line-kill-4 = One down! Who's next?
+gilbert-line-kill-5 = I told you to stay away! Sorry! Forgive me! I told you, stay away!
+gilbert-line-kill-6 = I told you to stay away! But no! You just had to barge in! You just had to come closer! I'm so tired of all this!
+gilbert-line-getout-1 = Get out!

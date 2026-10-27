@@ -1,0 +1,15 @@
+# Screen effect (red frame + crimson discharges, no static since v8) shown to players near a living Gilbert (Content.Client/_CorvaxGoob/Gilbert).
+- type: shader
+  id: GilbertInterference
+  kind: source
+  path: "/Textures/_CorvaxGoob/Mobs/Gilbert/Shaders/gilbert_interference.swsl"
+  params:
+    intensity: 0.0
+
+# Gilbert's spawn sequence: the red energy silhouette assembling (Content.Client/_CorvaxGoob/Gilbert).
+- type: shader
+  id: GilbertSilhouette
+  kind: source
+  path: "/Textures/_CorvaxGoob/Mobs/Gilbert/Shaders/gilbert_silhouette.swsl"
+  params:
+    progress: 0.0

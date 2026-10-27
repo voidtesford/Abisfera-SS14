@@ -1,0 +1,67 @@
+# Gilbert NPC voice lines. Each file pairs by index with the locale string gilbert-line-<category>-<n>.
+- type: soundCollection
+  id: GilbertIdle
+  files:
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_idle_1.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_idle_2.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_idle_3.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_idle_4.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_idle_5.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_idle_6.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_idle_7.ogg
+
+- type: soundCollection
+  id: GilbertFound
+  files:
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_found_1.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_found_2.ogg
+
+- type: soundCollection
+  id: GilbertSurrender
+  files:
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_surrender_1.ogg
+
+- type: soundCollection
+  id: GilbertNonComply
+  files:
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_noncomply_1.ogg
+
+- type: soundCollection
+  id: GilbertLost
+  files:
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_lost_1.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_lost_2.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_lost_3.ogg
+
+- type: soundCollection
+  id: GilbertHalfHealth
+  files:
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_halfhealth_1.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_halfhealth_2.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_halfhealth_3.ogg
+
+- type: soundCollection
+  id: GilbertReload
+  files:
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_reload_1.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_reload_2.ogg
+
+- type: soundCollection
+  id: GilbertShove
+  files:
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_shove_1.ogg
+
+- type: soundCollection
+  id: GilbertScream
+  files:
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_scream_1.ogg
+
+- type: soundCollection
+  id: GilbertKill
+  files:
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_kill_1.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_kill_2.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_kill_3.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_kill_4.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_kill_5.ogg
+  - /Audio/_CorvaxGoob/Gilbert/gilbert_kill_6.ogg

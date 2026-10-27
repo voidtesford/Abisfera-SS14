@@ -82,6 +82,7 @@
 - type: npcFaction
   id: Wizard # Not hostile to angry mobs
   hostile:
+    - Gilbert # CorvaxGoob - Gilbert
     - NanoTrasen
     - Syndicate
     - Zombie

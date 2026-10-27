@@ -17,6 +17,7 @@
 - type: npcFaction
   id: Blob
   hostile:
+    - Gilbert # CorvaxGoob - Gilbert
     - NanoTrasen
     - Syndicate
     - Xeno
