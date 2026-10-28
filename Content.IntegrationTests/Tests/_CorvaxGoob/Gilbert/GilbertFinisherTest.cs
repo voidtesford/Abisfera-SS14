@@ -336,7 +336,9 @@ public sealed class GilbertFinisherTest
         await client.WaitAssertion(() =>
         {
             var sprite = cEnt.GetComponent<SpriteComponent>(cAttacker);
-            Assert.That(sprite.EnableDirectionOverride, Is.False, "turned back: override restored");
+            // v12.1 profile lock: the back view ends, but the actor stays locked side-on until the scene ends.
+            Assert.That(sprite.EnableDirectionOverride, Is.True, "turned back: profile lock");
+            Assert.That(sprite.DirectionOverride, Is.AnyOf(Direction.East, Direction.West), "turned back to the side view");
         });
 
         // Just before the end (still locked): positions follow the move tracks.
@@ -387,6 +389,7 @@ public sealed class GilbertFinisherTest
             var sprite = cEnt.GetComponent<SpriteComponent>(cAttacker);
             Assert.That((sprite.Offset - baseSpriteOffset).Length(), Is.LessThan(0.001f), "no stuck sprite offset");
             Assert.That(sprite.Rotation.Degrees, Is.EqualTo(0).Within(0.01));
+            Assert.That(sprite.EnableDirectionOverride, Is.False, "profile lock released: override restored");
             var checkedLayers = 0;
             foreach (var layer in sprite.AllLayers.Cast<SpriteComponent.Layer>())
             {

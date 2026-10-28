@@ -2476,10 +2476,10 @@
         previewSprite: Objects/Weapons/Melee/truncheon.rsi}
     smooth: true
     props:
-    - {item: truncheon, itemRotation: -45, itemScale: 0.55, sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 6.5, end: 7.25, part: ArmFarHand,
+    - {item: truncheon, itemRotation: -45, itemScale: 0.55, sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 6.5, end: 7.25, part: ArmFarHand, front: true,
         keys: [{t: 6.5, x: 3.61, y: -8.96, rot: -83}, {t: 6.75, x: -0.12, y: -0.09, rot: -231.4}, {t: 7.1, x: 3.04, y: 1,
         rot: -270.4}, {t: 7.25, x: 2.21, y: 0.94, rot: 99.1}]}
-    - {item: truncheon, itemRotation: -45, itemScale: 0.55, sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 9.55, end: 10.42, part: ArmFarHand,
+    - {item: truncheon, itemRotation: -45, itemScale: 0.55, sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 9.55, end: 10.42, part: ArmFarHand, front: true,
         keys: [{t: 9.55, x: 0.79, y: 0.49, rot: 116.2}, {t: 9.72, x: 3.48, y: -8.98, rot: -84.5}, {t: 9.95, x: 7.81, y: -2.65,
         rot: 15.7}, {t: 10.05, x: 7.85, y: -5.23, rot: -14.2}, {t: 10.35, x: 2.91, y: -9, rot: -91}, {t: 10.42, x: 2.92, y: -9,
         rot: -90.9}]}
@@ -3777,8 +3777,8 @@
   - {effects: [{type: Recoil, part: ArmNear, dir: 180, strength: 1.2}, {type: Recoil, part: Body, dir: 180, strength: 0.5}], t: 9, target: attacker, beat: blows the head off, sheet: true, sheetDelay: 0.03, sound: {path: /Audio/Weapons/Guns/Gunshots/shotgun.ogg},
      blood: {from: HeldNear, at: '11.5, -14.0', count: 10, speed: '90, 190', angle: '-40, 10', gravity: 60, floor: -30, life: 0.22, bigChance: 0.6,
      color: '#ffd84a'}, shake: 2.5}
-  - {effects: [{type: Spatter, part: Body, at: '0.6, 9.4', dir: 60, spread: 120, count: 28, strength: 1.8, floor: -16}, {type: Recoil, part: Body, dir: 0, strength: 1.6}, {type: Shake, strength: 1.4}, {type: Drips, part: Body, at: '0.6, 6.4', count: 10, duration: 5, floor: -16}, {type: Pool, part: Body, at: '0.6, 6.4', size: 1.6, duration: 6, floor: -16}], t: 9, target: victim, hitStop: 0.16, flash: true, kill: true, damage: [{part: Head, damage: {types: {Blunt: 60}}, ignoreArmor: true},
-     {part: Chest, damage: {types: {Blunt: 40}}, ignoreArmor: true}], amputate: [Head], blood: {from: Body, at: '0.6, 9.4', count: 60, speed: '60,
+  - {effects: [{type: Spatter, part: Head, at: '0.6, 9.4', dir: 60, spread: 120, count: 28, strength: 1.8, floor: -16}, {type: Recoil, part: Body, dir: 0, strength: 1.6}, {type: Shake, strength: 1.4}, {type: Drips, part: Body, at: '0.6, 6.4', count: 10, duration: 5, floor: -16}, {type: Pool, part: Body, at: '0.6, 6.4', size: 1.6, duration: 6, floor: -16}], t: 9, target: victim, hitStop: 0.16, flash: true, kill: true, damage: [{part: Head, damage: {types: {Blunt: 60}}, ignoreArmor: true},
+     {part: Chest, damage: {types: {Blunt: 40}}, ignoreArmor: true}], amputate: [Head], blood: {from: Head, at: '0.6, 9.4', count: 60, speed: '60,
      240', angle: '-40, 140', gravity: 360, floor: -16, life: 2.4, bigChance: 0.6}, decal: {id: splatter, from: Body, at: '8.6, 6.4',
      color: '#80000099'}}
   - {t: 9.01, target: victim, sound: {collection: BoneGone}, blood: {from: Body, at: '0.6, 6.4', count: 24, speed: '40, 140', angle: '40, 140',

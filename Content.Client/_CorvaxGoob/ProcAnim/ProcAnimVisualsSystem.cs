@@ -45,6 +45,8 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
     private sealed class PlayState
     {
         public Vector2 SpriteOffset;
+        /// <summary>World-space draw shift that lays a screen-vertical scene out side-on (see <see cref="LayoutShift"/>).</summary>
+        public Vector2 Shift;
         public Angle SpriteRotation;
         public Color SpriteColor;
         public readonly Dictionary<SpriteComponent.Layer, (Vector2 Offset, Angle Rotation)> Layers = new();
@@ -205,7 +207,37 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
     private float ScreenSign(ProcAnimComponent comp)
     {
         var screenFwd = _eye.CurrentEye.Rotation.RotateVec(comp.Forward);
-        return screenFwd.X < -0.3f ? -1f : 1f;
+        // Screen-vertical scenes are drawn rotated onto the +x axis (LayoutShift).
+        if (MathF.Abs(screenFwd.Y) > MathF.Abs(screenFwd.X))
+            return 1f;
+        return screenFwd.X < 0f ? -1f : 1f;
+    }
+
+    /// <summary>
+    /// The poses are side views, so the attacker and the victim must stand side by side on this viewer's screen. The
+    /// server lays the scene out along the lead's screen-horizontal axis; when this camera still shows it vertically
+    /// (a 1-tile-wide vertical corridor, another viewer's rotated eye), the actors are drawn rotated about the scene
+    /// origin onto the screen's +x axis: a pure draw shift (world-space), the same for the sprite and its effects.
+    /// </summary>
+    private Vector2 LayoutShift(EntityUid uid, ProcAnimComponent comp)
+    {
+        var eye = _eye.CurrentEye.Rotation;
+        var screenFwd = eye.RotateVec(comp.Forward);
+        if (MathF.Abs(screenFwd.Y) <= MathF.Abs(screenFwd.X) || screenFwd.LengthSquared() < 1e-6f)
+            return Vector2.Zero;
+
+        var rel = _transform.GetWorldPosition(uid) - comp.Origin;
+        var turn = new Angle(-MathF.Atan2(screenFwd.Y, screenFwd.X));
+        return turn.RotateVec(rel) - rel;
+    }
+
+    /// <summary>Where the actor is drawn (its map position plus the layout shift): effects anchor to this.</summary>
+    private MapCoordinates ActorMap(EntityUid uid)
+    {
+        var map = _transform.GetMapCoordinates(uid);
+        return _states.TryGetValue(uid, out var state) && state.Shift != Vector2.Zero
+            ? new MapCoordinates(map.Position + state.Shift, map.MapId)
+            : map;
     }
 
     private void Animate(Entity<SpriteComponent> ent, ProcAnimComponent comp, ProcAnimScenePrototype proto,
@@ -223,14 +255,18 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
         var view = ProcAnimTimeline.ViewDirection(tracks, t, facingRight);
         if (ProcAnimTimeline.ViewInfoAt(tracks, t) is { Turned: true })
             facingRight = !facingRight;
-        ApplyView(ent, state, view);
+        // Profile lock: outside forced views both actors are drawn side-on (east / west on this screen, whatever the
+        // grid / eye rotation or the actor's world rotation), so the sprite is always cut into the side-view puppet and
+        // no original layer is left drawn facing north / south under it.
+        ApplyView(ent, state, view ?? (facingRight ? Direction.East : Direction.West));
+        state.Shift = LayoutShift(ent.Owner, comp);
         var inHands = ProcAnimTimeline.HeldInHands(tracks, t);
         state.PropHands = PropHands(ent.Owner, comp, proto);
 
         // Side view (and forced views): per-limb baked layers with clothing split along the body-part masks. Otherwise
         // (vertical facing, rotating sprites, bake failure) the original layers are moved as whole layers.
         var puppet = UpdatePuppet(ent, state, tracks.HolsterHeldItems ? tracks.HolsterStates : null,
-            tracks.HolsterAt != null, view != null ? facingRight : null);
+            tracks.HolsterAt != null, facingRight);
         if (puppet == null)
         {
             HolsterFallback(ent, state, tracks.HolsterHeldItems && !inHands);
@@ -267,7 +303,8 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
 
         var body = poses[(int) ProcAnimBone.Body];
         state.LastBodyRot = sx * body.Rot;
-        _sprite.SetOffset(ent.AsNullable(), state.SpriteOffset + new Vector2(sx * (body.X + shake.X), body.Y + shake.Y) / PixelsPerMeter);
+        _sprite.SetOffset(ent.AsNullable(), state.SpriteOffset + _eye.CurrentEye.Rotation.RotateVec(state.Shift)
+                                             + new Vector2(sx * (body.X + shake.X), body.Y + shake.Y) / PixelsPerMeter);
         _sprite.SetScale(ent.AsNullable(), new Vector2(state.SpriteScale.X * flip, state.SpriteScale.Y));
         _sprite.SetRotation(ent.AsNullable(), state.SpriteRotation + Angle.FromDegrees(sx * body.Rot));
 
@@ -333,6 +370,11 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
                     var group = GroupOf(prop.Part);
                     foreach (var (g, _, layer, _) in puppet.Layers)
                     {
+                        if (prop.Front)
+                        {
+                            index = Math.Max(index ?? 0, IndexOfLayer(ent, layer) + 1);
+                            continue;
+                        }
                         if (g != group)
                             continue;
                         // under: below the part's first layer (e.g. a baton rammed into the mouth); else above its last
@@ -535,7 +577,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
         var stars = ProcAnimTimeline.Stars(tracks, t);
         if (stars.Count == 0)
             return;
-        var map = _transform.GetMapCoordinates(uid);
+        var map = ActorMap(uid);
         if (map.MapId == MapId.Nullspace)
             return;
 
@@ -557,7 +599,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
         ProcAnimEvent ev, int index)
     {
         var blood = ev.Blood!;
-        var map = _transform.GetMapCoordinates(uid);
+        var map = ActorMap(uid);
         if (map.MapId == MapId.Nullspace)
             return;
 
@@ -586,7 +628,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
     /// <summary>v12: world-anchored hit effects (spatter, pool, dust) of an event, frozen where they started.</summary>
     private void StartFx(EntityUid uid, ProcAnimComponent comp, ProcAnimScenePrototype proto, ProcAnimEvent ev, int index)
     {
-        var map = _transform.GetMapCoordinates(uid);
+        var map = ActorMap(uid);
         if (map.MapId == MapId.Nullspace)
             return;
 
@@ -641,7 +683,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
                     continue;
                 if (fx.Type == ProcAnimEffectType.Drips && t - ev.Time > ProcAnimFx.Life(fx) + 2f)
                     continue;
-                map ??= _transform.GetMapCoordinates(uid);
+                map ??= ActorMap(uid);
                 if (map.Value.MapId == MapId.Nullspace)
                     return;
                 blood ??= BloodColor(uid);
@@ -674,7 +716,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
             front = true;
         }
 
-        var map = _transform.GetMapCoordinates(uid);
+        var map = ActorMap(uid);
         if (map.MapId == MapId.Nullspace)
             return;
         foreach (var dot in ProcAnimFx.FaceDots(tracks.Face, expr, poses, faceSign, front))

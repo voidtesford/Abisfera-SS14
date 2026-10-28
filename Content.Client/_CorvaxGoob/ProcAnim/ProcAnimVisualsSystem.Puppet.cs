@@ -2,6 +2,7 @@ using System.Linq;
 using System.Numerics;
 using Content.Client.Inventory;
 using Content.Shared._CorvaxGoob.ProcAnim;
+using Content.Shared.Hands.Components;
 using Content.Shared.Humanoid;
 using Robust.Client.GameObjects;
 using Robust.Client.Graphics;
@@ -135,10 +136,13 @@ public sealed partial class ProcAnimVisualsSystem
             if (state.Props.Any(p => p.Layer == layer))
                 continue;
 
-            // Visibility of shader / unshaded layers (blinking eyes, glows) never changes the bake.
+            // Visibility of shader / unshaded layers (blinking eyes, glows) never changes the bake. A layer the puppet
+            // hid counts as such whatever its visibility (re-enabled ones are just hidden again), but a *new* visible
+            // layer (clothing / in-hand visuals re-created by their systems: new layer objects with the same state)
+            // must force a rebake, or it is drawn as a static original under the puppet.
             var plain = layer.ShaderPrototype == null && layer.Shader == null;
             var hidden = puppet != null && puppet.Hidden.ContainsKey(layer);
-            hc.Add(plain && (layer.Visible || hidden));
+            hc.Add(hidden ? 1 : plain && layer.Visible ? 2 : 0);
             hc.Add(layer.ActualRsi?.Path);
             hc.Add(layer.ActualState?.StateId.Name);
             hc.Add(layer.Color);
@@ -395,6 +399,17 @@ public sealed partial class ProcAnimVisualsSystem
             foreach (var key in slotKeys)
                 if (_sprite.LayerMapTryGet(ent.AsNullable(), key, out var idx, false))
                     keys.TryAdd(idx, $"{slot}-{key}");
+        }
+        // Every layer the hands drew for each hand (the item's own layers plus extras such as its crackle overlay).
+        if (TryComp<HandsComponent>(ent, out var hands))
+        {
+            foreach (var (location, revealed) in hands.RevealedLayers)
+            {
+                var side = location == HandLocation.Left ? "inhand-left" : "inhand-right";
+                foreach (var key in revealed)
+                    if (_sprite.LayerMapTryGet(ent.AsNullable(), key, out var idx, false))
+                        keys.TryAdd(idx, key.StartsWith(side) ? key : $"{side}-{key}");
+            }
         }
         foreach (var side in new[] { "inhand-left", "inhand-right" })
         {

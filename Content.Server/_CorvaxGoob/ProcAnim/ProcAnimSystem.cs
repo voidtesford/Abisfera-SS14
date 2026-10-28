@@ -76,6 +76,9 @@ public sealed partial class ProcAnimSystem : SharedProcAnimSystem
     }
 
     /// <summary>Distance kept from the first wall in front (tiles).</summary>
+    /// <summary>Free floor (tiles) a horizontal side needs to be used at all: the victim standing next to the lead.</summary>
+    private const float MinSideRoom = 1.1f;
+
     private const float WallMargin = 0.45f;
 
     public bool IsPlaying(EntityUid uid) => HasComp<ProcAnimComponent>(uid);
@@ -575,8 +578,11 @@ public sealed partial class ProcAnimSystem : SharedProcAnimSystem
     }
 
     /// <summary>
-    /// Side views read best, so east/west are preferred: first the horizontal side the second actor is on, then the other one,
-    /// then the vertical ones. The first direction with enough free floor wins; otherwise the roomiest one.
+    /// The poses are side views: the scene must play along the lead's screen-horizontal axis. First the horizontal side
+    /// the second actor is on, then the other one: the first with <paramref name="required"/> free floor wins, else the
+    /// roomier one as long as the victim fits next to the lead (<see cref="MinSideRoom"/>; the walk-in is clamped to the
+    /// room by <see cref="ProcAnimComponent.MaxForward"/>). Only when neither horizontal side has even that much (a
+    /// 1-tile vertical corridor) is a vertical direction used; clients then draw it rotated side-on.
     /// </summary>
     private Vector2 PickForward(IReadOnlyList<EntityUid> actors, MapId map, Vector2 origin, Vector2 toVictim,
         Angle view, float required, out float room)
@@ -585,20 +591,35 @@ public sealed partial class ProcAnimSystem : SharedProcAnimSystem
         var up = view.RotateVec(new Vector2(0, 1));
         var horizontal = Vector2.Dot(toVictim, right) >= 0 ? right : -right;
         var vertical = Vector2.Dot(toVictim, up) >= 0 ? up : -up;
-        Span<Vector2> candidates = stackalloc Vector2[] { horizontal, -horizontal, vertical, -vertical };
 
-        var best = horizontal;
-        room = -1f;
-        foreach (var dir in candidates)
+        var h1 = FreeDistance(actors, map, origin, horizontal, required);
+        if (h1 >= required)
+        {
+            room = h1;
+            return horizontal;
+        }
+
+        var h2 = FreeDistance(actors, map, origin, -horizontal, required);
+        if (h2 >= required)
+        {
+            room = h2;
+            return -horizontal;
+        }
+
+        var bestH = h2 > h1 + 0.25f ? -horizontal : horizontal;
+        var roomH = MathF.Max(h1, h2);
+        if (roomH >= MinSideRoom)
+        {
+            room = bestH == horizontal ? h1 : h2;
+            return bestH;
+        }
+
+        var best = bestH;
+        room = roomH;
+        foreach (var dir in new[] { vertical, -vertical })
         {
             var free = FreeDistance(actors, map, origin, dir, required);
-            if (free >= required)
-            {
-                room = free;
-                return dir;
-            }
-
-            if (free > room)
+            if (free > room + 0.25f)
             {
                 room = free;
                 best = dir;

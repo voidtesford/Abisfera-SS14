@@ -54,8 +54,8 @@ public sealed partial class ProcAnimComponent : Component
     [DataField, AutoNetworkedField]
     public Angle View;
 
-    /// <summary>World position of the first actor at t=0 (server only).</summary>
-    [ViewVariables]
+    /// <summary>World position of the first actor at t=0 (the client lays vertical scenes out about it).</summary>
+    [DataField, AutoNetworkedField]
     public Vector2 Origin;
 
     /// <summary>Clamp for the forward movement when a wall is closer than the prototype needs (server only).</summary>

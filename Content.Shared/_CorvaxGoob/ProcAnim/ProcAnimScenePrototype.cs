@@ -769,6 +769,13 @@ public sealed partial class ProcAnimProp
     /// </summary>
     [DataField]
     public bool Under;
+
+    /// <summary>
+    /// Drawn above every puppet layer of the actor (a weapon held in the far hand still shows in front of the body,
+    /// the way the held item is drawn in the real side view).
+    /// </summary>
+    [DataField]
+    public bool Front;
 }
 
 /// <summary>From <see cref="Time"/> on, these parts are no longer drawn (e.g. torn-off arms).</summary>
