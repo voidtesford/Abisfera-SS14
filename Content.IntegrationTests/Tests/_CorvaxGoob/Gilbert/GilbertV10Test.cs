@@ -7,7 +7,7 @@ using Content.Server._CorvaxGoob.Gilbert;
 using Content.Server._CorvaxGoob.Gilbert.Finisher;
 using Content.Server.Gravity;
 using Content.Shared._CorvaxGoob.Gilbert;
-using Content.Shared._CorvaxGoob.Gilbert.Finisher;
+using Content.Shared._CorvaxGoob.ProcAnim;
 using Content.Shared._Shitmed.Targeting;
 using Content.Shared.ActionBlocker;
 using Content.Shared.Body.Systems;
@@ -130,11 +130,11 @@ public sealed class GilbertV10Test
 
             foreach (var id in Variants)
             {
-                var proto = protoMan.Index<GilbertFinisherPrototype>(id);
+                var proto = protoMan.Index<ProcAnimScenePrototype>(id);
                 Assert.That(proto.Events.Select(e => e.Time), Is.Ordered, $"{id} events sorted");
-                foreach (var role in new[] { GilbertFinisherRole.Attacker, GilbertFinisherRole.Victim })
+                foreach (var role in new[] { 0, 1 })
                 {
-                    var tracks = GilbertFinisherTimeline.Tracks(proto, role);
+                    var tracks = ProcAnimTimeline.Tracks(proto, role);
                     Assert.That(tracks.Move.Select(k => k.Time), Is.Ordered, $"{id} {role} move keys");
                     foreach (var (part, track) in tracks.Parts)
                         Assert.That(track.Keys.Select(k => k.Time), Is.Ordered, $"{id} {role} {part} keys");
@@ -146,14 +146,14 @@ public sealed class GilbertV10Test
                     .OrderBy(x => x.Part).ThenBy(x => x.Key).ToList();
                 Assert.That(got, Is.EqualTo(expected[id].OrderBy(x => x.Item1).ThenBy(x => x.Item2).ToList()), $"{id} damage budget");
                 Assert.That(proto.RequiredRoom, Is.GreaterThan(1f), $"{id} room");
-                Assert.That(GilbertFinisherTimeline.TotalLength(proto), Is.GreaterThanOrEqualTo(proto.Length));
+                Assert.That(ProcAnimTimeline.TotalLength(proto), Is.GreaterThanOrEqualTo(proto.Length));
             }
 
-            var pound = protoMan.Index<GilbertFinisherPrototype>(Variants[2]);
+            var pound = protoMan.Index<ProcAnimScenePrototype>(Variants[2]);
             Assert.That(pound.Events.SelectMany(e => e.Amputate),
                 Is.EquivalentTo(new[] { TargetBodyPart.LeftArm, TargetBodyPart.RightArm, TargetBodyPart.Head }));
-            Assert.That(pound.HoldAlive, "the victim is held alive until the head shot");
-            Assert.That(pound.Victim.Hide.Count, Is.EqualTo(3), "both torn arms and the shot-off head are hidden");
+            Assert.That(pound.Actor("victim").HoldAlive, "the victim is held alive until the head shot");
+            Assert.That(pound.Actor("victim").Hide.Count, Is.EqualTo(3), "both torn arms and the shot-off head are hidden");
             // The leg shot carries the leg damage; the head shot carries the rest, removes the head and kills.
             var legShot = pound.Events.First(e => e.Damage.Count > 0);
             Assert.That(legShot.Damage.Select(d => d.Part), Is.EquivalentTo(new[] { TargetBodyPart.LeftLeg, TargetBodyPart.RightLeg }));
@@ -164,19 +164,19 @@ public sealed class GilbertV10Test
             Assert.That(shot.Damage.Select(d => d.Part), Is.EquivalentTo(new[] { TargetBodyPart.Head, TargetBodyPart.Chest }));
             Assert.That(pound.Events.Where(e => e.Amputate.Count > 0).All(e => e.Time <= shot.Time));
             // The truncheon prop: drawn and stowed by Gilbert, lodged in the mouth / stump in between.
-            Assert.That(pound.Attacker.Props.Count, Is.EqualTo(2));
-            Assert.That(pound.Victim.Props.Count, Is.EqualTo(2));
-            foreach (var prop in pound.Attacker.Props.Concat(pound.Victim.Props))
+            Assert.That(pound.Actor("attacker").Props.Count, Is.EqualTo(2));
+            Assert.That(pound.Actor("victim").Props.Count, Is.EqualTo(2));
+            foreach (var prop in pound.Actor("attacker").Props.Concat(pound.Actor("victim").Props))
             {
                 Assert.That(prop.State, Is.EqualTo("truncheon"));
                 Assert.That(prop.End, Is.GreaterThan(prop.Start));
                 Assert.That(prop.Keys, Is.Not.Empty);
             }
-            Assert.That(pound.Attacker.UnholsterAt, Is.Not.Null.And.GreaterThan(pound.Attacker.HolsterAt ?? 0f).And.LessThan(shot.Time),
+            Assert.That(pound.Actor("attacker").UnholsterAt, Is.Not.Null.And.GreaterThan(pound.Actor("attacker").HolsterAt ?? 0f).And.LessThan(shot.Time),
                 "the shotgun comes back off his back before the head shot");
             Assert.That(pound.Events.Where(e => e.Kill || e.Amputate.Count > 0 || e.Damage.Count > 0).All(e => e.Damage.All(d => d.IgnoreArmor)));
-            var barrel = protoMan.Index<GilbertFinisherPrototype>(Variants[1]);
-            Assert.That(barrel.Attacker.HolsterHeldItems, Is.False, "the barrel variant keeps the shotgun");
+            var barrel = protoMan.Index<ProcAnimScenePrototype>(Variants[1]);
+            Assert.That(barrel.Actor("attacker").HolsterHeldItems, Is.False, "the barrel variant keeps the shotgun");
         });
 
         await pair.CleanReturnAsync();
@@ -188,31 +188,31 @@ public sealed class GilbertV10Test
     {
         await using var pair = await PoolManager.GetServerClient();
         var protoMan = pair.Server.ResolveDependency<IPrototypeManager>();
-        var limits = new Dictionary<GilbertFinisherPart, (float Min, float Max)>
+        var limits = new Dictionary<ProcAnimBone, (float Min, float Max)>
         {
-            [GilbertFinisherPart.LegNearLow] = (GilbertFinisherTimeline.KneeMin, GilbertFinisherTimeline.KneeMax),
-            [GilbertFinisherPart.LegFarLow] = (GilbertFinisherTimeline.KneeMin, GilbertFinisherTimeline.KneeMax),
-            [GilbertFinisherPart.ArmNearLow] = (GilbertFinisherTimeline.ElbowMin, GilbertFinisherTimeline.ElbowMax),
-            [GilbertFinisherPart.ArmFarLow] = (GilbertFinisherTimeline.ElbowMin, GilbertFinisherTimeline.ElbowMax),
-            [GilbertFinisherPart.LegNear] = (GilbertFinisherTimeline.HipMin, GilbertFinisherTimeline.HipMax),
-            [GilbertFinisherPart.LegFar] = (GilbertFinisherTimeline.HipMin, GilbertFinisherTimeline.HipMax),
-            [GilbertFinisherPart.ArmNear] = (GilbertFinisherTimeline.ShoulderMin, GilbertFinisherTimeline.ShoulderMax),
-            [GilbertFinisherPart.ArmFar] = (GilbertFinisherTimeline.ShoulderMin, GilbertFinisherTimeline.ShoulderMax),
+            [ProcAnimBone.LegNearLow] = (ProcAnimTimeline.KneeMin, ProcAnimTimeline.KneeMax),
+            [ProcAnimBone.LegFarLow] = (ProcAnimTimeline.KneeMin, ProcAnimTimeline.KneeMax),
+            [ProcAnimBone.ArmNearLow] = (ProcAnimTimeline.ElbowMin, ProcAnimTimeline.ElbowMax),
+            [ProcAnimBone.ArmFarLow] = (ProcAnimTimeline.ElbowMin, ProcAnimTimeline.ElbowMax),
+            [ProcAnimBone.LegNear] = (ProcAnimTimeline.HipMin, ProcAnimTimeline.HipMax),
+            [ProcAnimBone.LegFar] = (ProcAnimTimeline.HipMin, ProcAnimTimeline.HipMax),
+            [ProcAnimBone.ArmNear] = (ProcAnimTimeline.ShoulderMin, ProcAnimTimeline.ShoulderMax),
+            [ProcAnimBone.ArmFar] = (ProcAnimTimeline.ShoulderMin, ProcAnimTimeline.ShoulderMax),
         };
 
         Assert.Multiple(() =>
         {
             foreach (var id in Variants)
             {
-                var proto = protoMan.Index<GilbertFinisherPrototype>(id);
-                foreach (var (role, track, f) in new[] { ("attacker", proto.Attacker, 1f), ("victim", proto.Victim, -1f) })
+                var proto = protoMan.Index<ProcAnimScenePrototype>(id);
+                foreach (var (role, track, f) in new[] { ("attacker", proto.Actor("attacker"), 1f), ("victim", proto.Actor("victim"), -1f) })
                 foreach (var (part, (min, max)) in limits)
                 {
                     if (!track.Parts.TryGetValue(part, out var t))
                         continue;
                     foreach (var k in t.Keys)
                     {
-                        if (GilbertFinisherTimeline.ViewAt(track, k.Time) != null)
+                        if (ProcAnimTimeline.ViewAt(track, k.Time) != null)
                             continue;
                         Assert.That(f * k.Rot, Is.InRange(min - 0.01f, max + 0.01f), $"{id} {role} {part} @ {k.Time}");
                     }
@@ -238,7 +238,7 @@ public sealed class GilbertV10Test
         var timing = server.ResolveDependency<IGameTiming>();
         var sys = server.System<GilbertFinisherSystem>();
         var body = server.System<SharedBodySystem>();
-        var proto = server.ResolveDependency<IPrototypeManager>().Index<GilbertFinisherPrototype>(Variants[variant - 1]);
+        var proto = server.ResolveDependency<IPrototypeManager>().Index<ProcAnimScenePrototype>(Variants[variant - 1]);
 
         EntityUid g = default, v = default;
         await server.WaitPost(() =>
@@ -255,7 +255,7 @@ public sealed class GilbertV10Test
         await server.WaitAssertion(() =>
         {
             Assert.That(sys.IsPlaying(g) && sys.IsPlaying(v), "cutscene running");
-            Assert.That(entMan.GetComponent<GilbertFinisherComponent>(g).Finisher.Id, Is.EqualTo(proto.ID));
+            Assert.That(entMan.GetComponent<ProcAnimComponent>(g).Scene.Id, Is.EqualTo(proto.ID));
         });
 
         var elapsed = 0.0;
@@ -263,7 +263,7 @@ public sealed class GilbertV10Test
         {
             // Legs shot, both arms torn off, baton rammed in: still alive (not even crit) right before the head shot.
             var shot = proto.Events.Single(e => e.Kill).Time;
-            elapsed = proto.Intro + GilbertFinisherTimeline.RealTime(proto, shot - 0.3f);
+            elapsed = proto.Intro + ProcAnimTimeline.RealTime(proto, shot - 0.3f);
             await RunSeconds(pair, elapsed);
             await server.WaitAssertion(() =>
             {
@@ -277,7 +277,7 @@ public sealed class GilbertV10Test
             });
         }
 
-        await RunSeconds(pair, GilbertFinisherTimeline.TotalLength(proto) + proto.Intro + 1.5 - elapsed);
+        await RunSeconds(pair, ProcAnimTimeline.TotalLength(proto) + proto.Intro + 1.5 - elapsed);
         await server.WaitAssertion(() =>
         {
             Assert.That(sys.IsPlaying(g) || sys.IsPlaying(v), Is.False, "restored");
@@ -315,7 +315,7 @@ public sealed class GilbertV10Test
 
         foreach (var id in Variants)
         {
-            var proto = protoMan.Index<GilbertFinisherPrototype>(id);
+            var proto = protoMan.Index<ProcAnimScenePrototype>(id);
             await server.WaitAssertion(() =>
             {
                 var v = entMan.SpawnEntity(Victim, At(map, 1, 0));

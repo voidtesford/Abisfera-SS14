@@ -834,10 +834,6 @@ public sealed partial class GilbertAIComponent : Component
         { "GilbertFinisherGroundPound", 1f },
     };
 
-    /// <summary>Variants played with the shotgun in his hands (skipped when he holds none).</summary>
-    [DataField]
-    public HashSet<string> FinisherNeedsShotgun = new() { "GilbertFinisherBarrel", "GilbertFinisherGroundPound" };
-
     /// <summary>Last own shot at a combat target (victim, time), checked once the pellets landed.</summary>
     [ViewVariables] public (EntityUid Target, TimeSpan At)? FinisherShot;
     /// <summary>Run-up in progress: the victim and when it started.</summary>

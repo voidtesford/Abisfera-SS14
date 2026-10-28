@@ -6,7 +6,7 @@ using Content.IntegrationTests.Pair;
 using Content.Server._CorvaxGoob.Gilbert;
 using Content.Server._CorvaxGoob.Gilbert.Finisher;
 using Content.Server.Gravity;
-using Content.Shared._CorvaxGoob.Gilbert.Finisher;
+using Content.Shared._CorvaxGoob.ProcAnim;
 using Content.Shared._Shitmed.Targeting;
 using Content.Shared.CombatMode.Pacification;
 using Content.Shared.Damage;
@@ -192,7 +192,7 @@ public sealed class GilbertV101Test
         await server.WaitAssertion(() =>
         {
             Assert.That(started, "walked up to the crit enemy and started a finisher");
-            Assert.That(entMan.GetComponent<GilbertFinisherComponent>(g).Partner, Is.EqualTo(v), "on the enemy, not the bystander");
+            Assert.That(entMan.GetComponent<ProcAnimComponent>(g).Partner, Is.EqualTo(v), "on the enemy, not the bystander");
         });
 
         await pair.CleanReturnAsync();
@@ -210,7 +210,7 @@ public sealed class GilbertV101Test
         var console = server.ResolveDependency<IConsoleHost>();
         var timing = server.ResolveDependency<IGameTiming>();
         var sys = server.System<GilbertFinisherSystem>();
-        var proto = server.ResolveDependency<IPrototypeManager>().Index<GilbertFinisherPrototype>(Variants[0]);
+        var proto = server.ResolveDependency<IPrototypeManager>().Index<ProcAnimScenePrototype>(Variants[0]);
 
         EntityUid g = default, v = default;
         await server.WaitPost(() =>
@@ -228,7 +228,7 @@ public sealed class GilbertV101Test
         await RunSeconds(pair, 0.1);
         await server.WaitAssertion(() => Assert.That(sys.IsPlaying(g) && sys.IsPlaying(v), "cutscene running on a crit victim"));
 
-        var total = GilbertFinisherTimeline.TotalLength(proto) + proto.Intro;
+        var total = ProcAnimTimeline.TotalLength(proto) + proto.Intro;
         await RunSeconds(pair, total * 0.6);
         await server.WaitAssertion(() =>
         {
@@ -262,10 +262,10 @@ public sealed class GilbertV101Test
 
         foreach (var id in Variants)
         {
-            var proto = protoMan.Index<GilbertFinisherPrototype>(id);
+            var proto = protoMan.Index<ProcAnimScenePrototype>(id);
             await server.WaitAssertion(() =>
             {
-                Assert.That(proto.FinalDamage?.DamageDict.GetValueOrDefault("Asphyxiation"), Is.EqualTo(FixedPoint2.New(200)), $"{id}: finalDamage");
+                Assert.That(proto.Actor("victim").FinalDamage?.DamageDict.GetValueOrDefault("Asphyxiation"), Is.EqualTo(FixedPoint2.New(200)), $"{id}: finalDamage");
                 var v = entMan.SpawnEntity(Victim, At(map, 1, 0));
                 NoAir(entMan, v);
                 inv.TryEquip(v, entMan.SpawnEntity("ClothingOuterArmorBulletproof", At(map, 1, 0)), "outerClothing", silent: true, force: true);
@@ -422,7 +422,7 @@ public sealed class GilbertV101Test
     [Test]
     public void PuppetTexturesAreSrgb()
     {
-        var p = Content.Client._CorvaxGoob.Gilbert.Finisher.GilbertFinisherVisualsSystem.PuppetTextureParameters;
+        var p = Content.Client._CorvaxGoob.ProcAnim.ProcAnimVisualsSystem.PuppetTextureParameters;
         Assert.That(p.Srgb, "sRGB");
         Assert.That(p.SampleParameters.Filter, Is.False, "pixel art: no filtering");
     }

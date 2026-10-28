@@ -1,7 +1,7 @@
 using System.Numerics;
 using Content.Client.Camera;
 using Content.Client.Inventory;
-using Content.Shared._CorvaxGoob.Gilbert.Finisher;
+using Content.Shared._CorvaxGoob.ProcAnim;
 using Content.Shared.Body.Components;
 using Content.Shared.Chemistry.Reagent;
 using Content.Shared.Hands.Components;
@@ -14,21 +14,23 @@ using Robust.Shared.Map;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Timing;
 
-namespace Content.Client._CorvaxGoob.Gilbert.Finisher;
+namespace Content.Client._CorvaxGoob.ProcAnim;
 
 /// <summary>
-/// Client half of the finisher cutscene: procedurally animates the humanoid sprite (side view: baked per-limb puppet
+/// Client runtime of ProcAnim scenes (<see cref="ProcAnimScenePrototype"/>): evaluates the timeline every frame and
+/// procedurally animates the humanoid sprite (side view: baked per-limb puppet
 /// layers, see the Puppet partial; otherwise the original layers for body, head, arms, legs and
 /// the clothing that belongs to them) from the networked start time, plus camera shake and a hit flash.
 /// Everything is applied on top of cached original values and restored when the component goes away.
 /// </summary>
-public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisherSystem
+public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
 {
     [Dependency] private readonly IGameTiming _timing = default!;
     [Dependency] private readonly IPrototypeManager _proto = default!;
     [Dependency] private readonly IEyeManager _eye = default!;
     [Dependency] private readonly IPlayerManager _player = default!;
     [Dependency] private readonly SpriteSystem _sprite = default!;
+    [Dependency] private readonly Content.Shared.Hands.EntitySystems.SharedHandsSystem _hands = default!;
     [Dependency] private readonly SharedTransformSystem _transform = default!;
     [Dependency] private readonly CameraRecoilSystem _recoil = default!;
     [Dependency] private readonly IOverlayManager _overlays = default!;
@@ -54,18 +56,25 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
         public int? FailedPuppetSignature;
         /// <summary>In-hand layers hidden by the holster in the non-puppet fallback.</summary>
         public readonly HashSet<SpriteComponent.Layer> HiddenHands = new();
-        /// <summary>Sprite direction override before a <see cref="GilbertFinisherView"/> took it over, while one is active.</summary>
+        /// <summary>Sprite direction override before a <see cref="ProcAnimView"/> took it over, while one is active.</summary>
         public (bool Enabled, Direction Dir)? ViewOriginal;
-        /// <summary>Prop layers (<see cref="GilbertFinisherActorTracks.Props"/>, by index), built for <see cref="PropsPuppet"/>.</summary>
+        /// <summary>Prop layers (<see cref="ProcAnimActor.Props"/>, by index), built for <see cref="PropsPuppet"/>.</summary>
         public readonly List<(string Key, SpriteComponent.Layer Layer)> Props = new();
         public PuppetData? PropsPuppet;
         public bool PropsBuilt;
+        /// <summary>Which bound items the props were built with (rebuilt when one becomes known).</summary>
+        public int PropsItemsKey;
+        /// <summary>Per prop: drawn with the bound item's own sprite.</summary>
+        public readonly List<bool> PropUsesItem = new();
+        /// <summary>Hands (bit 1 left, 2 right) holding an item a prop draws: their in-hand layers are hidden.</summary>
+        public int PropHands;
+        public ProcAnimExpression Expression;
     }
 
-    /// <summary>A running blood burst (drawn by <see cref="GilbertFinisherBloodOverlay"/>).</summary>
+    /// <summary>A running blood burst (drawn by <see cref="ProcAnimBloodOverlay"/>).</summary>
     internal sealed class BloodBurst
     {
-        public required GilbertFinisherBlood Blood;
+        public required ProcAnimBlood Blood;
         public int EventIndex;
         public MapId Map;
         /// <summary>World position of the target entity when the burst started.</summary>
@@ -80,17 +89,17 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
 
     internal readonly List<BloodBurst> Bursts = new();
 
-    /// <summary>A dizzy star for this frame (drawn by <see cref="GilbertFinisherBloodOverlay"/>).</summary>
+    /// <summary>A dizzy star for this frame (drawn by <see cref="ProcAnimBloodOverlay"/>).</summary>
     internal readonly record struct DizzyStar(MapId Map, Vector2 Position, int Size, Color Color);
 
     /// <summary>Rebuilt every frame from the dazed actors.</summary>
     internal readonly List<DizzyStar> Stars = new();
-    private GilbertFinisherBloodOverlay? _bloodOverlay;
+    private ProcAnimBloodOverlay? _bloodOverlay;
 
     public override void Initialize()
     {
         base.Initialize();
-        _bloodOverlay = new GilbertFinisherBloodOverlay(this, _timing);
+        _bloodOverlay = new ProcAnimBloodOverlay(this, _timing);
         _overlays.AddOverlay(_bloodOverlay);
     }
 
@@ -116,7 +125,7 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
         _pngCache.Clear();
     }
 
-    protected override void OnFinisherShutdown(Entity<GilbertFinisherComponent> ent)
+    protected override void OnSceneShutdown(Entity<ProcAnimComponent> ent)
     {
         if (!_states.Remove(ent, out var state))
             return;
@@ -130,10 +139,10 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
 
         var now = _timing.CurTime;
         Stars.Clear();
-        var query = EntityQueryEnumerator<GilbertFinisherComponent, SpriteComponent>();
+        var query = EntityQueryEnumerator<ProcAnimComponent, SpriteComponent>();
         while (query.MoveNext(out var uid, out var comp, out var sprite))
         {
-            if (!_proto.TryIndex(comp.Finisher, out var proto))
+            if (!_proto.TryIndex(comp.Scene, out var proto))
                 continue;
 
             if (!_states.TryGetValue(uid, out var state))
@@ -146,7 +155,7 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
                 };
                 // Late joiners / mid-cutscene PVS entries must not replay old impacts.
                 // Intro (holster) events are skipped when the server skipped the intro.
-                var t0 = GilbertFinisherTimeline.AnimTime(proto, (float) (now - comp.StartTime).TotalSeconds);
+                var t0 = ProcAnimTimeline.AnimTime(proto, (float) (now - comp.StartTime).TotalSeconds);
                 while (state.NextEvent < proto.Events.Count
                        && (proto.Events[state.NextEvent].Time < t0 - 0.2f || proto.Events[state.NextEvent].Time < -comp.Intro - 1e-4f))
                     state.NextEvent++;
@@ -155,9 +164,12 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
 
             // Real time drives the effects; the poses use the hit-stop warped animation time.
             // Negative during the intro (the holster beat before StartTime).
-            var real = Math.Clamp((float) (now - comp.StartTime).TotalSeconds, -comp.Intro, GilbertFinisherTimeline.TotalLength(proto));
-            var t = GilbertFinisherTimeline.AnimTime(proto, real);
-            Animate((uid, sprite), comp, proto, state, t);
+            // Below -Intro: the stow pre-beat (the pose of -Intro plus one reach per put-away item).
+            var raw = Math.Clamp((float) (now - comp.StartTime).TotalSeconds, -comp.Intro - comp.PreBeat, ProcAnimTimeline.TotalLength(proto));
+            var real = MathF.Max(raw, -comp.Intro);
+            var pre = raw < -comp.Intro ? raw + comp.Intro + comp.PreBeat : -1f;
+            var t = ProcAnimTimeline.AnimTime(proto, real);
+            Animate((uid, sprite), comp, proto, state, t, pre);
             Effects((uid, sprite), comp, proto, state, t, real);
         }
     }
@@ -166,67 +178,83 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
     /// Screen-space mirror sign: +1 when the attacker → victim direction points right on screen, -1 when left.
     /// Vertical directions fall back to the east mapping (the poses are side-view poses).
     /// </summary>
-    private float ScreenSign(GilbertFinisherComponent comp)
+    private float ScreenSign(ProcAnimComponent comp)
     {
         var screenFwd = _eye.CurrentEye.Rotation.RotateVec(comp.Forward);
         return screenFwd.X < -0.3f ? -1f : 1f;
     }
 
-    private void Animate(Entity<SpriteComponent> ent, GilbertFinisherComponent comp, GilbertFinisherPrototype proto,
-        PlayState state, float t)
+    private void Animate(Entity<SpriteComponent> ent, ProcAnimComponent comp, ProcAnimScenePrototype proto,
+        PlayState state, float t, float pre = -1f)
     {
-        var tracks = GilbertFinisherTimeline.Tracks(proto, comp.Role);
+        var tracks = ProcAnimTimeline.Tracks(proto, comp.Actor);
         var sx = ScreenSign(comp);
         state.LastSign = sx;
 
-        // The victim faces the attacker, so its "near" side is the other one.
-        var facingRight = comp.Role == GilbertFinisherRole.Attacker ? sx > 0 : sx < 0;
+        // Facing -1 (e.g. the victim facing the attacker): its "near" side is the other one.
+        var facingRight = tracks.Facing >= 0f ? sx > 0 : sx < 0;
 
         // Fixed-direction intervals (e.g. back to the camera for the temple kick).
         // Turned views draw the actor side-on facing the other way (e.g. lying with its back to the attacker).
-        var view = GilbertFinisherTimeline.ViewDirection(tracks, t, facingRight);
-        if (GilbertFinisherTimeline.ViewInfoAt(tracks, t) is { Turned: true })
+        var view = ProcAnimTimeline.ViewDirection(tracks, t, facingRight);
+        if (ProcAnimTimeline.ViewInfoAt(tracks, t) is { Turned: true })
             facingRight = !facingRight;
         ApplyView(ent, state, view);
-        var inHands = GilbertFinisherTimeline.HeldInHands(tracks, t);
+        var inHands = ProcAnimTimeline.HeldInHands(tracks, t);
+        state.PropHands = PropHands(ent.Owner, comp, proto);
 
         // Side view (and forced views): per-limb baked layers with clothing split along the body-part masks. Otherwise
         // (vertical facing, rotating sprites, bake failure) the original layers are moved as whole layers.
         var puppet = UpdatePuppet(ent, state, tracks.HolsterHeldItems ? tracks.HolsterStates : null,
             tracks.HolsterAt != null, view != null ? facingRight : null);
         if (puppet == null)
+        {
             HolsterFallback(ent, state, tracks.HolsterHeldItems && !inHands);
+            HideHands(ent, state, state.PropHands);
+        }
         else
             SetHeldVisibility(puppet, inHands);
 
         // Keys + walk cycle + idle + look-at, solved about the mask-derived joints of both puppets.
         var pivots = puppet != null ? ForwardPivots(puppet, sx) : null;
-        var otherPivots = comp.Partner is { } partner && _states.TryGetValue(partner, out var other) && other.Puppet != null
-            ? ForwardPivots(other.Puppet, sx)
-            : null;
-        var poses = GilbertFinisherTimeline.Solve(proto, comp.Role, t, pivots, true, otherPivots);
+        IReadOnlyDictionary<ProcAnimBone, Vector2>? OtherPivots(int index) =>
+            index >= 0 && index < comp.Actors.Count && _states.TryGetValue(comp.Actors[index], out var other)
+                                                   && other.Puppet != null
+                ? ForwardPivots(other.Puppet, sx)
+                : null;
+        var overlay = pre >= 0f ? ProcAnimTimeline.StowOverlay(tracks, comp.StowRight, pre, facingRight) : null;
+        var poses = ProcAnimTimeline.Solve(proto, comp.Actor, t, pivots, true, OtherPivots, overlay: overlay);
+
+        // Stub layer: facial expression / eye state keys (nothing draws them yet).
+        var expression = ProcAnimTimeline.ExpressionAt(tracks, t);
+        if (expression != state.Expression)
+        {
+            var changed = new ProcAnimExpressionChangedEvent(state.Expression, expression);
+            state.Expression = expression;
+            RaiseLocalEvent(ent.Owner, ref changed);
+        }
 
         AddStars(ent, tracks, poses, t, sx);
 
-        var body = poses[(int) GilbertFinisherPart.Body];
+        var body = poses[(int) ProcAnimBone.Body];
         state.LastBodyRot = sx * body.Rot;
         _sprite.SetOffset(ent.AsNullable(), state.SpriteOffset + new Vector2(sx * body.X, body.Y) / PixelsPerMeter);
         _sprite.SetRotation(ent.AsNullable(), state.SpriteRotation + Angle.FromDegrees(sx * body.Rot));
 
-        UpdateProps(ent, state, tracks, puppet, poses, t, sx);
+        UpdateProps(ent, comp, state, tracks, puppet, poses, t, sx);
 
-        for (var i = 1; i < GilbertFinisherTimeline.PartCount; i++)
+        for (var i = 1; i < ProcAnimTimeline.PartCount; i++)
         {
-            var part = (GilbertFinisherPart) i;
+            var part = (ProcAnimBone) i;
             var pose = poses[i];
             if (puppet != null)
             {
-                AnimatePuppetPart(puppet, state, part, pose, sx, GilbertFinisherTimeline.IsHidden(tracks, part, t));
+                AnimatePuppetPart(puppet, state, part, pose, sx, ProcAnimTimeline.IsHidden(tracks, part, t));
                 continue;
             }
 
             // Whole original layers can't bend: the lower limb segments are skipped.
-            if (part >= GilbertFinisherPart.ArmNearLow)
+            if (part >= ProcAnimBone.ArmNearLow)
                 continue;
 
             var offset = new Vector2(sx * pose.X, pose.Y) / PixelsPerMeter;
@@ -249,17 +277,23 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
     /// Prop sprites: one layer per prop, drawn right above its part's puppet layer (on top without a puppet), rebuilt
     /// whenever the puppet is rebaked, posed from the part's pose and mirrored with the actor.
     /// </summary>
-    private void UpdateProps(Entity<SpriteComponent> ent, PlayState state, GilbertFinisherActorTracks tracks,
-        PuppetData? puppet, GilbertFinisherPose[] poses, float t, float sx)
+    private void UpdateProps(Entity<SpriteComponent> ent, ProcAnimComponent comp, PlayState state, ProcAnimActor tracks,
+        PuppetData? puppet, ProcAnimPose[] poses, float t, float sx)
     {
         if (tracks.Props.Count == 0)
             return;
 
-        if (!state.PropsBuilt || state.PropsPuppet != puppet)
+        var itemsKey = 0;
+        for (var i = 0; i < tracks.Props.Count; i++)
+            if (PropItemSprite(comp, tracks.Props[i]) != null)
+                itemsKey |= 1 << (i % 31);
+
+        if (!state.PropsBuilt || state.PropsPuppet != puppet || state.PropsItemsKey != itemsKey)
         {
             RemoveProps(ent, state);
             state.PropsBuilt = true;
             state.PropsPuppet = puppet;
+            state.PropsItemsKey = itemsKey;
             for (var i = 0; i < tracks.Props.Count; i++)
             {
                 var prop = tracks.Props[i];
@@ -274,7 +308,12 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
 
                 var key = $"{PuppetKeyPrefix}prop-{i}";
                 var added = _sprite.AddBlankLayer(ent, index);
-                _sprite.LayerSetRsi(added, prop.Sprite, prop.State);
+                // A real item: its own sprite (the authored sprite is only the fallback).
+                if (PropItemSprite(comp, prop) is { } item)
+                    _sprite.LayerSetRsi(added, item.Rsi, item.State);
+                else if (prop.Sprite is { } path)
+                    _sprite.LayerSetRsi(added, path, prop.State);
+                state.PropUsesItem.Add(PropItemSprite(comp, prop) != null);
                 _sprite.LayerMapSet(ent.AsNullable(), key, IndexOfLayer(ent, added));
                 state.Props.Add((key, added));
             }
@@ -284,16 +323,19 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
         {
             var prop = tracks.Props[i];
             var layer = state.Props[i].Layer;
-            var visible = GilbertFinisherTimeline.PropVisible(tracks, prop, t);
+            var visible = ProcAnimTimeline.PropVisible(tracks, prop, t);
             _sprite.LayerSetVisible(layer, visible);
             if (!visible)
                 continue;
             // The body pose moves the whole sprite already.
-            var partPose = prop.Part == GilbertFinisherPart.Body ? default : poses[(int) prop.Part];
-            var pose = GilbertFinisherTimeline.PropPose(prop, partPose, t);
+            var partPose = prop.Part == ProcAnimBone.Body ? default : poses[(int) prop.Part];
+            var pose = ProcAnimTimeline.PropPose(prop, partPose, t);
+            var usesItem = i < state.PropUsesItem.Count && state.PropUsesItem[i];
+            var rot = pose.Rot + (usesItem ? prop.ItemRotation : 0f);
+            var scale = usesItem ? prop.ItemScale ?? prop.Scale : prop.Scale;
             _sprite.LayerSetOffset(layer, new Vector2(MathF.Round(sx * pose.X), MathF.Round(pose.Y)) / PixelsPerMeter);
-            _sprite.LayerSetRotation(layer, Angle.FromDegrees(sx * pose.Rot));
-            _sprite.LayerSetScale(layer, new Vector2(sx * prop.Scale, prop.Scale));
+            _sprite.LayerSetRotation(layer, Angle.FromDegrees(sx * rot));
+            _sprite.LayerSetScale(layer, new Vector2(sx * scale, scale));
         }
     }
 
@@ -315,6 +357,7 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
         foreach (var (key, _) in state.Props)
             _sprite.RemoveLayer(ent.AsNullable(), key, false);
         state.Props.Clear();
+        state.PropUsesItem.Clear();
         state.PropsBuilt = false;
         state.PropsPuppet = null;
     }
@@ -347,10 +390,59 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
     {
         foreach (var (g, _, layer, _) in puppet.Layers)
         {
-            if (g is GilbertPuppetGroup.HeldNear or GilbertPuppetGroup.HeldFar)
+            if (g is ProcAnimPuppetGroup.HeldNear or ProcAnimPuppetGroup.HeldFar)
                 _sprite.LayerSetVisible(layer, inHands);
-            else if (g == GilbertPuppetGroup.Slung)
+            else if (g == ProcAnimPuppetGroup.Slung)
                 _sprite.LayerSetVisible(layer, !inHands);
+        }
+    }
+
+    /// <summary>The bound item's RSI + state a prop draws with (null: not bound / not known here / no sprite).</summary>
+    private (Robust.Client.Graphics.RSI Rsi, string State)? PropItemSprite(ProcAnimComponent comp, ProcAnimProp prop)
+    {
+        if (prop.ItemIndex < 0 || prop.ItemIndex >= comp.Items.Count)
+            return null;
+        var item = comp.Items[prop.ItemIndex];
+        if (!item.IsValid() || !TryComp<SpriteComponent>(item, out var sprite) || sprite.BaseRSI is not { } rsi)
+            return null;
+        if (rsi.TryGetState(prop.ItemState, out _))
+            return (rsi, prop.ItemState);
+        foreach (var l in sprite.AllLayers)
+            if (l.RsiState.Name is { } name && rsi.TryGetState(name, out _))
+                return (rsi, name);
+        return null;
+    }
+
+    /// <summary>Hands holding a real item one of the scene's props draws (bit 1 left, 2 right).</summary>
+    private int PropHands(EntityUid uid, ProcAnimComponent comp, ProcAnimScenePrototype proto)
+    {
+        var mask = 0;
+        var items = proto.Items;
+        for (var i = 0; i < items.Count && i < comp.Items.Count; i++)
+        {
+            if (!items[i].HasProp || !comp.Items[i].IsValid()
+                || !_hands.IsHolding(uid, comp.Items[i], out var hand) || !_hands.TryGetHand(uid, hand, out var h))
+                continue;
+            mask |= h.Value.Location == HandLocation.Left ? 1 : 2;
+        }
+
+        return mask;
+    }
+
+    /// <summary>No puppet: hides the in-hand layers of the given hands (shown again on restore).</summary>
+    private void HideHands(Entity<SpriteComponent> ent, PlayState state, int mask)
+    {
+        foreach (var location in new[] { HandLocation.Left, HandLocation.Right })
+        {
+            if ((mask & (location == HandLocation.Left ? 1 : 2)) == 0)
+                continue;
+            foreach (var layer in HandItemLayers(ent, location))
+            {
+                if (!layer.Visible)
+                    continue;
+                state.HiddenHands.Add(layer);
+                _sprite.LayerSetVisible(layer, false);
+            }
         }
     }
 
@@ -370,14 +462,14 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
         }
     }
 
-    private void Effects(Entity<SpriteComponent> ent, GilbertFinisherComponent comp, GilbertFinisherPrototype proto,
+    private void Effects(Entity<SpriteComponent> ent, ProcAnimComponent comp, ProcAnimScenePrototype proto,
         PlayState state, float t, float real)
     {
         while (state.NextEvent < proto.Events.Count && proto.Events[state.NextEvent].Time <= t)
         {
             var index = state.NextEvent++;
             var ev = proto.Events[index];
-            if (ev.Target != comp.Role)
+            if (ev.TargetIndex != comp.Actor)
                 continue;
 
             if (ev.Flash)
@@ -394,11 +486,11 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
     }
 
     /// <summary>Dizzy stars orbiting the dazed actor's head, in the same forward-frame -> world mapping as the blood.</summary>
-    private void AddStars(EntityUid uid, GilbertFinisherActorTracks tracks, GilbertFinisherPose[] poses, float t, float sx)
+    private void AddStars(EntityUid uid, ProcAnimActor tracks, ProcAnimPose[] poses, float t, float sx)
     {
         if (tracks.Daze?.Stars is not { } cfg)
             return;
-        var stars = GilbertFinisherTimeline.Stars(tracks, t);
+        var stars = ProcAnimTimeline.Stars(tracks, t);
         if (stars.Count == 0)
             return;
         var map = _transform.GetMapCoordinates(uid);
@@ -408,7 +500,7 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
         var inv = -_eye.CurrentEye.Rotation;
         var axisX = inv.RotateVec(new Vector2(sx, 0)) / PixelsPerMeter;
         var axisY = inv.RotateVec(new Vector2(0, 1)) / PixelsPerMeter;
-        var centre = GilbertFinisherTimeline.Point(poses, cfg.From, cfg.At);
+        var centre = ProcAnimTimeline.Point(poses, cfg.From, cfg.At);
         foreach (var star in stars)
         {
             var p = centre + star.Position;
@@ -419,8 +511,8 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
         }
     }
 
-    private void StartBlood(EntityUid uid, GilbertFinisherComponent comp, GilbertFinisherPrototype proto,
-        GilbertFinisherEvent ev, int index)
+    private void StartBlood(EntityUid uid, ProcAnimComponent comp, ProcAnimScenePrototype proto,
+        ProcAnimEvent ev, int index)
     {
         var blood = ev.Blood!;
         var map = _transform.GetMapCoordinates(uid);
@@ -428,8 +520,8 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
             return;
 
         var pivots = _states.TryGetValue(uid, out var state) && state.Puppet != null ? ForwardPivots(state.Puppet, ScreenSign(comp)) : null;
-        var pose = GilbertFinisherTimeline.Solve(proto, comp.Role, ev.Time, pivots);
-        var origin = GilbertFinisherTimeline.Point(pose, blood.From, blood.At);
+        var pose = ProcAnimTimeline.Solve(proto, comp.Actor, ev.Time, pivots);
+        var origin = ProcAnimTimeline.Point(pose, blood.From, blood.At);
 
         var color = blood.Color ?? BloodColor(uid);
         // Forward-frame px -> world: x along the screen side the attacker faces, y screen-up.
@@ -455,7 +547,7 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
         return _proto.TryIndex<ReagentPrototype>(reagent, out var proto) ? proto.SubstanceColor : Color.FromHex("#800000");
     }
 
-    private void Shake(EntityUid uid, GilbertFinisherComponent comp, float strength)
+    private void Shake(EntityUid uid, ProcAnimComponent comp, float strength)
     {
         if (_player.LocalEntity is not { } local)
             return;
@@ -468,37 +560,37 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
         _recoil.KickCamera(local, comp.Forward * 0.35f * strength);
     }
 
-    private IEnumerable<SpriteComponent.Layer> PartLayers(Entity<SpriteComponent> ent, GilbertFinisherPart part, bool facingRight)
+    private IEnumerable<SpriteComponent.Layer> PartLayers(Entity<SpriteComponent> ent, ProcAnimBone part, bool facingRight)
     {
         switch (part)
         {
-            case GilbertFinisherPart.Head:
+            case ProcAnimBone.Head:
                 foreach (var key in HeadLayers)
                     if (TryLayer(ent, key, out var l)) yield return l;
                 foreach (var slot in HeadSlots)
                     foreach (var l in SlotLayers(ent, slot)) yield return l;
                 break;
 
-            case GilbertFinisherPart.ArmNear:
-            case GilbertFinisherPart.ArmFar:
+            case ProcAnimBone.ArmNear:
+            case ProcAnimBone.ArmFar:
             {
                 // Facing right on screen the right arm is the near one.
-                var right = (part == GilbertFinisherPart.ArmNear) == facingRight;
+                var right = (part == ProcAnimBone.ArmNear) == facingRight;
                 if (TryLayer(ent, right ? HumanoidVisualLayers.RArm : HumanoidVisualLayers.LArm, out var arm)) yield return arm;
                 if (TryLayer(ent, right ? HumanoidVisualLayers.RHand : HumanoidVisualLayers.LHand, out var hand)) yield return hand;
                 foreach (var l in HandItemLayers(ent, right ? HandLocation.Right : HandLocation.Left)) yield return l;
-                if (part == GilbertFinisherPart.ArmNear)
+                if (part == ProcAnimBone.ArmNear)
                     foreach (var l in SlotLayers(ent, "gloves")) yield return l;
                 break;
             }
 
-            case GilbertFinisherPart.LegNear:
-            case GilbertFinisherPart.LegFar:
+            case ProcAnimBone.LegNear:
+            case ProcAnimBone.LegFar:
             {
-                var right = (part == GilbertFinisherPart.LegNear) == facingRight;
+                var right = (part == ProcAnimBone.LegNear) == facingRight;
                 if (TryLayer(ent, right ? HumanoidVisualLayers.RLeg : HumanoidVisualLayers.LLeg, out var leg)) yield return leg;
                 if (TryLayer(ent, right ? HumanoidVisualLayers.RFoot : HumanoidVisualLayers.LFoot, out var foot)) yield return foot;
-                if (part == GilbertFinisherPart.LegNear)
+                if (part == ProcAnimBone.LegNear)
                     foreach (var l in SlotLayers(ent, "shoes")) yield return l;
                 break;
             }
@@ -553,7 +645,7 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
         }
     }
 
-    private void Restore(EntityUid uid, PlayState state, GilbertFinisherComponent? comp)
+    private void Restore(EntityUid uid, PlayState state, ProcAnimComponent? comp)
     {
         if (TerminatingOrDeleted(uid) || !TryComp<SpriteComponent>(uid, out var sprite))
             return;
@@ -581,7 +673,9 @@ public sealed partial class GilbertFinisherVisualsSystem : SharedGilbertFinisher
 
         // A victim left lying keeps the on-back angle of the cutscene instead of snapping to the default face-down
         // lying rotation (the server knocks it down right after the component is removed).
-        if (comp is { Role: GilbertFinisherRole.Victim, KeepDown: true }
+        if (comp is { KeepDown: true }
+            && _proto.TryIndex(comp.Scene, out var scene) && comp.Actor >= 0 && comp.Actor < scene.Actors.Count
+            && scene.Actors[comp.Actor].KnockDown
             && MathF.Abs(state.LastBodyRot) > 45f
             && TryComp<RotationVisualsComponent>(uid, out var rotVisuals))
         {

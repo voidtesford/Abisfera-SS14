@@ -1,5 +1,6 @@
-# Gilbert's phase-1 finisher cutscene (t265u). Standalone: played by the `gilbertfinisher` admin command,
-# not wired into Gilbert's AI yet.
+# Gilbert's phase-1 finisher cutscenes (t265u): `procAnimScene` prototypes of the generic ProcAnim library (v11, see
+# Resources/Prototypes/_CorvaxGoob/ProcAnim/README.md), actors `attacker` (Gilbert) and `victim`. Played by Gilbert's AI
+# through GilbertFinisherSystem, the `gilbertfinisher` admin command or `procanim play <id> <attacker> <victim>`.
 # Forward frame: +x = from Gilbert towards the victim, +y = up, rot = degrees, CCW positive when +x is east
 # (Gilbert: a hanging arm/leg swung forward is +rot, his body pitching forward is -rot; the victim faces him,
 # so for the victim it is the other way round). Part x/y are pixels (32 px = 1 tile), `move` is tiles relative
@@ -10,13 +11,14 @@
 # LegFarLow (shin + shoe) about the knee - each relative to its parent segment (joints are measured from the body-part
 # masks of the sprite; the arm poses are solved by a 2-bone IK on the hand centre). Joint limits are applied after the
 # procedural layers: knees fold backwards only, elbows forwards only, shoulders -80..190 degrees
-# (GilbertFinisherTimeline.ApplyJointLimits).
+# (ProcAnimTimeline.ApplyJointLimits).
 # HeldNear / HeldFar are the held items while still in the hands (until `holsterAt`), carried by the hands.
 # `intro` seconds (anim time -intro..0) are played first only when the attacker holds something: the holster
 # beat. `views` force a sprite direction for a while (North = back to the camera).
 # On top of the keys: `walk` (procedural walk cycle driven by the distance moved), `idle` (breathing / weight
 # shift while not walking) and `look` (head turns towards the other actor's head).
-# Read by GilbertFinisherVisualsSystem (client), GilbertFinisherSystem (server) and the offline preview renderer.
+# Read by ProcAnimVisualsSystem (client), ProcAnimSystem (server) and the offline preview renderer
+# (Tools/_CorvaxGoob/procanim/preview.py).
 #
 # Beats (anim time; hit-stops push real time back): [-0.6..0, only with something in the hands: Gilbert swings
 # the shotgun up over his shoulder onto his back] 0.3 grabs the head - 0.6 pulls it down, victim struggles -
@@ -29,17 +31,22 @@
 # server if a wall / no floor is in the way) and lies still - 9.3 turns back - 9.7..10.95 Gilbert walks off -
 # 11.1 end.
 
-- type: gilbertFinisher
+- type: procAnimScene
   id: GilbertFinisherPhase1
   length: 11.1
   intro: 0.6
-  victimStart: 0.85
   requiredRoom: 4.3
-  finalDamage: # v10.1: after the final blow, armour / resistances ignored, untargeted
-    types:
-      Asphyxiation: 200
-  attacker:
+  actors:
+  - role: attacker
+    facing: 1
     holsterHeldItems: true
+    # v11: before anything, both hands are emptied with the real items (one quick reach each); they come back after.
+    stowHands:
+      keep: [{components: [Gun]}]
+      rules:
+      - {match: {prototypes: [TelescopicShieldShogkk, TelescopicShield]}, slots: [back, belt]}
+      - {match: {prototypes: [TruncheonShogkk, Truncheon]}, slots: [belt, back]}
+      - {match: {components: [Gun]}, slots: [suitstorage, back]}
     holsterAt: -0.18
     views: [{start: 8.22, end: 9.3, facing: North}]
     walk: {stride: 0.44, fullSpeed: 0.8, legSwing: 26, knee: 36, armSwing: 20, elbow: 12, shoulder: 0.8, bob: 1, lean: 4,
@@ -485,7 +492,14 @@
         - {t: 9.05, rot: 0}
         - {t: 9.3, rot: 0}
         - {t: 11.1, rot: 0}
-  victim:
+  - role: victim
+    facing: -1
+    standUp: true
+    holdCrit: true
+    knockDown: true
+    finalDamage: # v10.1: after the final blow, armour / resistances ignored, untargeted
+      types:
+        Asphyxiation: 200
     smooth: true
     walk: {stride: 0.3, fullSpeed: 1, legSwing: 22, knee: 30, armSwing: 0, elbow: 0, shoulder: 0, bob: 1, lean: 0, sway: 1.5,
       nod: 0, weight: [{t: 0, x: 0}, {t: 0.9, x: 0}, {t: 1, x: 1}, {t: 1.7, x: 1}, {t: 1.9, x: 0.8}, {t: 3, x: 0.8}, {t: 3.1,
@@ -968,76 +982,76 @@
         - {t: 9.08, rot: 0}
         - {t: 9.26, rot: 8}
   events:
-  - {t: -0.6, target: Attacker, beat: holsters the gun, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: -0.18, target: Attacker, beat: gun slung, sound: {path: /Audio/Items/belt_equip.ogg}}
-  - {t: 0.3, target: Victim, beat: grabs the head, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 0.6, target: Victim, beat: pulls down, sheet: true}
-  - {t: 0.88, target: Victim, beat: knee, sheet: true, hitStop: 0.06, shake: 0.7, flash: true, sound: {collection: Punch},
+  - {t: -0.6, target: attacker, beat: holsters the gun, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: -0.18, target: attacker, beat: gun slung, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 0.3, target: victim, beat: grabs the head, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 0.6, target: victim, beat: pulls down, sheet: true}
+  - {t: 0.88, target: victim, beat: knee, sheet: true, hitStop: 0.06, shake: 0.7, flash: true, sound: {collection: Punch},
      blood: {from: Head, at: '-4, 7', count: 14, speed: '30, 80', angle: '70, 150', gravity: 300, floor: -15, life: 1.8}}
-  - {t: 0.89, target: Victim, sound: {path: /Audio/Effects/hit_kick.ogg}}
-  - {t: 1.06, target: Victim, sound: {collection: FootstepFloor}}
-  - {t: 1.2, target: Victim, beat: reels back, sheet: true}
-  - {t: 1.26, target: Victim, sound: {collection: FootstepFloor}}
-  - {t: 1.85, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 2.1, target: Victim, beat: shakes it off, sheet: true}
-  - {t: 2.28, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 2.71, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 3.05, target: Victim, beat: guard up, sheet: true}
-  - {t: 3.1, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 3.25, target: Victim, beat: grabs the shoulders, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 3.62, target: Attacker, beat: wind-up}
-  - {t: 3.72, target: Victim, beat: headbutt, sheet: true, hitStop: 0.07, shake: 0.9, flash: true, sound: {collection: Punch},
+  - {t: 0.89, target: victim, sound: {path: /Audio/Effects/hit_kick.ogg}}
+  - {t: 1.06, target: victim, sound: {collection: FootstepFloor}}
+  - {t: 1.2, target: victim, beat: reels back, sheet: true}
+  - {t: 1.26, target: victim, sound: {collection: FootstepFloor}}
+  - {t: 1.85, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 2.1, target: victim, beat: shakes it off, sheet: true}
+  - {t: 2.28, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 2.71, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 3.05, target: victim, beat: guard up, sheet: true}
+  - {t: 3.1, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 3.25, target: victim, beat: grabs the shoulders, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 3.62, target: attacker, beat: wind-up}
+  - {t: 3.72, target: victim, beat: headbutt, sheet: true, hitStop: 0.07, shake: 0.9, flash: true, sound: {collection: Punch},
      blood: {from: Head, at: '-4, 8', count: 16, speed: '40, 105', angle: '20, 165', gravity: 300, floor: -15, life: 1.8}}
-  - {t: 3.73, target: Victim, sound: {path: /Audio/Effects/gen_hit.ogg}}
-  - {t: 4.25, target: Victim, beat: falls on the back, sheet: true, shake: 0.45, sound: {collection: BodyFall}}
-  - {t: 4.6, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 4.92, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 5.26, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 5.3, target: Victim, beat: covers the face, sheet: true}
-  - {t: 5.4, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 6, target: Attacker, beat: wind-up, sheet: true}
-  - {t: 6.12, target: Victim, beat: stomp, sheet: true, sheetDelay: 0.05, hitStop: 0.1, shake: 1.4, flash: true,
+  - {t: 3.73, target: victim, sound: {path: /Audio/Effects/gen_hit.ogg}}
+  - {t: 4.25, target: victim, beat: falls on the back, sheet: true, shake: 0.45, sound: {collection: BodyFall}}
+  - {t: 4.6, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 4.92, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 5.26, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 5.3, target: victim, beat: covers the face, sheet: true}
+  - {t: 5.4, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 6, target: attacker, beat: wind-up, sheet: true}
+  - {t: 6.12, target: victim, beat: stomp, sheet: true, sheetDelay: 0.05, hitStop: 0.1, shake: 1.4, flash: true,
      sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '0, 9', count: 24, speed: '45, 140', angle: '-5, 185',
      gravity: 360, floor: -16, floorJitter: 6, life: 2.2, bigChance: 0.45}, decal: {id: splatter, from: Head, at: '0, 9', color: '#80000099'}}
-  - {t: 6.13, target: Victim, sound: {collection: BoneGone}}
-  - {t: 6.5, target: Victim, beat: stomp 2, sheet: true, sheetDelay: 0.04, hitStop: 0.05, shake: 0.9, flash: true,
+  - {t: 6.13, target: victim, sound: {collection: BoneGone}}
+  - {t: 6.5, target: victim, beat: stomp 2, sheet: true, sheetDelay: 0.04, hitStop: 0.05, shake: 0.9, flash: true,
      sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '0, 9', count: 14, speed: '40, 120', angle: '0, 180',
      gravity: 360, floor: -16, floorJitter: 6, life: 2, bigChance: 0.4}}
-  - {t: 6.51, target: Victim, sound: {collection: Punch}}
-  - {t: 6.62, target: Victim, beat: guard breaks}
-  - {t: 6.86, target: Victim, beat: stomp 3, sheet: true, sheetDelay: 0.04, hitStop: 0.04, shake: 0.8, flash: true,
+  - {t: 6.51, target: victim, sound: {collection: Punch}}
+  - {t: 6.62, target: victim, beat: guard breaks}
+  - {t: 6.86, target: victim, beat: stomp 3, sheet: true, sheetDelay: 0.04, hitStop: 0.04, shake: 0.8, flash: true,
      sound: {collection: Punch}, blood: {from: Head, at: '0, 9', count: 12, speed: '40, 120', angle: '0, 180', gravity: 360, floor: -16,
      floorJitter: 6, life: 2, bigChance: 0.4}, decal: {id: splatter, from: Head, at: '0, 9', color: '#80000099'}}
-  - {t: 6.87, target: Victim, sound: {collection: BoneGone}}
-  - {t: 7.24, target: Victim, beat: stomp 4, hitStop: 0.05, shake: 0.9, flash: true, sound: {path: /Audio/Effects/gen_hit.ogg},
+  - {t: 6.87, target: victim, sound: {collection: BoneGone}}
+  - {t: 7.24, target: victim, beat: stomp 4, hitStop: 0.05, shake: 0.9, flash: true, sound: {path: /Audio/Effects/gen_hit.ogg},
      blood: {from: Head, at: '0, 9', count: 14, speed: '40, 120', angle: '0, 180', gravity: 360, floor: -16, floorJitter: 6, life: 2, bigChance: 0.4}}
-  - {t: 7.25, target: Victim, sound: {collection: Punch}}
-  - {t: 7.58, target: Victim, beat: stomp 5, hitStop: 0.04, shake: 0.8, flash: true, sound: {path: /Audio/Effects/hit_kick.ogg},
+  - {t: 7.25, target: victim, sound: {collection: Punch}}
+  - {t: 7.58, target: victim, beat: stomp 5, hitStop: 0.04, shake: 0.8, flash: true, sound: {path: /Audio/Effects/hit_kick.ogg},
      blood: {from: Head, at: '0, 9', count: 12, speed: '40, 120', angle: '0, 180', gravity: 360, floor: -16, floorJitter: 6, life: 2, bigChance: 0.4}}
-  - {t: 7.59, target: Victim, sound: {collection: Punch}}
-  - {t: 7.98, target: Victim, beat: stomp 6, sheet: true, sheetDelay: 0.04, hitStop: 0.08, shake: 1.2, flash: true,
+  - {t: 7.59, target: victim, sound: {collection: Punch}}
+  - {t: 7.98, target: victim, beat: stomp 6, sheet: true, sheetDelay: 0.04, hitStop: 0.08, shake: 1.2, flash: true,
      sound: {collection: Punch}, blood: {from: Head, at: '0, 9', count: 20, speed: '50, 140', angle: '0, 180', gravity: 360, floor: -16,
      floorJitter: 6, life: 2, bigChance: 0.4}, decal: {id: splatter, from: Head, at: '0, 9', color: '#80000099'}}
-  - {t: 7.99, target: Victim, sound: {collection: BoneGone}}
-  - {t: 8.22, target: Attacker, beat: turns his back, sheet: true, sound: {collection: FootstepHeavySuit}}
-  - {t: 8.46, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 8.56, target: Attacker, beat: kick wind-up, sheet: true}
-  - {damage: [{part: Head, damage: {types: {Blunt: 60}}, ignoreArmor: true}], t: 8.66, target: Victim, beat: temple kick, sheet: true, sheetDelay: 0.05, hitStop: 0.12, shake: 2, flash: true,
+  - {t: 7.99, target: victim, sound: {collection: BoneGone}}
+  - {t: 8.22, target: attacker, beat: turns his back, sheet: true, sound: {collection: FootstepHeavySuit}}
+  - {t: 8.46, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 8.56, target: attacker, beat: kick wind-up, sheet: true}
+  - {damage: [{part: Head, damage: {types: {Blunt: 60}}, ignoreArmor: true}], t: 8.66, target: victim, beat: temple kick, sheet: true, sheetDelay: 0.05, hitStop: 0.12, shake: 2, flash: true,
      sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '0, 9', count: 26, speed: '60, 160', angle: '20, 160',
      gravity: 360, floor: -16, floorJitter: 6, life: 2.4, bigChance: 0.5}, decal: {id: splatter, from: Head, at: '0, 9', color: '#80000099'}}
-  - {t: 8.67, target: Victim, sound: {collection: Punch}}
-  - {t: 8.72, target: Victim, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 8.86, target: Victim, beat: flies, sheet: true}
-  - {t: 9.08, target: Victim, beat: lands, sheet: true, shake: 0.7, sound: {collection: BodyFall}, blood: {from: Head, at: '0, 6',
+  - {t: 8.67, target: victim, sound: {collection: Punch}}
+  - {t: 8.72, target: victim, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 8.86, target: victim, beat: flies, sheet: true}
+  - {t: 9.08, target: victim, beat: lands, sheet: true, shake: 0.7, sound: {collection: BodyFall}, blood: {from: Head, at: '0, 6',
      count: 8, speed: '20, 60', angle: '30, 150', gravity: 300, floor: -16, life: 1.8}, decal: {id: splatter, from: Head, at: '0, 6',
      color: '#80000077'}}
-  - {t: 9.26, target: Victim, sound: {collection: BodyFall}}
-  - {t: 9.3, target: Attacker, beat: turns back, sheet: true}
-  - {t: 9.7, target: Attacker, beat: walks off, sheet: true, sound: {collection: FootstepHeavySuit}}
-  - {t: 10.06, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 10.43, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 10.8, target: Attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 11.1, target: Attacker, beat: end}
+  - {t: 9.26, target: victim, sound: {collection: BodyFall}}
+  - {t: 9.3, target: attacker, beat: turns back, sheet: true}
+  - {t: 9.7, target: attacker, beat: walks off, sheet: true, sound: {collection: FootstepHeavySuit}}
+  - {t: 10.06, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 10.43, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 10.8, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 11.1, target: attacker, beat: end}
 
 # ==== v10 variants (compose_v10.py: v2.py, v3.py) ========================================
 
@@ -1047,16 +1061,23 @@
 # to the grip, walks round behind the shoulders, rams the bayonet into the throat (3.0) and fires (3.4: 90 Piercing
 # to the head, ignoring armour), pulls it out (3.95), steps back and walks off. The gun stays in the hands
 # (holsterHeldItems: false); HeldNear keys hold the gun's grip / barrel on the hand found by the arm IK.
-- type: gilbertFinisher
+- type: procAnimScene
   id: GilbertFinisherBarrel
   length: 6.7
-  victimStart: 0.85
   requiredRoom: 3
-  finalDamage: # v10.1: after the final blow, armour / resistances ignored, untargeted
-    types:
-      Asphyxiation: 200
-  attacker:
+  actors:
+  - role: attacker
+    facing: 1
     holsterHeldItems: false
+    # v11: before anything, both hands are emptied with the real items (one quick reach each); they come back after.
+    stowHands:
+      keep: [{components: [Gun]}]
+      rules:
+      - {match: {prototypes: [TelescopicShieldShogkk, TelescopicShield]}, slots: [back, belt]}
+      - {match: {prototypes: [TruncheonShogkk, Truncheon]}, slots: [belt, back]}
+      - {match: {components: [Gun]}, slots: [suitstorage, back]}
+    items:
+    - {id: shotgun, match: {components: [Gun]}, wield: true}
     smooth: true
     walk: {stride: 0.44, fullSpeed: 0.8, legSwing: 26, knee: 36, armSwing: 5, elbow: 3, shoulder: 0.4, bob: 1, lean: 4,
       sway: 1, nod: 1.5, weight: [{t: 0, x: 0}, {t: 1.3, x: 0}, {t: 1.38, x: 1}, {t: 1.66, x: 1}, {t: 1.72, x: 0}, {t: 2.26,
@@ -2027,7 +2048,14 @@
         - {t: 4.4, rot: 0}
         - {t: 4.62, rot: 0}
         - {t: 6.7, rot: 0}
-  victim:
+  - role: victim
+    facing: -1
+    standUp: true
+    holdCrit: true
+    knockDown: true
+    finalDamage: # v10.1: after the final blow, armour / resistances ignored, untargeted
+      types:
+        Asphyxiation: 200
     smooth: true
     views: [{start: 1.1, end: 2.1, facing: South}]
     idle: {period: 1.9, breath: 0.6, weightShift: 0.8, headNod: 1, armSway: 2}
@@ -2344,31 +2372,31 @@
         - {t: 4.05, rot: 0}
         - {t: 6.7, rot: 0}
   events:
-  - {t: 0, target: Attacker, beat: flips the shotgun, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 0.3, target: Attacker, beat: grabs the barrel, sheet: true, sound: {path: /Audio/Items/belt_equip.ogg}}
-  - {t: 0.6, target: Attacker, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 0.78, target: Victim, beat: stock sweeps the legs, sheet: true, hitStop: 0.07, shake: 0.8, flash: true,
+  - {t: 0, target: attacker, beat: flips the shotgun, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 0.3, target: attacker, beat: grabs the barrel, sheet: true, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 0.6, target: attacker, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 0.78, target: victim, beat: stock sweeps the legs, sheet: true, hitStop: 0.07, shake: 0.8, flash: true,
      sound: {path: /Audio/Effects/hit_kick.ogg}}
-  - {t: 0.79, target: Victim, sound: {collection: Punch}}
-  - {t: 1.1, target: Victim, beat: falls on the side, sheet: true, sheetDelay: 0.05, shake: 0.9, sound: {collection: BodyFall}}
-  - {t: 1.86, target: Attacker, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 2, target: Victim, beat: rib kick, sheet: true, hitStop: 0.06, shake: 0.9, flash: true, sound: {path: /Audio/Effects/hit_kick.ogg}}
-  - {t: 2.22, target: Victim, beat: rolled onto the back, sound: {collection: BodyFall}, shake: 0.4}
-  - {t: 2.42, target: Attacker, beat: re-grips, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 2.55, target: Attacker, sound: {path: /Audio/Items/belt_equip.ogg}}
-  - {t: 3, target: Victim, beat: bayonet into the throat, sheet: true, sheetDelay: 0.05, hitStop: 0.08, shake: 1, flash: true,
+  - {t: 0.79, target: victim, sound: {collection: Punch}}
+  - {t: 1.1, target: victim, beat: falls on the side, sheet: true, sheetDelay: 0.05, shake: 0.9, sound: {collection: BodyFall}}
+  - {t: 1.86, target: attacker, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 2, target: victim, beat: rib kick, sheet: true, hitStop: 0.06, shake: 0.9, flash: true, sound: {path: /Audio/Effects/hit_kick.ogg}}
+  - {t: 2.22, target: victim, beat: rolled onto the back, sound: {collection: BodyFall}, shake: 0.4}
+  - {t: 2.42, target: attacker, beat: re-grips, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 2.55, target: attacker, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 3, target: victim, beat: bayonet into the throat, sheet: true, sheetDelay: 0.05, hitStop: 0.08, shake: 1, flash: true,
      sound: {path: /Audio/Weapons/pierce.ogg}, blood: {from: Body, at: '-2, 7', count: 16, speed: '30, 100', angle: '20, 160', gravity: 340,
      floor: -16, life: 1.8}}
-  - {t: 3.4, target: Attacker, sound: {path: /Audio/Weapons/Guns/Gunshots/shotgun.ogg}, blood: {from: HeldNear, at: '11.5, -14.0', count: 10,
+  - {t: 3.4, target: attacker, sound: {path: /Audio/Weapons/Guns/Gunshots/shotgun.ogg}, blood: {from: HeldNear, at: '11.5, -14.0', count: 10,
      speed: '90, 190', angle: '60, 120', gravity: 60, floor: -30, life: 0.22, bigChance: 0.6, color: '#ffd84a'}}
-  - {t: 3.4, target: Victim, beat: fires, sheet: true, sheetDelay: 0.03, hitStop: 0.12, shake: 1.8, flash: true, blood: {from: Body, at: '-2, 7',
+  - {t: 3.4, target: victim, beat: fires, sheet: true, sheetDelay: 0.03, hitStop: 0.12, shake: 1.8, flash: true, blood: {from: Body, at: '-2, 7',
      count: 34, speed: '60, 190', angle: '-10, 190', gravity: 380, floor: -16, life: 2.4, bigChance: 0.5}, decal: {id: splatter, from: Body,
      at: '-2, 7', color: '#80000099'}, damage: [{part: Head, damage: {types: {Piercing: 90}}, ignoreArmor: true}]}
-  - {t: 3.41, target: Victim, sound: {collection: BoneGone}}
-  - {t: 3.95, target: Victim, beat: pulls it out, sound: {path: /Audio/Weapons/bladeslice.ogg}, blood: {from: Body, at: '-2, 7', count: 10,
+  - {t: 3.41, target: victim, sound: {collection: BoneGone}}
+  - {t: 3.95, target: victim, beat: pulls it out, sound: {path: /Audio/Weapons/bladeslice.ogg}, blood: {from: Body, at: '-2, 7', count: 10,
      speed: '20, 70', angle: '40, 140', gravity: 340, floor: -16, life: 1.6}}
-  - {t: 4.35, target: Attacker, beat: steps back, sheet: true}
-  - {t: 5.4, target: Attacker, beat: walks off}
+  - {t: 4.35, target: attacker, beat: steps back, sheet: true}
+  - {t: 5.4, target: attacker, beat: walks off}
 
 # V3 "ground and pound" (gilbertfinisher <gilbert> <victim> 3), v10b rework. Authored in /workspace/gilbert/finisher/v3.py (lib10).
 # Right-to-left buttstroke into the jaw spins the victim round (North view, then Turned: back to Gilbert) -> shot into the
@@ -2379,25 +2407,33 @@
 # Head amputation + `kill` on the same event (60 Blunt head + 40 Blunt chest, armor ignored) -> pulls the baton out of
 # the stump, the corpse topples forward -> flicks and stows the baton, walks off. holdAlive keeps the victim from
 # going crit / dead before the head shot.
-- type: gilbertFinisher
+- type: procAnimScene
   id: GilbertFinisherGroundPound
   length: 12.3
-  victimStart: 0.85
   requiredRoom: 3.2
-  finalDamage: # v10.1: after the final blow, armour / resistances ignored, untargeted
-    types:
-      Asphyxiation: 200
-  holdAlive: true
-  attacker:
+  actors:
+  - role: attacker
+    facing: 1
     holsterHeldItems: true
     holsterAt: 1.82
     unholsterAt: 7.92
+    # v11: before anything, both hands are emptied with the real items (one quick reach each); they come back after.
+    stowHands:
+      keep: [{components: [Gun]}]
+      rules:
+      - {match: {prototypes: [TelescopicShieldShogkk, TelescopicShield]}, slots: [back, belt]}
+      - {match: {prototypes: [TruncheonShogkk, Truncheon]}, slots: [belt, back]}
+      - {match: {components: [Gun]}, slots: [suitstorage, back]}
+    items:
+    - {id: shotgun, match: {components: [Gun]}, wield: true}
+    - {id: truncheon, match: {prototypes: [TruncheonShogkk, Truncheon]}, draw: 6.5, return: 10.42,
+        previewSprite: Objects/Weapons/Melee/truncheon.rsi}
     smooth: true
     props:
-    - {sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 6.5, end: 7.25, part: ArmFarHand,
+    - {item: truncheon, itemRotation: -45, itemScale: 0.55, sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 6.5, end: 7.25, part: ArmFarHand,
         keys: [{t: 6.5, x: 3.61, y: -8.96, rot: -83}, {t: 6.75, x: -0.12, y: -0.09, rot: -231.4}, {t: 7.1, x: 3.04, y: 1,
         rot: -270.4}, {t: 7.25, x: 2.21, y: 0.94, rot: 99.1}]}
-    - {sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 9.55, end: 10.42, part: ArmFarHand,
+    - {item: truncheon, itemRotation: -45, itemScale: 0.55, sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 9.55, end: 10.42, part: ArmFarHand,
         keys: [{t: 9.55, x: 0.79, y: 0.49, rot: 116.2}, {t: 9.72, x: 3.48, y: -8.98, rot: -84.5}, {t: 9.95, x: 7.81, y: -2.65,
         rot: 15.7}, {t: 10.05, x: 7.85, y: -5.23, rot: -14.2}, {t: 10.35, x: 2.91, y: -9, rot: -91}, {t: 10.42, x: 2.92, y: -9,
         rot: -90.9}]}
@@ -3072,12 +3108,20 @@
         - {t: 8.6, rot: -6, ease: InOut}
         - {t: 10.7, rot: 0}
         - {t: 12.3, rot: 0}
-  victim:
+  - role: victim
+    facing: -1
+    standUp: true
+    holdCrit: true
+    knockDown: true
+    holdAlive: true
+    finalDamage: # v10.1: after the final blow, armour / resistances ignored, untargeted
+      types:
+        Asphyxiation: 200
     smooth: true
     props:
-    - {sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 7.25, end: 9, part: Head,
+    - {item: attacker.truncheon, itemRotation: -45, itemScale: 0.55, sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 7.25, end: 9, part: Head,
         keys: [{t: 7.25, x: 7.5, y: 6.6, rot: 191.6}]}
-    - {sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 9, end: 9.55, part: Body, keys: [{t: 9,
+    - {item: attacker.truncheon, itemRotation: -45, itemScale: 0.55, sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 9, end: 9.55, part: Body, keys: [{t: 9,
         x: 1.22, y: 10.86, rot: 262}, {t: 9.06, x: -0.97, y: 10.82, rot: 280}, {t: 9.15, x: 2.18, y: 10.65, rot: 254},
         {t: 9.25, x: 0.49, y: 10.92, rot: 268}, {t: 9.4, x: 1.22, y: 10.86, rot: 262}, {t: 9.45, x: 1.22, y: 10.86, rot: 262},
         {t: 9.5, x: 1.22, y: 10.86, rot: 262}]}
@@ -3618,73 +3662,73 @@
         - {t: 10.42, rot: -6}
         - {t: 12.3, rot: -6}
   events:
-  - {t: 0, target: Attacker, beat: winds up the buttstroke, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 0.36, target: Victim, beat: 'buttstroke into the jaw, right to left', sheet: true, sheetDelay: 0.02, hitStop: 0.08, shake: 1.2,
+  - {t: 0, target: attacker, beat: winds up the buttstroke, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 0.36, target: victim, beat: 'buttstroke into the jaw, right to left', sheet: true, sheetDelay: 0.02, hitStop: 0.08, shake: 1.2,
      flash: true, sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '-3, 5', count: 14, speed: '40, 130', angle: '120, 220',
      gravity: 340, floor: -16, life: 1.6}}
-  - {t: 0.37, target: Victim, sound: {collection: Punch}}
-  - {t: 0.44, target: Victim, beat: 'spun round, back to him', sheet: true}
-  - {t: 1.05, target: Attacker, beat: shoots the legs, sheet: true, sound: {path: /Audio/Weapons/Guns/Gunshots/shotgun.ogg},
+  - {t: 0.37, target: victim, sound: {collection: Punch}}
+  - {t: 0.44, target: victim, beat: 'spun round, back to him', sheet: true}
+  - {t: 1.05, target: attacker, beat: shoots the legs, sheet: true, sound: {path: /Audio/Weapons/Guns/Gunshots/shotgun.ogg},
      blood: {from: HeldNear, at: '11.5, -14.0', count: 10, speed: '90, 190', angle: '-75, -15', gravity: 60, floor: -30, life: 0.22,
      bigChance: 0.6, color: '#ffd84a'}, shake: 1.3}
-  - {t: 1.05, target: Victim, hitStop: 0.06, flash: true, damage: [{part: LeftLeg, damage: {types: {Piercing: 30}}, ignoreArmor: true},
+  - {t: 1.05, target: victim, hitStop: 0.06, flash: true, damage: [{part: LeftLeg, damage: {types: {Piercing: 30}}, ignoreArmor: true},
      {part: RightLeg, damage: {types: {Piercing: 30}}, ignoreArmor: true}], blood: {from: LegNearLow, at: '0, -12', count: 18, speed: '30, 120',
      angle: '100, 220', gravity: 340, floor: -16, life: 1.8}, decal: {id: splatter, from: LegNearLow, at: '0, -13', color: '#80000088'}}
-  - {t: 1.06, target: Victim, blood: {from: LegFarLow, at: '0, -12', count: 10, speed: '30, 110', angle: '100, 220', gravity: 340, floor: -16,
+  - {t: 1.06, target: victim, blood: {from: LegFarLow, at: '0, -12', count: 10, speed: '30, 110', angle: '100, 220', gravity: 340, floor: -16,
      life: 1.6}}
-  - {t: 1.32, target: Victim, beat: drops onto its knees, sheet: true, shake: 0.8, sound: {collection: BodyFall}}
-  - {t: 1.58, target: Attacker, beat: slings the shotgun, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 1.82, target: Attacker, sound: {path: /Audio/Items/belt_equip.ogg}}
-  - {t: 2.85, target: Victim, beat: foot on its back, sheet: true, hitStop: 0.05, shake: 0.9, sound: {path: /Audio/Effects/hit_kick.ogg}}
-  - {t: 3.15, target: Attacker, beat: grabs the right arm, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 3.55, target: Victim, sound: {collection: Punch}, blood: {from: Body, at: '-2, 4', count: 4, speed: '10, 40', angle: '90, 180',
+  - {t: 1.32, target: victim, beat: drops onto its knees, sheet: true, shake: 0.8, sound: {collection: BodyFall}}
+  - {t: 1.58, target: attacker, beat: slings the shotgun, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 1.82, target: attacker, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 2.85, target: victim, beat: foot on its back, sheet: true, hitStop: 0.05, shake: 0.9, sound: {path: /Audio/Effects/hit_kick.ogg}}
+  - {t: 3.15, target: attacker, beat: grabs the right arm, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 3.55, target: victim, sound: {collection: Punch}, blood: {from: Body, at: '-2, 4', count: 4, speed: '10, 40', angle: '90, 180',
      gravity: 340, floor: -16, life: 1}}
-  - {t: 3.87, target: Victim, beat: rips the right arm off, sheet: true, sheetDelay: 0.05, hitStop: 0.1, shake: 1.6, flash: true,
+  - {t: 3.87, target: victim, beat: rips the right arm off, sheet: true, sheetDelay: 0.05, hitStop: 0.1, shake: 1.6, flash: true,
      sound: {collection: BoneGone}, blood: {from: Body, at: '-1, 4', count: 32, speed: '50, 170', angle: '60, 200', gravity: 360, floor: -16,
      life: 2.2, bigChance: 0.5}, decal: {id: splatter, from: Body, at: '0, 3', color: '#80000099'}}
-  - {t: 3.88, target: Victim, sound: {path: /Audio/Weapons/bladeslice.ogg}}
-  - {t: 4.1, target: Attacker, beat: throws it away, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 4.45, target: Victim, beat: the arm lands, sound: {collection: BodyFall}}
-  - {t: 4.61, target: Victim, amputate: [RightArm], blood: {from: Body, at: '-1, 4', count: 8, speed: '10, 40', angle: '60, 140', gravity: 340,
+  - {t: 3.88, target: victim, sound: {path: /Audio/Weapons/bladeslice.ogg}}
+  - {t: 4.1, target: attacker, beat: throws it away, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 4.45, target: victim, beat: the arm lands, sound: {collection: BodyFall}}
+  - {t: 4.61, target: victim, amputate: [RightArm], blood: {from: Body, at: '-1, 4', count: 8, speed: '10, 40', angle: '60, 140', gravity: 340,
      floor: -16, life: 1.4}}
-  - {t: 4.75, target: Attacker, beat: grabs the left arm, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 5.15, target: Victim, sound: {collection: Punch}, blood: {from: Body, at: '-2, 4', count: 4, speed: '10, 40', angle: '90, 180',
+  - {t: 4.75, target: attacker, beat: grabs the left arm, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 5.15, target: victim, sound: {collection: Punch}, blood: {from: Body, at: '-2, 4', count: 4, speed: '10, 40', angle: '90, 180',
      gravity: 340, floor: -16, life: 1}}
-  - {t: 5.47, target: Victim, beat: rips the left arm off, sheet: true, sheetDelay: 0.05, hitStop: 0.1, shake: 1.6, flash: true,
+  - {t: 5.47, target: victim, beat: rips the left arm off, sheet: true, sheetDelay: 0.05, hitStop: 0.1, shake: 1.6, flash: true,
      sound: {collection: BoneGone}, blood: {from: Body, at: '-1, 4', count: 32, speed: '50, 170', angle: '60, 200', gravity: 360, floor: -16,
      life: 2.2, bigChance: 0.5}, decal: {id: splatter, from: Body, at: '0, 3', color: '#80000099'}}
-  - {t: 5.48, target: Victim, sound: {path: /Audio/Weapons/bladeslice.ogg}}
-  - {t: 5.7, target: Attacker, beat: throws it away, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 6.05, target: Victim, beat: the arm lands, sound: {collection: BodyFall}}
-  - {t: 6.21, target: Victim, amputate: [LeftArm], blood: {from: Body, at: '-1, 4', count: 8, speed: '10, 40', angle: '60, 140', gravity: 340,
+  - {t: 5.48, target: victim, sound: {path: /Audio/Weapons/bladeslice.ogg}}
+  - {t: 5.7, target: attacker, beat: throws it away, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 6.05, target: victim, beat: the arm lands, sound: {collection: BodyFall}}
+  - {t: 6.21, target: victim, amputate: [LeftArm], blood: {from: Body, at: '-1, 4', count: 8, speed: '10, 40', angle: '60, 140', gravity: 340,
      floor: -16, life: 1.4}}
-  - {t: 6.3, target: Attacker, beat: foot down, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 6.5, target: Attacker, beat: draws the baton, sheet: true, sound: {path: /Audio/Items/belt_equip.ogg}}
-  - {t: 6.92, target: Victim, beat: grabs the hair, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 7.05, target: Victim, beat: head wrenched back, sheet: true, sound: {collection: Punch}}
-  - {t: 7.25, target: Victim, beat: baton rammed into the mouth, sheet: true, sheetDelay: 0.03, hitStop: 0.1, shake: 1.4, flash: true,
+  - {t: 6.3, target: attacker, beat: foot down, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 6.5, target: attacker, beat: draws the baton, sheet: true, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 6.92, target: victim, beat: grabs the hair, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 7.05, target: victim, beat: head wrenched back, sheet: true, sound: {collection: Punch}}
+  - {t: 7.25, target: victim, beat: baton rammed into the mouth, sheet: true, sheetDelay: 0.03, hitStop: 0.1, shake: 1.4, flash: true,
      sound: {collection: BoneGone}, blood: {from: Head, at: '2.6, 5.6', count: 20, speed: '30, 120', angle: '20, 160', gravity: 340, floor: -16,
      life: 1.8, bigChance: 0.3}, decal: {id: splatter, from: Head, at: '2.6, 5.6', color: '#80000088'}}
-  - {t: 7.42, target: Victim, sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '2.6, 5.6', count: 8, speed: '20, 70',
+  - {t: 7.42, target: victim, sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '2.6, 5.6', count: 8, speed: '20, 70',
      angle: '30, 150', gravity: 340, floor: -16, life: 1.4}}
-  - {t: 7.8, target: Attacker, beat: takes the shotgun back, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 7.92, target: Attacker, sound: {path: /Audio/Items/belt_equip.ogg}}
-  - {t: 8.6, target: Attacker, beat: muzzle to the back of the head, sheet: true}
-  - {t: 9, target: Attacker, beat: blows the head off, sheet: true, sheetDelay: 0.03, sound: {path: /Audio/Weapons/Guns/Gunshots/shotgun.ogg},
+  - {t: 7.8, target: attacker, beat: takes the shotgun back, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 7.92, target: attacker, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 8.6, target: attacker, beat: muzzle to the back of the head, sheet: true}
+  - {t: 9, target: attacker, beat: blows the head off, sheet: true, sheetDelay: 0.03, sound: {path: /Audio/Weapons/Guns/Gunshots/shotgun.ogg},
      blood: {from: HeldNear, at: '11.5, -14.0', count: 10, speed: '90, 190', angle: '-40, 10', gravity: 60, floor: -30, life: 0.22, bigChance: 0.6,
      color: '#ffd84a'}, shake: 2.5}
-  - {t: 9, target: Victim, hitStop: 0.16, flash: true, kill: true, damage: [{part: Head, damage: {types: {Blunt: 60}}, ignoreArmor: true},
+  - {t: 9, target: victim, hitStop: 0.16, flash: true, kill: true, damage: [{part: Head, damage: {types: {Blunt: 60}}, ignoreArmor: true},
      {part: Chest, damage: {types: {Blunt: 40}}, ignoreArmor: true}], amputate: [Head], blood: {from: Body, at: '0.6, 9.4', count: 60, speed: '60,
      240', angle: '-40, 140', gravity: 360, floor: -16, life: 2.4, bigChance: 0.6}, decal: {id: splatter, from: Body, at: '8.6, 6.4',
      color: '#80000099'}}
-  - {t: 9.01, target: Victim, sound: {collection: BoneGone}, blood: {from: Body, at: '0.6, 6.4', count: 24, speed: '40, 140', angle: '40, 140',
+  - {t: 9.01, target: victim, sound: {collection: BoneGone}, blood: {from: Body, at: '0.6, 6.4', count: 24, speed: '40, 140', angle: '40, 140',
      gravity: 340, floor: -16, life: 2}}
-  - {t: 9.2, target: Victim, blood: {from: Body, at: '0.6, 6.4', count: 10, speed: '20, 70', angle: '60, 120', gravity: 340, floor: -16, life: 1.5}}
-  - {t: 9.55, target: Attacker, beat: pulls the baton out, sheet: true, sound: {path: /Audio/Weapons/bladeslice.ogg}, blood: {from: ArmFarHand,
+  - {t: 9.2, target: victim, blood: {from: Body, at: '0.6, 6.4', count: 10, speed: '20, 70', angle: '60, 120', gravity: 340, floor: -16, life: 1.5}}
+  - {t: 9.55, target: attacker, beat: pulls the baton out, sheet: true, sound: {path: /Audio/Weapons/bladeslice.ogg}, blood: {from: ArmFarHand,
      at: '3, -4', count: 10, speed: '20, 80', angle: '30, 150', gravity: 340, floor: -16, life: 1.5}}
-  - {t: 9.56, target: Victim, blood: {from: Body, at: '0.6, 6.4', count: 12, speed: '30, 100', angle: '50, 130', gravity: 340, floor: -16, life: 1.6}}
-  - {t: 9.95, target: Attacker, beat: flicks it clean, blood: {from: ArmFarHand, at: '9, -4', count: 6, speed: '40, 110', angle: '-60, 20',
+  - {t: 9.56, target: victim, blood: {from: Body, at: '0.6, 6.4', count: 12, speed: '30, 100', angle: '50, 130', gravity: 340, floor: -16, life: 1.6}}
+  - {t: 9.95, target: attacker, beat: flicks it clean, blood: {from: ArmFarHand, at: '9, -4', count: 6, speed: '40, 110', angle: '-60, 20',
      gravity: 340, floor: -16, life: 1}}
-  - {t: 10.22, target: Victim, beat: the corpse topples forward, sheet: true, shake: 0.9, sound: {collection: BodyFall}}
-  - {t: 10.42, target: Attacker, beat: stows the baton, sound: {path: /Audio/Items/belt_equip.ogg}}
-  - {t: 11.15, target: Attacker, beat: walks off, sheet: true}
+  - {t: 10.22, target: victim, beat: the corpse topples forward, sheet: true, shake: 0.9, sound: {collection: BodyFall}}
+  - {t: 10.42, target: attacker, beat: stows the baton, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 11.15, target: attacker, beat: walks off, sheet: true}

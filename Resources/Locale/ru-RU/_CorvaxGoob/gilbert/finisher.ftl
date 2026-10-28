@@ -44,3 +44,4 @@ cmd-gilberttarget-self = Гилберт не может охотиться на 
 cmd-gilberttarget-set = { $gilbert } охотится на { $target }.
 cmd-gilberttarget-cleared = { $gilbert }: приказ на охоту снят.
 cmd-gilberttarget-hint-target = <uid цели | имя игрока> | clear
+cmd-gilbertfinisher-missing-item = У Гилберта нет предмета для этого добивания (дробовик / дубинка).

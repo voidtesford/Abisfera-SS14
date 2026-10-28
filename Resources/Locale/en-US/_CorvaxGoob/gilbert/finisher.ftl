@@ -44,3 +44,4 @@ cmd-gilberttarget-self = Gilbert can't hunt himself.
 cmd-gilberttarget-set = { $gilbert } hunts { $target }.
 cmd-gilberttarget-cleared = { $gilbert }: hunt order cleared.
 cmd-gilberttarget-hint-target = <target uid | player name> | clear
+cmd-gilbertfinisher-missing-item = Gilbert lacks an item this finisher needs (shotgun / truncheon).

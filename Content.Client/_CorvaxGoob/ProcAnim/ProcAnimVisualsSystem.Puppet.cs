@@ -1,7 +1,7 @@
 using System.Linq;
 using System.Numerics;
 using Content.Client.Inventory;
-using Content.Shared._CorvaxGoob.Gilbert.Finisher;
+using Content.Shared._CorvaxGoob.ProcAnim;
 using Content.Shared.Humanoid;
 using Robust.Client.GameObjects;
 using Robust.Client.Graphics;
@@ -14,15 +14,15 @@ using SixLabors.ImageSharp;
 using Color = Robust.Shared.Maths.Color;
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace Content.Client._CorvaxGoob.Gilbert.Finisher;
+namespace Content.Client._CorvaxGoob.ProcAnim;
 
 /// <summary>
 /// Runtime "puppet" for side-facing humanoids: the visible layers are composited into one texture per limb group (see
-/// <see cref="GilbertFinisherPuppet"/>), the originals are hidden for the duration of the cutscene and the group layers
+/// <see cref="ProcAnimPuppet"/>), the originals are hidden for the duration of the cutscene and the group layers
 /// are animated about mask-derived joint pivots with whole-pixel offsets. Layers that cannot be baked (animated,
 /// shader-driven, scaled, raw textures) stay as they are and follow the group under most of their pixels.
 /// </summary>
-public sealed partial class GilbertFinisherVisualsSystem
+public sealed partial class ProcAnimVisualsSystem
 {
     [Dependency] private readonly IClyde _clyde = default!;
     [Dependency] private readonly IResourceManager _res = default!;
@@ -46,56 +46,56 @@ public sealed partial class GilbertFinisherVisualsSystem
     private sealed class PuppetData
     {
         public int Signature;
-        public required GilbertPuppetResult Result;
-        public readonly List<(GilbertPuppetGroup Group, string Key, SpriteComponent.Layer Layer, OwnedTexture Texture)> Layers = new();
+        public required ProcAnimPuppetResult Result;
+        public readonly List<(ProcAnimPuppetGroup Group, string Key, SpriteComponent.Layer Layer, OwnedTexture Texture)> Layers = new();
         public readonly Dictionary<SpriteComponent.Layer, (RSI? Rsi, string? State, bool WantsVisible)> Hidden = new();
-        public readonly Dictionary<SpriteComponent.Layer, GilbertPuppetGroup> Leftovers = new();
+        public readonly Dictionary<SpriteComponent.Layer, ProcAnimPuppetGroup> Leftovers = new();
     }
 
-    private static GilbertPuppetGroup GroupOf(GilbertFinisherPart part) => part switch
+    private static ProcAnimPuppetGroup GroupOf(ProcAnimBone part) => part switch
     {
-        GilbertFinisherPart.Head => GilbertPuppetGroup.Head,
-        GilbertFinisherPart.ArmNear => GilbertPuppetGroup.ArmNear,
-        GilbertFinisherPart.ArmFar => GilbertPuppetGroup.ArmFar,
-        GilbertFinisherPart.LegNear => GilbertPuppetGroup.LegNear,
-        GilbertFinisherPart.LegFar => GilbertPuppetGroup.LegFar,
-        GilbertFinisherPart.ArmNearLow => GilbertPuppetGroup.ArmNearLow,
-        GilbertFinisherPart.ArmFarLow => GilbertPuppetGroup.ArmFarLow,
-        GilbertFinisherPart.LegNearLow => GilbertPuppetGroup.LegNearLow,
-        GilbertFinisherPart.LegFarLow => GilbertPuppetGroup.LegFarLow,
-        GilbertFinisherPart.ArmNearHand => GilbertPuppetGroup.ArmNearHand,
-        GilbertFinisherPart.ArmFarHand => GilbertPuppetGroup.ArmFarHand,
-        GilbertFinisherPart.LegNearFoot => GilbertPuppetGroup.LegNearFoot,
-        GilbertFinisherPart.LegFarFoot => GilbertPuppetGroup.LegFarFoot,
-        GilbertFinisherPart.HeldNear => GilbertPuppetGroup.HeldNear,
-        GilbertFinisherPart.HeldFar => GilbertPuppetGroup.HeldFar,
-        _ => GilbertPuppetGroup.Torso,
+        ProcAnimBone.Head => ProcAnimPuppetGroup.Head,
+        ProcAnimBone.ArmNear => ProcAnimPuppetGroup.ArmNear,
+        ProcAnimBone.ArmFar => ProcAnimPuppetGroup.ArmFar,
+        ProcAnimBone.LegNear => ProcAnimPuppetGroup.LegNear,
+        ProcAnimBone.LegFar => ProcAnimPuppetGroup.LegFar,
+        ProcAnimBone.ArmNearLow => ProcAnimPuppetGroup.ArmNearLow,
+        ProcAnimBone.ArmFarLow => ProcAnimPuppetGroup.ArmFarLow,
+        ProcAnimBone.LegNearLow => ProcAnimPuppetGroup.LegNearLow,
+        ProcAnimBone.LegFarLow => ProcAnimPuppetGroup.LegFarLow,
+        ProcAnimBone.ArmNearHand => ProcAnimPuppetGroup.ArmNearHand,
+        ProcAnimBone.ArmFarHand => ProcAnimPuppetGroup.ArmFarHand,
+        ProcAnimBone.LegNearFoot => ProcAnimPuppetGroup.LegNearFoot,
+        ProcAnimBone.LegFarFoot => ProcAnimPuppetGroup.LegFarFoot,
+        ProcAnimBone.HeldNear => ProcAnimPuppetGroup.HeldNear,
+        ProcAnimBone.HeldFar => ProcAnimPuppetGroup.HeldFar,
+        _ => ProcAnimPuppetGroup.Torso,
     };
 
-    private static GilbertFinisherPart? PartOf(GilbertPuppetGroup group) => group switch
+    private static ProcAnimBone? PartOf(ProcAnimPuppetGroup group) => group switch
     {
-        GilbertPuppetGroup.Head => GilbertFinisherPart.Head,
-        GilbertPuppetGroup.ArmNear => GilbertFinisherPart.ArmNear,
-        GilbertPuppetGroup.ArmFar => GilbertFinisherPart.ArmFar,
-        GilbertPuppetGroup.LegNear => GilbertFinisherPart.LegNear,
-        GilbertPuppetGroup.LegFar => GilbertFinisherPart.LegFar,
-        GilbertPuppetGroup.ArmNearLow => GilbertFinisherPart.ArmNearLow,
-        GilbertPuppetGroup.ArmFarLow => GilbertFinisherPart.ArmFarLow,
-        GilbertPuppetGroup.LegNearLow => GilbertFinisherPart.LegNearLow,
-        GilbertPuppetGroup.LegFarLow => GilbertFinisherPart.LegFarLow,
-        GilbertPuppetGroup.ArmNearHand => GilbertFinisherPart.ArmNearHand,
-        GilbertPuppetGroup.ArmFarHand => GilbertFinisherPart.ArmFarHand,
-        GilbertPuppetGroup.LegNearFoot => GilbertFinisherPart.LegNearFoot,
-        GilbertPuppetGroup.LegFarFoot => GilbertFinisherPart.LegFarFoot,
-        GilbertPuppetGroup.HeldNear => GilbertFinisherPart.HeldNear,
-        GilbertPuppetGroup.HeldFar => GilbertFinisherPart.HeldFar,
+        ProcAnimPuppetGroup.Head => ProcAnimBone.Head,
+        ProcAnimPuppetGroup.ArmNear => ProcAnimBone.ArmNear,
+        ProcAnimPuppetGroup.ArmFar => ProcAnimBone.ArmFar,
+        ProcAnimPuppetGroup.LegNear => ProcAnimBone.LegNear,
+        ProcAnimPuppetGroup.LegFar => ProcAnimBone.LegFar,
+        ProcAnimPuppetGroup.ArmNearLow => ProcAnimBone.ArmNearLow,
+        ProcAnimPuppetGroup.ArmFarLow => ProcAnimBone.ArmFarLow,
+        ProcAnimPuppetGroup.LegNearLow => ProcAnimBone.LegNearLow,
+        ProcAnimPuppetGroup.LegFarLow => ProcAnimBone.LegFarLow,
+        ProcAnimPuppetGroup.ArmNearHand => ProcAnimBone.ArmNearHand,
+        ProcAnimPuppetGroup.ArmFarHand => ProcAnimBone.ArmFarHand,
+        ProcAnimPuppetGroup.LegNearFoot => ProcAnimBone.LegNearFoot,
+        ProcAnimPuppetGroup.LegFarFoot => ProcAnimBone.LegFarFoot,
+        ProcAnimPuppetGroup.HeldNear => ProcAnimBone.HeldNear,
+        ProcAnimPuppetGroup.HeldFar => ProcAnimBone.HeldFar,
         _ => null,
     };
 
     /// <summary>Mask pivots are measured on screen; converted to the forward frame (x mirrored when facing left).</summary>
-    private static Dictionary<GilbertFinisherPart, Vector2> ForwardPivots(PuppetData puppet, float sx)
+    private static Dictionary<ProcAnimBone, Vector2> ForwardPivots(PuppetData puppet, float sx)
     {
-        var res = new Dictionary<GilbertFinisherPart, Vector2>();
+        var res = new Dictionary<ProcAnimBone, Vector2>();
         foreach (var (group, p) in puppet.Result.Pivots)
             if (PartOf(group) is { } part)
                 res[part] = new Vector2(sx * p.X, p.Y);
@@ -124,6 +124,7 @@ public sealed partial class GilbertFinisherVisualsSystem
     {
         var hc = new HashCode();
         hc.Add(dir);
+        hc.Add(state.PropHands);
         var puppet = state.Puppet;
         foreach (var l in ent.Comp.AllLayers)
         {
@@ -425,6 +426,15 @@ public sealed partial class GilbertFinisherVisualsSystem
             if (layer.ActualState == null && layer.Texture == null)
                 continue;
 
+            // A held item a prop draws (the real baton...): the prop is the item, its in-hand frame is not drawn.
+            if (keys.TryGetValue(i, out var propHand)
+                && (propHand.StartsWith("inhand-left") && (state.PropHands & 1) != 0
+                    || propHand.StartsWith("inhand-right") && (state.PropHands & 2) != 0))
+            {
+                holstered.Add(layer);
+                continue;
+            }
+
             // Holstered held item: baked from the item's on-back state (the Slung group, over the torso), else just
             // hidden; with keepInHand also from its in-hand frame (the Held groups, until the holster swing ends).
             if (holster != null && keys.TryGetValue(i, out var handKey) && handKey.StartsWith("inhand-"))
@@ -476,22 +486,22 @@ public sealed partial class GilbertFinisherVisualsSystem
         var c = maxSize + 2 * (int) MathF.Ceiling(maxOff);
         c += c % 2;
 
-        var inputs = new List<GilbertPuppetInput>();
+        var inputs = new List<ProcAnimPuppetInput>();
         foreach (var (index, layer, frame, bakeKey) in baked)
         {
             var pixels = Place(frame, layer.Offset, layer.Color, c);
             if (displacement.TryGetValue(index, out var mapLayer) && LayerFrame(ent, mapLayer) is { } mapFrame)
                 pixels = Displace(pixels, Place(mapFrame, mapLayer.Offset, Color.White, c), c);
-            inputs.Add(new GilbertPuppetInput(bakeKey, pixels));
+            inputs.Add(new ProcAnimPuppetInput(bakeKey, pixels));
         }
 
-        var result = GilbertFinisherPuppet.Build(inputs, c, nearRight);
+        var result = ProcAnimPuppet.Build(inputs, c, nearRight);
         var puppet = new PuppetData { Result = result };
 
         var insertAt = 0;
-        for (var g = 0; g < GilbertFinisherPuppet.GroupCount; g++)
+        for (var g = 0; g < ProcAnimPuppet.GroupCount; g++)
         {
-            var group = (GilbertPuppetGroup) g;
+            var group = (ProcAnimPuppetGroup) g;
             if (result.IsEmpty(group))
                 continue;
 
@@ -522,9 +532,9 @@ public sealed partial class GilbertFinisherVisualsSystem
         foreach (var (layer, frame) in leftovers)
         {
             var group = frame is { } f
-                ? GilbertFinisherPuppet.MajorityGroup(result, Place(f, layer.Offset, Color.White, c))
-                : GilbertPuppetGroup.Torso;
-            if (group is not (GilbertPuppetGroup.Torso or GilbertPuppetGroup.TorsoTop))
+                ? ProcAnimPuppet.MajorityGroup(result, Place(f, layer.Offset, Color.White, c))
+                : ProcAnimPuppetGroup.Torso;
+            if (group is not (ProcAnimPuppetGroup.Torso or ProcAnimPuppetGroup.TorsoTop))
                 puppet.Leftovers[layer] = group;
         }
 
@@ -532,8 +542,8 @@ public sealed partial class GilbertFinisherVisualsSystem
     }
 
     /// <summary>Applies one solved part pose to its puppet group (baked layer + leftovers), offsets snapped to whole pixels.</summary>
-    private void AnimatePuppetPart(PuppetData puppet, PlayState state, GilbertFinisherPart part,
-        GilbertFinisherPose pose, float sx, bool hidden = false)
+    private void AnimatePuppetPart(PuppetData puppet, PlayState state, ProcAnimBone part,
+        ProcAnimPose pose, float sx, bool hidden = false)
     {
         var group = GroupOf(part);
         var offset = new Vector2(MathF.Round(sx * pose.X), MathF.Round(pose.Y)) / PixelsPerMeter;
@@ -566,7 +576,7 @@ public sealed partial class GilbertFinisherVisualsSystem
     }
 
     /// <summary>For tests: the puppet layer of a group, if the entity is currently puppeted.</summary>
-    public SpriteComponent.Layer? GetPuppetLayer(EntityUid uid, GilbertPuppetGroup group)
+    public SpriteComponent.Layer? GetPuppetLayer(EntityUid uid, ProcAnimPuppetGroup group)
     {
         if (!_states.TryGetValue(uid, out var state) || state.Puppet is not { } puppet)
             return null;
@@ -577,7 +587,7 @@ public sealed partial class GilbertFinisherVisualsSystem
     }
 
     /// <summary>For tests / debugging: the current bake of a puppeted entity.</summary>
-    public GilbertPuppetResult? GetPuppetResult(EntityUid uid)
+    public ProcAnimPuppetResult? GetPuppetResult(EntityUid uid)
     {
         return _states.TryGetValue(uid, out var state) ? state.Puppet?.Result : null;
     }

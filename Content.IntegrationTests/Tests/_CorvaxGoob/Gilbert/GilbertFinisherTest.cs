@@ -5,10 +5,10 @@ using Content.Server.NPC.HTN;
 using Content.Server._CorvaxGoob.Gilbert;
 using System.Linq;
 using System.Numerics;
-using Content.Client._CorvaxGoob.Gilbert.Finisher;
+using Content.Client._CorvaxGoob.ProcAnim;
 using Content.IntegrationTests.Pair;
 using Content.Server._CorvaxGoob.Gilbert.Finisher;
-using Content.Shared._CorvaxGoob.Gilbert.Finisher;
+using Content.Shared._CorvaxGoob.ProcAnim;
 using Content.Shared.ActionBlocker;
 using Content.Shared.Humanoid;
 using Content.Shared.Mobs;
@@ -60,77 +60,77 @@ public sealed class GilbertFinisherTest
     {
         await using var pair = await PoolManager.GetServerClient();
         var proto = pair.Server.ResolveDependency<IPrototypeManager>()
-            .Index<GilbertFinisherPrototype>(GilbertFinisherSystem.DefaultFinisher);
+            .Index<ProcAnimScenePrototype>(GilbertFinisherSystem.DefaultFinisher);
 
         Assert.Multiple(() =>
         {
             Assert.That(proto.Length, Is.InRange(10f, 12.5f), "10-12.5 s cutscene");
-            Assert.That(GilbertFinisherTimeline.TotalLength(proto), Is.GreaterThan(proto.Length), "hit-stops lengthen real time");
+            Assert.That(ProcAnimTimeline.TotalLength(proto), Is.GreaterThan(proto.Length), "hit-stops lengthen real time");
             Assert.That(proto.Events.Any(e => e.Blood != null), "blood bursts");
             Assert.That(proto.Events.Any(e => e.Decal != null), "floor decal");
-            Assert.That(proto.Attacker.HolsterHeldItems, Is.True, "shotgun slung on the back");
+            Assert.That(proto.Actor("attacker").HolsterHeldItems, Is.True, "shotgun slung on the back");
             // Holster intro (anim time -Intro..0): the swing ends, then the item is drawn on the back; it has its sounds.
             Assert.That(proto.Intro, Is.InRange(0.5f, 0.7f), "holster beat 0.5-0.7 s");
-            Assert.That(proto.Attacker.HolsterAt, Is.Not.Null.And.InRange(-proto.Intro, 0f));
-            Assert.That(GilbertFinisherTimeline.HeldInHands(proto.Attacker, -proto.Intro), Is.True);
-            Assert.That(GilbertFinisherTimeline.HeldInHands(proto.Attacker, 0f), Is.False);
+            Assert.That(proto.Actor("attacker").HolsterAt, Is.Not.Null.And.InRange(-proto.Intro, 0f));
+            Assert.That(ProcAnimTimeline.HeldInHands(proto.Actor("attacker"), -proto.Intro), Is.True);
+            Assert.That(ProcAnimTimeline.HeldInHands(proto.Actor("attacker"), 0f), Is.False);
             Assert.That(proto.Events.Count(e => e.Time < 0f && e.Time >= -proto.Intro && e.Sound != null), Is.GreaterThanOrEqualTo(2), "swing + sling sounds");
-            Assert.That(GilbertFinisherTimeline.AnimTime(proto, -0.3f), Is.EqualTo(-0.3f), "no hit-stop warp in the intro");
-            Assert.That(GilbertFinisherTimeline.RealTime(proto, -0.3f), Is.EqualTo(-0.3f));
-            Assert.That(proto.Attacker.Parts.ContainsKey(GilbertFinisherPart.HeldNear), "held item animated in the hand");
+            Assert.That(ProcAnimTimeline.AnimTime(proto, -0.3f), Is.EqualTo(-0.3f), "no hit-stop warp in the intro");
+            Assert.That(ProcAnimTimeline.RealTime(proto, -0.3f), Is.EqualTo(-0.3f));
+            Assert.That(proto.Actor("attacker").Parts.ContainsKey(ProcAnimBone.HeldNear), "held item animated in the hand");
             // Arms and legs have two segments (upper arm, forearm + hand; thigh, shin + shoe), so no hand / foot tracks.
-            foreach (var p in new[] { GilbertFinisherPart.ArmNearHand, GilbertFinisherPart.ArmFarHand, GilbertFinisherPart.LegNearFoot, GilbertFinisherPart.LegFarFoot })
-                Assert.That(proto.Attacker.Parts.ContainsKey(p) || proto.Victim.Parts.ContainsKey(p), Is.False, $"{p} not keyed");
+            foreach (var p in new[] { ProcAnimBone.ArmNearHand, ProcAnimBone.ArmFarHand, ProcAnimBone.LegNearFoot, ProcAnimBone.LegFarFoot })
+                Assert.That(proto.Actor("attacker").Parts.ContainsKey(p) || proto.Actor("victim").Parts.ContainsKey(p), Is.False, $"{p} not keyed");
             Assert.That(proto.Events.Select(e => e.Time), Is.Ordered, "events must be sorted");
             Assert.That(proto.Events.Select(e => e.Beat).Where(b => b != null),
                 Is.SupersetOf(new[] { "grabs the head", "knee", "grabs the shoulders", "headbutt", "falls on the back", "stomp",
                     "stomp 2", "stomp 3", "stomp 4", "stomp 5", "stomp 6", "temple kick", "flies", "lands", "walks off", "end" }));
             Assert.That(proto.Events.Count(e => e.Beat != null && e.Beat.StartsWith("stomp")), Is.EqualTo(6), "stomp + 5 more");
 
-            foreach (var role in new[] { GilbertFinisherRole.Attacker, GilbertFinisherRole.Victim })
+            foreach (var role in new[] { 0, 1 })
             {
-                var tracks = GilbertFinisherTimeline.Tracks(proto, role);
+                var tracks = ProcAnimTimeline.Tracks(proto, role);
                 Assert.That(tracks.Move.Select(k => k.Time), Is.Ordered, $"{role} move keys");
                 foreach (var (part, track) in tracks.Parts)
                     Assert.That(track.Keys.Select(k => k.Time), Is.Ordered, $"{role} {part} keys");
             }
 
             // Victim ends lying (tumbled half a turn by the temple kick) off to the side; attacker walks off past it.
-            var victimEnd = GilbertFinisherTimeline.Evaluate(proto.Victim.Parts[GilbertFinisherPart.Body].Keys, proto.Length);
+            var victimEnd = ProcAnimTimeline.Evaluate(proto.Actor("victim").Parts[ProcAnimBone.Body].Keys, proto.Length);
             Assert.That(victimEnd.Rot, Is.EqualTo(-270f));
-            var aEnd = GilbertFinisherTimeline.Evaluate(proto.Attacker.Move, proto.Length).X;
-            var vEndPose = GilbertFinisherTimeline.Evaluate(proto.Victim.Move, proto.Length);
+            var aEnd = ProcAnimTimeline.Evaluate(proto.Actor("attacker").Move, proto.Length).X;
+            var vEndPose = ProcAnimTimeline.Evaluate(proto.Actor("victim").Move, proto.Length);
             Assert.That(aEnd, Is.GreaterThan(vEndPose.X + 0.6f));
             Assert.That(vEndPose.Y, Is.InRange(0.5f, 1.5f), "kicked aside");
             Assert.That(proto.RequiredRoom, Is.GreaterThanOrEqualTo(aEnd));
 
             // Kick flight: 1-2 tiles, declared so the server can shorten it.
-            Assert.That(proto.Victim.Flight, Is.Not.Null);
-            var fl = proto.Victim.Flight!;
-            var p0 = GilbertFinisherTimeline.Evaluate(proto.Victim.Move, fl.Start);
-            var p1 = GilbertFinisherTimeline.Evaluate(proto.Victim.Move, fl.End);
+            Assert.That(proto.Actor("victim").Flight, Is.Not.Null);
+            var fl = proto.Actor("victim").Flight!;
+            var p0 = ProcAnimTimeline.Evaluate(proto.Actor("victim").Move, fl.Start);
+            var p1 = ProcAnimTimeline.Evaluate(proto.Actor("victim").Move, fl.End);
             Assert.That(new Vector2(p1.X - p0.X, p1.Y - p0.Y).Length(), Is.InRange(1f, 2f));
             Assert.That(proto.Events.Any(e => e.Beat == "temple kick" && Math.Abs(e.Time - fl.Start) < 0.01f));
             // Temple kick with the back to the camera, then turned back for the walk-off.
-            Assert.That(GilbertFinisherTimeline.ViewAt(proto.Attacker, fl.Start), Is.EqualTo(Direction.North));
-            Assert.That(GilbertFinisherTimeline.ViewAt(proto.Attacker, 1f), Is.Null);
-            Assert.That(GilbertFinisherTimeline.ViewAt(proto.Attacker, proto.Events.First(e => e.Beat == "walks off").Time), Is.Null);
+            Assert.That(ProcAnimTimeline.ViewAt(proto.Actor("attacker"), fl.Start), Is.EqualTo(Direction.North));
+            Assert.That(ProcAnimTimeline.ViewAt(proto.Actor("attacker"), 1f), Is.Null);
+            Assert.That(ProcAnimTimeline.ViewAt(proto.Actor("attacker"), proto.Events.First(e => e.Beat == "walks off").Time), Is.Null);
             // Kicked away up-screen (behind Gilbert, who stands below the victim's head).
             Assert.That(p1.Y - p0.Y, Is.GreaterThan(Math.Abs(p1.X - p0.X)));
-            Assert.That(GilbertFinisherTimeline.Evaluate(proto.Attacker.Move, fl.Start).Y, Is.LessThan(p0.Y - 0.1f));
+            Assert.That(ProcAnimTimeline.Evaluate(proto.Actor("attacker").Move, fl.Start).Y, Is.LessThan(p0.Y - 0.1f));
 
             // Concussion: dazed (with stars) after the knee, recovered before the shoulder grab.
             var grab = proto.Events.First(e => e.Beat == "grabs the shoulders").Time;
             var knee = proto.Events.First(e => e.Beat == "knee").Time;
-            Assert.That(GilbertFinisherTimeline.DazeWeight(proto.Victim, knee + 0.6f), Is.GreaterThan(0.6f));
-            Assert.That(GilbertFinisherTimeline.Stars(proto.Victim, knee + 0.6f), Is.Not.Empty);
-            Assert.That(GilbertFinisherTimeline.DazeWeight(proto.Victim, grab), Is.EqualTo(0f));
-            Assert.That(GilbertFinisherTimeline.Stars(proto.Victim, grab), Is.Empty);
+            Assert.That(ProcAnimTimeline.DazeWeight(proto.Actor("victim"), knee + 0.6f), Is.GreaterThan(0.6f));
+            Assert.That(ProcAnimTimeline.Stars(proto.Actor("victim"), knee + 0.6f), Is.Not.Empty);
+            Assert.That(ProcAnimTimeline.DazeWeight(proto.Actor("victim"), grab), Is.EqualTo(0f));
+            Assert.That(ProcAnimTimeline.Stars(proto.Actor("victim"), grab), Is.Empty);
 
             // Smooth spline passes through the keys.
-            foreach (var (part, track) in proto.Victim.Parts)
+            foreach (var (part, track) in proto.Actor("victim").Parts)
             foreach (var k in track.Keys.Where(k => track.Keys.Count(o => o.Time == k.Time) == 1))
-                Assert.That(GilbertFinisherTimeline.Evaluate(track.Keys, k.Time, true).Rot, Is.EqualTo(k.Rot).Within(0.01f), $"{part} @ {k.Time}");
+                Assert.That(ProcAnimTimeline.Evaluate(track.Keys, k.Time, true).Rot, Is.EqualTo(k.Rot).Within(0.01f), $"{part} @ {k.Time}");
         });
 
         await pair.CleanReturnAsync();
@@ -150,7 +150,7 @@ public sealed class GilbertFinisherTest
         var xformSys = server.System<SharedTransformSystem>();
         var standing = server.System<StandingStateSystem>();
         var console = server.ResolveDependency<IConsoleHost>();
-        var proto = server.ResolveDependency<IPrototypeManager>().Index<GilbertFinisherPrototype>(GilbertFinisherSystem.DefaultFinisher);
+        var proto = server.ResolveDependency<IPrototypeManager>().Index<ProcAnimScenePrototype>(GilbertFinisherSystem.DefaultFinisher);
 
         EntityUid attacker = default, victim = default;
         Vector2 start = default;
@@ -169,7 +169,7 @@ public sealed class GilbertFinisherTest
             var sys = server.System<GilbertFinisherSystem>();
             Assert.That(sys.TryStart(attacker, attacker, out var err), Is.False);
             Assert.That(err, Is.EqualTo("cmd-gilbertfinisher-same"));
-            Assert.That(sEnt.HasComponent<GilbertFinisherComponent>(attacker), Is.False);
+            Assert.That(sEnt.HasComponent<ProcAnimComponent>(attacker), Is.False);
         });
 
         // Baseline of Gilbert's layers (some systems keep non-zero offsets by design, e.g. the stam-crit layer).
@@ -198,11 +198,11 @@ public sealed class GilbertFinisherTest
         TimeSpan startTime = default;
         await server.WaitAssertion(() =>
         {
-            var comp = sEnt.GetComponent<GilbertFinisherComponent>(attacker);
+            var comp = sEnt.GetComponent<ProcAnimComponent>(attacker);
             intro = comp.Intro;
             startTime = comp.StartTime;
             Assert.That(intro, Is.EqualTo(proto.Intro), "held item -> holster intro");
-            Assert.That(sEnt.GetComponent<GilbertFinisherComponent>(victim).Intro, Is.EqualTo(intro));
+            Assert.That(sEnt.GetComponent<ProcAnimComponent>(victim).Intro, Is.EqualTo(intro));
             Assert.That((comp.StartTime - cmdTime).TotalSeconds, Is.EqualTo(intro).Within(0.1), "timeline shifted by the intro");
         });
 
@@ -210,16 +210,16 @@ public sealed class GilbertFinisherTest
         async Task RunToAnim(float anim)
         {
             var real = (float) (sTiming.CurTime - startTime).TotalSeconds;
-            await RunSeconds(pair, Math.Max(0f, GilbertFinisherTimeline.RealTime(proto, anim) - real));
+            await RunSeconds(pair, Math.Max(0f, ProcAnimTimeline.RealTime(proto, anim) - real));
         }
 
         // Mid-swing: the shotgun is drawn in the hand (its own layer), not yet on the back.
         await RunToAnim(-proto.Intro + 0.25f);
         await client.WaitAssertion(() =>
         {
-            var vis = client.EntMan.System<GilbertFinisherVisualsSystem>();
-            var held = vis.GetPuppetLayer(pair.ToClientUid(attacker), GilbertPuppetGroup.HeldNear);
-            var slung = vis.GetPuppetLayer(pair.ToClientUid(attacker), GilbertPuppetGroup.Slung);
+            var vis = client.EntMan.System<ProcAnimVisualsSystem>();
+            var held = vis.GetPuppetLayer(pair.ToClientUid(attacker), ProcAnimPuppetGroup.HeldNear);
+            var slung = vis.GetPuppetLayer(pair.ToClientUid(attacker), ProcAnimPuppetGroup.Slung);
             Assert.That(held, Is.Not.Null, "in-hand item baked");
             Assert.That(held!.Visible, Is.True, "still in the hand mid-swing");
             Assert.That(slung, Is.Not.Null, "on-back item baked");
@@ -229,13 +229,14 @@ public sealed class GilbertFinisherTest
 
         await server.WaitAssertion(() =>
         {
-            Assert.That(sEnt.HasComponent<GilbertFinisherComponent>(attacker), Is.True, "command started the finisher");
-            Assert.That(sEnt.HasComponent<GilbertFinisherComponent>(victim), Is.True);
+            Assert.That(sEnt.HasComponent<ProcAnimComponent>(attacker), Is.True, "command started the finisher");
+            Assert.That(sEnt.HasComponent<ProcAnimComponent>(victim), Is.True);
             Assert.That(blocker.CanMove(attacker), Is.False, "attacker locked");
             Assert.That(blocker.CanMove(victim), Is.False, "victim locked");
             Assert.That(blocker.CanAttack(victim), Is.False);
             var d = xformSys.GetWorldPosition(victim) - xformSys.GetWorldPosition(attacker);
-            Assert.That(d.X, Is.EqualTo(proto.VictimStart).Within(0.05f), "victim pulled in front of Gilbert");
+            Assert.That(d.X, Is.EqualTo(ProcAnimTimeline.Evaluate(proto.Actor("victim").Move, 0f).X
+                - ProcAnimTimeline.Evaluate(proto.Actor("attacker").Move, 0f).X).Within(0.05f), "victim pulled in front of Gilbert");
             Assert.That(Math.Abs(d.Y), Is.LessThan(0.05f));
         });
 
@@ -246,26 +247,26 @@ public sealed class GilbertFinisherTest
         var cAttacker = pair.ToClientUid(attacker);
         await client.WaitAssertion(() =>
         {
-            Assert.That(cEnt.HasComponent<GilbertFinisherComponent>(cVictim), Is.True, "component networked");
-            Assert.That(cEnt.System<GilbertFinisherVisualsSystem>().IsAnimating(cAttacker), Is.True);
+            Assert.That(cEnt.HasComponent<ProcAnimComponent>(cVictim), Is.True, "component networked");
+            Assert.That(cEnt.System<ProcAnimVisualsSystem>().IsAnimating(cAttacker), Is.True);
             var sprite = cEnt.GetComponent<SpriteComponent>(cAttacker);
             var spriteSys = cEnt.System<SpriteSystem>();
-            var vis = cEnt.System<GilbertFinisherVisualsSystem>();
+            var vis = cEnt.System<ProcAnimVisualsSystem>();
 
             // Side view: the sprite is baked into per-limb puppet layers and the originals are hidden.
-            var knee = vis.GetPuppetLayer(cAttacker, GilbertPuppetGroup.LegNear);
+            var knee = vis.GetPuppetLayer(cAttacker, ProcAnimPuppetGroup.LegNear);
             Assert.That(knee, Is.Not.Null, "attacker puppeted (side view)");
-            Assert.That(spriteSys.LayerMapTryGet((cAttacker, sprite), GilbertFinisherVisualsSystem.PuppetKeyPrefix + "LegNear", out _, false), Is.True);
+            Assert.That(spriteSys.LayerMapTryGet((cAttacker, sprite), ProcAnimVisualsSystem.PuppetKeyPrefix + "LegNear", out _, false), Is.True);
             Assert.That(Math.Abs(knee!.Rotation.Degrees), Is.GreaterThan(5), "knee leg is raised around t=0.9");
-            Assert.That(vis.GetPuppetLayer(cAttacker, GilbertPuppetGroup.ArmFar), Is.Not.Null, "solid far arm");
-            Assert.That(vis.GetPuppetLayer(cAttacker, GilbertPuppetGroup.Torso), Is.Not.Null);
+            Assert.That(vis.GetPuppetLayer(cAttacker, ProcAnimPuppetGroup.ArmFar), Is.Not.Null, "solid far arm");
+            Assert.That(vis.GetPuppetLayer(cAttacker, ProcAnimPuppetGroup.Torso), Is.Not.Null);
             // Split limbs: the shin keeps the full leg length instead of shrinking.
-            Assert.That(vis.GetPuppetLayer(cAttacker, GilbertPuppetGroup.LegNearLow), Is.Not.Null, "lower leg layer");
-            Assert.That(vis.GetPuppetLayer(cAttacker, GilbertPuppetGroup.ArmNearLow), Is.Not.Null, "forearm layer");
-            Assert.That(vis.GetPuppetLayer(cAttacker, GilbertPuppetGroup.ArmNearHand), Is.Null, "arms: upper arm + forearm (with hand), no hand layer");
-            Assert.That(vis.GetPuppetLayer(cAttacker, GilbertPuppetGroup.LegNearFoot), Is.Null, "legs: thigh + shin (with shoe), no foot layer");
-            Assert.That(vis.GetPuppetLayer(cAttacker, GilbertPuppetGroup.HeldNear)!.Visible, Is.False, "holstered after the intro");
-            Assert.That(vis.GetPuppetLayer(cAttacker, GilbertPuppetGroup.Slung)!.Visible, Is.True, "shotgun on the back");
+            Assert.That(vis.GetPuppetLayer(cAttacker, ProcAnimPuppetGroup.LegNearLow), Is.Not.Null, "lower leg layer");
+            Assert.That(vis.GetPuppetLayer(cAttacker, ProcAnimPuppetGroup.ArmNearLow), Is.Not.Null, "forearm layer");
+            Assert.That(vis.GetPuppetLayer(cAttacker, ProcAnimPuppetGroup.ArmNearHand), Is.Null, "arms: upper arm + forearm (with hand), no hand layer");
+            Assert.That(vis.GetPuppetLayer(cAttacker, ProcAnimPuppetGroup.LegNearFoot), Is.Null, "legs: thigh + shin (with shoe), no foot layer");
+            Assert.That(vis.GetPuppetLayer(cAttacker, ProcAnimPuppetGroup.HeldNear)!.Visible, Is.False, "holstered after the intro");
+            Assert.That(vis.GetPuppetLayer(cAttacker, ProcAnimPuppetGroup.Slung)!.Visible, Is.True, "shotgun on the back");
 
             var hidden = vis.GetPuppetHiddenLayers(cAttacker);
             Assert.That(hidden.Count, Is.GreaterThan(10));
@@ -277,17 +278,17 @@ public sealed class GilbertFinisherTest
             var bake = vis.GetPuppetResult(cAttacker);
             Assert.That(bake, Is.Not.Null);
             Assert.That(bake!.SynthesizedFarArm, Is.True);
-            Assert.That(bake.Pivots[GilbertPuppetGroup.ArmNear].Y, Is.GreaterThan(bake.Pivots[GilbertPuppetGroup.LegNear].Y));
-            Assert.That(bake.Pivots[GilbertPuppetGroup.Head].Y, Is.GreaterThan(bake.Pivots[GilbertPuppetGroup.ArmNear].Y));
+            Assert.That(bake.Pivots[ProcAnimPuppetGroup.ArmNear].Y, Is.GreaterThan(bake.Pivots[ProcAnimPuppetGroup.LegNear].Y));
+            Assert.That(bake.Pivots[ProcAnimPuppetGroup.Head].Y, Is.GreaterThan(bake.Pivots[ProcAnimPuppetGroup.ArmNear].Y));
             // Shoulder > elbow > wrist, hip > knee > sole, and the segments cover the whole limb (no lost rows).
             foreach (var (up, low, tip) in new[]
                      {
-                         (GilbertPuppetGroup.ArmNear, GilbertPuppetGroup.ArmNearLow, GilbertPuppetGroup.ArmNearHand),
-                         (GilbertPuppetGroup.ArmFar, GilbertPuppetGroup.ArmFarLow, GilbertPuppetGroup.ArmFarHand),
-                         (GilbertPuppetGroup.LegNear, GilbertPuppetGroup.LegNearLow, GilbertPuppetGroup.LegNearFoot),
+                         (ProcAnimPuppetGroup.ArmNear, ProcAnimPuppetGroup.ArmNearLow, ProcAnimPuppetGroup.ArmNearHand),
+                         (ProcAnimPuppetGroup.ArmFar, ProcAnimPuppetGroup.ArmFarLow, ProcAnimPuppetGroup.ArmFarHand),
+                         (ProcAnimPuppetGroup.LegNear, ProcAnimPuppetGroup.LegNearLow, ProcAnimPuppetGroup.LegNearFoot),
                      })
             {
-                var leg = up == GilbertPuppetGroup.LegNear;
+                var leg = up == ProcAnimPuppetGroup.LegNear;
                 Assert.That(bake.Pivots[up].Y, Is.GreaterThan(bake.Pivots[low].Y), $"{low} below {up}");
                 Assert.That(bake.Pivots[low].Y, Is.GreaterThan(bake.Pivots[tip].Y), $"{tip} below {low}");
                 var seg = bake.Segments[up];
@@ -310,7 +311,7 @@ public sealed class GilbertFinisherTest
             }
 
             // The victim is puppeted too.
-            Assert.That(vis.GetPuppetLayer(cVictim, GilbertPuppetGroup.Head), Is.Not.Null, "victim puppeted");
+            Assert.That(vis.GetPuppetLayer(cVictim, ProcAnimPuppetGroup.Head), Is.Not.Null, "victim puppeted");
         });
 
         await RunSeconds(pair, 2.0);
@@ -321,14 +322,14 @@ public sealed class GilbertFinisherTest
         });
 
         // Temple kick: back to the camera (direction override), turned back afterwards.
-        var kick = proto.Victim.Flight!.Start;
+        var kick = proto.Actor("victim").Flight!.Start;
         await RunToAnim(kick);
         await client.WaitAssertion(() =>
         {
             var sprite = cEnt.GetComponent<SpriteComponent>(cAttacker);
             Assert.That(sprite.EnableDirectionOverride, Is.True, "back view forced");
             Assert.That(sprite.DirectionOverride, Is.EqualTo(Direction.North));
-            Assert.That(cEnt.System<GilbertFinisherVisualsSystem>().GetPuppetLayer(cAttacker, GilbertPuppetGroup.LegFar), Is.Not.Null,
+            Assert.That(cEnt.System<ProcAnimVisualsSystem>().GetPuppetLayer(cAttacker, ProcAnimPuppetGroup.LegFar), Is.Not.Null,
                 "back view puppeted too");
         });
         await RunToAnim(proto.Events.First(e => e.Beat == "walks off").Time);
@@ -339,26 +340,26 @@ public sealed class GilbertFinisherTest
         });
 
         // Just before the end (still locked): positions follow the move tracks.
-        await RunSeconds(pair, GilbertFinisherTimeline.TotalLength(proto) - 0.35f
+        await RunSeconds(pair, ProcAnimTimeline.TotalLength(proto) - 0.35f
                                - (float) (sTiming.CurTime - startTime).TotalSeconds);
         await server.WaitAssertion(() =>
         {
-            var comp = sEnt.GetComponent<GilbertFinisherComponent>(attacker);
+            var comp = sEnt.GetComponent<ProcAnimComponent>(attacker);
             var t = (float) (sTiming.CurTime - comp.StartTime).TotalSeconds;
-            Assert.That(t, Is.LessThan(GilbertFinisherTimeline.TotalLength(proto)));
-            t = GilbertFinisherTimeline.AnimTime(proto, t);
+            Assert.That(t, Is.LessThan(ProcAnimTimeline.TotalLength(proto)));
+            t = ProcAnimTimeline.AnimTime(proto, t);
             var aPos = xformSys.GetWorldPosition(attacker) - start;
             var vPos = xformSys.GetWorldPosition(victim) - start;
-            var aEnd = GilbertFinisherTimeline.Evaluate(proto.Attacker.Move, t).X;
-            var vEnd = GilbertFinisherTimeline.Evaluate(proto.Victim.Move, t).X;
+            var aEnd = ProcAnimTimeline.Evaluate(proto.Actor("attacker").Move, t).X;
+            var vEnd = ProcAnimTimeline.Evaluate(proto.Actor("victim").Move, t).X;
             Assert.That(aPos.X, Is.EqualTo(aEnd).Within(0.1f), $"Gilbert walked forward past the victim (t={t})");
-            var vEndY = GilbertFinisherTimeline.Evaluate(proto.Victim.Move, t).Y;
-            Assert.That(t, Is.GreaterThan(proto.Victim.Flight!.End), "checked after the kick flight");
-            Assert.That(sEnt.GetComponent<GilbertFinisherComponent>(victim).FlightScale, Is.EqualTo(1f), "open floor: full flight");
+            var vEndY = ProcAnimTimeline.Evaluate(proto.Actor("victim").Move, t).Y;
+            Assert.That(t, Is.GreaterThan(proto.Actor("victim").Flight!.End), "checked after the kick flight");
+            Assert.That(sEnt.GetComponent<ProcAnimComponent>(victim).FlightScale, Is.EqualTo(1f), "open floor: full flight");
             Assert.That(vPos.X, Is.EqualTo(vEnd).Within(0.1f), "victim knocked down and kicked aside");
             Assert.That(vPos.Y, Is.EqualTo(vEndY).Within(0.1f));
             Assert.That(aPos.X, Is.GreaterThan(vPos.X + 0.5f));
-            Assert.That(aPos.Y, Is.EqualTo(GilbertFinisherTimeline.Evaluate(proto.Attacker.Move, t).Y).Within(0.1f));
+            Assert.That(aPos.Y, Is.EqualTo(ProcAnimTimeline.Evaluate(proto.Actor("attacker").Move, t).Y).Within(0.1f));
 
             // The finisher is standalone; switch Gilbert's brain off so his AI does not lunge at the
             // victim right after the unlock and mess up the sprite-restore checks below.
@@ -370,8 +371,8 @@ public sealed class GilbertFinisherTest
 
         await server.WaitAssertion(() =>
         {
-            Assert.That(sEnt.HasComponent<GilbertFinisherComponent>(attacker), Is.False, "finished");
-            Assert.That(sEnt.HasComponent<GilbertFinisherComponent>(victim), Is.False);
+            Assert.That(sEnt.HasComponent<ProcAnimComponent>(attacker), Is.False, "finished");
+            Assert.That(sEnt.HasComponent<ProcAnimComponent>(victim), Is.False);
             Assert.That(blocker.CanMove(attacker), Is.True, "attacker unlocked");
             Assert.That(blocker.CanAttack(attacker), Is.True);
             Assert.That(standing.IsDown(victim), Is.True, "victim left lying");
@@ -380,7 +381,7 @@ public sealed class GilbertFinisherTest
         await RunSeconds(pair, 0.3);
         await client.WaitAssertion(() =>
         {
-            var vis = cEnt.System<GilbertFinisherVisualsSystem>();
+            var vis = cEnt.System<ProcAnimVisualsSystem>();
             Assert.That(vis.IsAnimating(cAttacker), Is.False);
             Assert.That(vis.IsAnimating(cVictim), Is.False);
             var sprite = cEnt.GetComponent<SpriteComponent>(cAttacker);
@@ -403,10 +404,10 @@ public sealed class GilbertFinisherTest
                     Assert.That(layer.Visible, Is.EqualTo(b.Visible), "layer visibility restored");
             }
             Assert.That(checkedLayers, Is.GreaterThan(20));
-            Assert.That(vis.GetPuppetLayer(cAttacker, GilbertPuppetGroup.Torso), Is.Null);
+            Assert.That(vis.GetPuppetLayer(cAttacker, ProcAnimPuppetGroup.Torso), Is.Null);
             var spriteSys = cEnt.System<SpriteSystem>();
-            foreach (var group in Enum.GetValues<GilbertPuppetGroup>())
-                Assert.That(spriteSys.LayerMapTryGet((cAttacker, sprite), GilbertFinisherVisualsSystem.PuppetKeyPrefix + group, out _, false),
+            foreach (var group in Enum.GetValues<ProcAnimPuppetGroup>())
+                Assert.That(spriteSys.LayerMapTryGet((cAttacker, sprite), ProcAnimVisualsSystem.PuppetKeyPrefix + group, out _, false),
                     Is.False, $"puppet layer {group} removed");
         });
 
@@ -419,32 +420,32 @@ public sealed class GilbertFinisherTest
     {
         await using var pair = await PoolManager.GetServerClient();
         var proto = pair.Server.ResolveDependency<IPrototypeManager>()
-            .Index<GilbertFinisherPrototype>(GilbertFinisherSystem.DefaultFinisher);
+            .Index<ProcAnimScenePrototype>(GilbertFinisherSystem.DefaultFinisher);
 
         Assert.Multiple(() =>
         {
             // Keyed side-view poses: knees fold back only, elbows forward only, hips in range.
-            foreach (var role in new[] { GilbertFinisherRole.Attacker, GilbertFinisherRole.Victim })
+            foreach (var role in new[] { 0, 1 })
             {
-                var tr = role == GilbertFinisherRole.Attacker ? proto.Attacker : proto.Victim;
-                var f = GilbertFinisherTimeline.Facing(role);
+                var tr = role == 0 ? proto.Actor("attacker") : proto.Actor("victim");
+                var f = ProcAnimTimeline.Facing(proto, role);
                 foreach (var (part, min, max) in new[]
                          {
-                             (GilbertFinisherPart.LegNearLow, GilbertFinisherTimeline.KneeMin, GilbertFinisherTimeline.KneeMax),
-                             (GilbertFinisherPart.LegFarLow, GilbertFinisherTimeline.KneeMin, GilbertFinisherTimeline.KneeMax),
-                             (GilbertFinisherPart.ArmNearLow, GilbertFinisherTimeline.ElbowMin, GilbertFinisherTimeline.ElbowMax),
-                             (GilbertFinisherPart.ArmFarLow, GilbertFinisherTimeline.ElbowMin, GilbertFinisherTimeline.ElbowMax),
-                             (GilbertFinisherPart.LegNear, GilbertFinisherTimeline.HipMin, GilbertFinisherTimeline.HipMax),
-                             (GilbertFinisherPart.LegFar, GilbertFinisherTimeline.HipMin, GilbertFinisherTimeline.HipMax),
-                             (GilbertFinisherPart.ArmNear, GilbertFinisherTimeline.ShoulderMin, GilbertFinisherTimeline.ShoulderMax),
-                             (GilbertFinisherPart.ArmFar, GilbertFinisherTimeline.ShoulderMin, GilbertFinisherTimeline.ShoulderMax),
+                             (ProcAnimBone.LegNearLow, ProcAnimTimeline.KneeMin, ProcAnimTimeline.KneeMax),
+                             (ProcAnimBone.LegFarLow, ProcAnimTimeline.KneeMin, ProcAnimTimeline.KneeMax),
+                             (ProcAnimBone.ArmNearLow, ProcAnimTimeline.ElbowMin, ProcAnimTimeline.ElbowMax),
+                             (ProcAnimBone.ArmFarLow, ProcAnimTimeline.ElbowMin, ProcAnimTimeline.ElbowMax),
+                             (ProcAnimBone.LegNear, ProcAnimTimeline.HipMin, ProcAnimTimeline.HipMax),
+                             (ProcAnimBone.LegFar, ProcAnimTimeline.HipMin, ProcAnimTimeline.HipMax),
+                             (ProcAnimBone.ArmNear, ProcAnimTimeline.ShoulderMin, ProcAnimTimeline.ShoulderMax),
+                             (ProcAnimBone.ArmFar, ProcAnimTimeline.ShoulderMin, ProcAnimTimeline.ShoulderMax),
                          })
                 {
                     if (!tr.Parts.TryGetValue(part, out var track))
                         continue;
                     foreach (var k in track.Keys)
                     {
-                        if (GilbertFinisherTimeline.ViewAt(tr, k.Time) != null)
+                        if (ProcAnimTimeline.ViewAt(tr, k.Time) != null)
                             continue;
                         Assert.That(f * k.Rot, Is.InRange(min - 0.01f, max + 0.01f), $"{role} {part} @ {k.Time}");
                     }
@@ -454,22 +455,22 @@ public sealed class GilbertFinisherTest
             // Runtime clamp (procedural walk / drag / daze on top of the keys).
             foreach (var f in new[] { 1f, -1f })
             {
-                var pose = new System.Numerics.Vector3[GilbertFinisherTimeline.PartCount];
-                pose[(int) GilbertFinisherPart.LegNearLow].Z = f * 40f;   // hyperextended / forward-bent knee
-                pose[(int) GilbertFinisherPart.LegFarLow].Z = f * -170f;  // folded through the thigh
-                pose[(int) GilbertFinisherPart.ArmNearLow].Z = f * -60f;  // elbow bent backwards
-                pose[(int) GilbertFinisherPart.LegNear].Z = f * 160f;
-                pose[(int) GilbertFinisherPart.ArmNearHand].Z = 120f;
-                pose[(int) GilbertFinisherPart.ArmNear].Z = f * -150f;     // flung back past the shoulder limit
-                pose[(int) GilbertFinisherPart.LegNearFoot].Z = 30f;
-                GilbertFinisherTimeline.ApplyJointLimits(pose, f, true);
-                Assert.That(f * pose[(int) GilbertFinisherPart.LegNearLow].Z, Is.EqualTo(GilbertFinisherTimeline.KneeMax));
-                Assert.That(f * pose[(int) GilbertFinisherPart.LegFarLow].Z, Is.EqualTo(GilbertFinisherTimeline.KneeMin));
-                Assert.That(f * pose[(int) GilbertFinisherPart.ArmNearLow].Z, Is.EqualTo(GilbertFinisherTimeline.ElbowMin));
-                Assert.That(f * pose[(int) GilbertFinisherPart.LegNear].Z, Is.EqualTo(GilbertFinisherTimeline.HipMax));
-                Assert.That(f * pose[(int) GilbertFinisherPart.ArmNear].Z, Is.EqualTo(GilbertFinisherTimeline.ShoulderMin));
-                Assert.That(pose[(int) GilbertFinisherPart.ArmNearHand].Z, Is.EqualTo(0f), "arms have no wrist joint");
-                Assert.That(pose[(int) GilbertFinisherPart.LegNearFoot].Z, Is.EqualTo(0f), "legs have no foot joint");
+                var pose = new System.Numerics.Vector3[ProcAnimTimeline.PartCount];
+                pose[(int) ProcAnimBone.LegNearLow].Z = f * 40f;   // hyperextended / forward-bent knee
+                pose[(int) ProcAnimBone.LegFarLow].Z = f * -170f;  // folded through the thigh
+                pose[(int) ProcAnimBone.ArmNearLow].Z = f * -60f;  // elbow bent backwards
+                pose[(int) ProcAnimBone.LegNear].Z = f * 160f;
+                pose[(int) ProcAnimBone.ArmNearHand].Z = 120f;
+                pose[(int) ProcAnimBone.ArmNear].Z = f * -150f;     // flung back past the shoulder limit
+                pose[(int) ProcAnimBone.LegNearFoot].Z = 30f;
+                ProcAnimTimeline.ApplyJointLimits(pose, f, true);
+                Assert.That(f * pose[(int) ProcAnimBone.LegNearLow].Z, Is.EqualTo(ProcAnimTimeline.KneeMax));
+                Assert.That(f * pose[(int) ProcAnimBone.LegFarLow].Z, Is.EqualTo(ProcAnimTimeline.KneeMin));
+                Assert.That(f * pose[(int) ProcAnimBone.ArmNearLow].Z, Is.EqualTo(ProcAnimTimeline.ElbowMin));
+                Assert.That(f * pose[(int) ProcAnimBone.LegNear].Z, Is.EqualTo(ProcAnimTimeline.HipMax));
+                Assert.That(f * pose[(int) ProcAnimBone.ArmNear].Z, Is.EqualTo(ProcAnimTimeline.ShoulderMin));
+                Assert.That(pose[(int) ProcAnimBone.ArmNearHand].Z, Is.EqualTo(0f), "arms have no wrist joint");
+                Assert.That(pose[(int) ProcAnimBone.LegNearFoot].Z, Is.EqualTo(0f), "legs have no foot joint");
             }
         });
 
@@ -486,7 +487,7 @@ public sealed class GilbertFinisherTest
         var sEnt = server.EntMan;
         var sys = server.System<GilbertFinisherSystem>();
         var xformSys = server.System<SharedTransformSystem>();
-        var proto = server.ResolveDependency<IPrototypeManager>().Index<GilbertFinisherPrototype>(GilbertFinisherSystem.DefaultFinisher);
+        var proto = server.ResolveDependency<IPrototypeManager>().Index<ProcAnimScenePrototype>(GilbertFinisherSystem.DefaultFinisher);
 
         EntityUid a = default, v = default, wall = default;
         Vector2 start = default;
@@ -502,17 +503,17 @@ public sealed class GilbertFinisherTest
         await RunSeconds(pair, 0.2);
         await server.WaitPost(() => Assert.That(sys.TryStart(a, v, out var err), Is.True, err));
 
-        var fl = proto.Victim.Flight!;
-        await RunSeconds(pair, GilbertFinisherTimeline.RealTime(proto, fl.End) + 0.3);
+        var fl = proto.Actor("victim").Flight!;
+        await RunSeconds(pair, ProcAnimTimeline.RealTime(proto, fl.End) + 0.3);
         await server.WaitAssertion(() =>
         {
-            var comp = sEnt.GetComponent<GilbertFinisherComponent>(v);
-            Assert.That(sEnt.GetComponent<GilbertFinisherComponent>(a).Forward, Is.EqualTo(new Vector2(1, 0)));
+            var comp = sEnt.GetComponent<ProcAnimComponent>(v);
+            Assert.That(sEnt.GetComponent<ProcAnimComponent>(a).Forward, Is.EqualTo(new Vector2(1, 0)));
             Assert.That(comp.FlightScale, Is.InRange(0f, 0.99f), "flight shortened");
             Assert.That(sEnt.GetComponent<TransformComponent>(wall).Anchored, Is.True);
             var wallFace = xformSys.GetWorldPosition(wall).Y - 0.5f;
             var vPos = xformSys.GetWorldPosition(v);
-            var planned = GilbertFinisherTimeline.Evaluate(proto.Victim.Move, fl.End).Y;
+            var planned = ProcAnimTimeline.Evaluate(proto.Actor("victim").Move, fl.End).Y;
             Assert.That(vPos.Y, Is.LessThanOrEqualTo(wallFace - 0.3f), "did not land in the wall");
             Assert.That(vPos.Y - start.Y, Is.GreaterThan(0f), "still knocked to the side");
             Assert.That(start.Y + planned + 0.45f, Is.GreaterThan(wallFace), "the unshortened flight would have landed against / in the wall");
@@ -533,7 +534,7 @@ public sealed class GilbertFinisherTest
         var blocker = server.System<ActionBlockerSystem>();
         var standing = server.System<StandingStateSystem>();
         var console = server.ResolveDependency<IConsoleHost>();
-        var proto = server.ResolveDependency<IPrototypeManager>().Index<GilbertFinisherPrototype>(GilbertFinisherSystem.DefaultFinisher);
+        var proto = server.ResolveDependency<IPrototypeManager>().Index<ProcAnimScenePrototype>(GilbertFinisherSystem.DefaultFinisher);
 
         EntityUid a = default, v = default, a2 = default, v2 = default;
         await server.WaitPost(() =>
@@ -551,10 +552,10 @@ public sealed class GilbertFinisherTest
         {
             Assert.That(sys.TryStart(a, v, out var err, keepDown: false), Is.True, err);
             // Empty hands: no holster intro, the timeline starts right away.
-            var comp = sEnt.GetComponent<GilbertFinisherComponent>(a);
+            var comp = sEnt.GetComponent<ProcAnimComponent>(a);
             Assert.That(comp.Intro, Is.EqualTo(0f), "nothing held -> no holster beat");
             Assert.That(comp.StartTime, Is.EqualTo(sTiming.CurTime));
-            Assert.That(comp.NextEvent, Is.EqualTo(proto.Events.FindIndex(e => e.Time >= 0f)), "intro events skipped");
+            Assert.That(comp.NextEvent, Is.EqualTo(proto.Events.ToList().FindIndex(e => e.Time >= 0f)), "intro events skipped");
             Assert.That(sys.TryStart(a, v2, out _), Is.False, "busy attacker is refused");
             Assert.That(sys.TryStart(a2, v2, out var err2), Is.True, err2);
         });
@@ -568,21 +569,21 @@ public sealed class GilbertFinisherTest
 
         await server.WaitAssertion(() =>
         {
-            Assert.That(sEnt.HasComponent<GilbertFinisherComponent>(a), Is.False);
-            Assert.That(sEnt.HasComponent<GilbertFinisherComponent>(v), Is.False);
+            Assert.That(sEnt.HasComponent<ProcAnimComponent>(a), Is.False);
+            Assert.That(sEnt.HasComponent<ProcAnimComponent>(v), Is.False);
             Assert.That(blocker.CanMove(a), Is.True);
             Assert.That(blocker.CanMove(v), Is.True);
             Assert.That(standing.IsDown(v), Is.False, "keepdown=false leaves the victim standing");
-            Assert.That(sEnt.HasComponent<GilbertFinisherComponent>(a2), Is.False, "partner deleted -> attacker released");
+            Assert.That(sEnt.HasComponent<ProcAnimComponent>(a2), Is.False, "partner deleted -> attacker released");
             Assert.That(blocker.CanMove(a2), Is.True);
         });
 
         // Can be replayed after it ended.
         await server.WaitPost(() => Assert.That(sys.TryStart(a, v, out var err, keepDown: false), Is.True, err));
-        await RunSeconds(pair, GilbertFinisherTimeline.TotalLength(proto) + 0.3);
+        await RunSeconds(pair, ProcAnimTimeline.TotalLength(proto) + 0.3);
         await server.WaitAssertion(() =>
         {
-            Assert.That(sEnt.HasComponent<GilbertFinisherComponent>(a), Is.False);
+            Assert.That(sEnt.HasComponent<ProcAnimComponent>(a), Is.False);
             // v10.1: a finisher that ran to the end applies its finalDamage (200 asphyxiation): the victim is dead.
             Assert.That(sEnt.GetComponent<MobStateComponent>(v).CurrentState, Is.EqualTo(MobState.Dead), "completed -> final damage");
         });

@@ -1,11 +1,11 @@
 using System.Linq;
 using System.Numerics;
 
-namespace Content.Client._CorvaxGoob.Gilbert.Finisher;
+namespace Content.Client._CorvaxGoob.ProcAnim;
 
 /// <summary>Animated groups of the finisher puppet, in draw order (back to front).</summary>
 /// <remarks>Limbs are two rigid segments: upper arm / forearm + hand (+ gloves), thigh / shin + shoe. The hand / foot groups stay empty.</remarks>
-public enum GilbertPuppetGroup : byte
+public enum ProcAnimPuppetGroup : byte
 {
     ArmFar,
     ArmFarLow,
@@ -30,21 +30,21 @@ public enum GilbertPuppetGroup : byte
 }
 
 /// <summary>One visible sprite layer resolved to its displayed frame (RGBA, layer colour applied) on a C x C canvas.</summary>
-public readonly record struct GilbertPuppetInput(string? Key, byte[] Pixels);
+public readonly record struct ProcAnimPuppetInput(string? Key, byte[] Pixels);
 
-public sealed class GilbertPuppetResult
+public sealed class ProcAnimPuppetResult
 {
     public required int Size;
     /// <summary>Composited RGBA image per group (index = (int) group), C x C, y down.</summary>
     public required byte[][] Images;
     /// <summary>Mask-derived joint pivots in pixels, centred on the sprite origin, y up.</summary>
-    public required Dictionary<GilbertPuppetGroup, Vector2> Pivots;
+    public required Dictionary<ProcAnimPuppetGroup, Vector2> Pivots;
     public bool SynthesizedFarArm;
     public int FarArmShift;
     /// <summary>Per limb (ArmNear / ArmFar / LegNear / LegFar): rows of the joint, middle (elbow / knee), tip (wrist; legs: = End, no foot segment) cuts and the end.</summary>
-    public Dictionary<GilbertPuppetGroup, (int Joint, int Mid, int Tip, int End)> Segments = new();
+    public Dictionary<ProcAnimPuppetGroup, (int Joint, int Mid, int Tip, int End)> Segments = new();
 
-    public bool IsEmpty(GilbertPuppetGroup group)
+    public bool IsEmpty(ProcAnimPuppetGroup group)
     {
         var img = Images[(int) group];
         for (var i = 3; i < img.Length; i += 4)
@@ -60,7 +60,7 @@ public sealed class GilbertPuppetResult
 /// (mostly hidden behind the torso in side view) is replaced by a darkened copy of the near arm so it reads as a solid
 /// limb when swung out. Pure function, a 1:1 port of the preview reference <c>gilbert/finisher/puppet.py</c>.
 /// </summary>
-public static class GilbertFinisherPuppet
+public static class ProcAnimPuppet
 {
     public const int GroupCount = 18;
     public const float FarDarken = 0.82f;
@@ -72,43 +72,43 @@ public static class GilbertFinisherPuppet
     private static readonly HashSet<string> HeadSlots = new() { "head", "mask", "maskalt", "eyes", "ears" };
     private static readonly HashSet<string> TopSlots = new() { "belt", "back", "neck", "id", "pocket1", "pocket2", "suitstorage" };
 
-    private static readonly GilbertPuppetGroup[] SplitAllowed =
+    private static readonly ProcAnimPuppetGroup[] SplitAllowed =
     {
-        GilbertPuppetGroup.ArmNear, GilbertPuppetGroup.Head, GilbertPuppetGroup.LegNear,
-        GilbertPuppetGroup.Torso, GilbertPuppetGroup.LegFar, GilbertPuppetGroup.ArmFar,
+        ProcAnimPuppetGroup.ArmNear, ProcAnimPuppetGroup.Head, ProcAnimPuppetGroup.LegNear,
+        ProcAnimPuppetGroup.Torso, ProcAnimPuppetGroup.LegFar, ProcAnimPuppetGroup.ArmFar,
     };
-    private static readonly GilbertPuppetGroup[] Arms = { GilbertPuppetGroup.ArmNear, GilbertPuppetGroup.ArmFar };
-    private static readonly GilbertPuppetGroup[] Legs = { GilbertPuppetGroup.LegNear, GilbertPuppetGroup.LegFar };
+    private static readonly ProcAnimPuppetGroup[] Arms = { ProcAnimPuppetGroup.ArmNear, ProcAnimPuppetGroup.ArmFar };
+    private static readonly ProcAnimPuppetGroup[] Legs = { ProcAnimPuppetGroup.LegNear, ProcAnimPuppetGroup.LegFar };
 
     private static string? SlotOf(string? key) => key?.Split('-')[0];
 
-    private static (Kind Kind, GilbertPuppetGroup Group) Classify(string? key, bool nearRight)
+    private static (Kind Kind, ProcAnimPuppetGroup Group) Classify(string? key, bool nearRight)
     {
         if (key is "Chest" or "Groin" or "Tail")
-            return (Kind.Part, GilbertPuppetGroup.Torso);
+            return (Kind.Part, ProcAnimPuppetGroup.Torso);
         if (key == "Head")
-            return (Kind.Part, GilbertPuppetGroup.Head);
+            return (Kind.Part, ProcAnimPuppetGroup.Head);
         if (key == "back-slung")
-            return (Kind.Whole, GilbertPuppetGroup.Slung);
+            return (Kind.Whole, ProcAnimPuppetGroup.Slung);
         if (key != null && HeadKeys.Contains(key))
-            return (Kind.Whole, GilbertPuppetGroup.Head);
+            return (Kind.Whole, ProcAnimPuppetGroup.Head);
 
         var n = nearRight ? "R" : "L";
         var f = nearRight ? "L" : "R";
-        if (key == n + "Arm" || key == n + "Hand") return (Kind.Part, GilbertPuppetGroup.ArmNear);
-        if (key == n + "Leg" || key == n + "Foot") return (Kind.Part, GilbertPuppetGroup.LegNear);
-        if (key == f + "Arm" || key == f + "Hand") return (Kind.Part, GilbertPuppetGroup.ArmFar);
-        if (key == f + "Leg" || key == f + "Foot") return (Kind.Part, GilbertPuppetGroup.LegFar);
+        if (key == n + "Arm" || key == n + "Hand") return (Kind.Part, ProcAnimPuppetGroup.ArmNear);
+        if (key == n + "Leg" || key == n + "Foot") return (Kind.Part, ProcAnimPuppetGroup.LegNear);
+        if (key == f + "Arm" || key == f + "Hand") return (Kind.Part, ProcAnimPuppetGroup.ArmFar);
+        if (key == f + "Leg" || key == f + "Foot") return (Kind.Part, ProcAnimPuppetGroup.LegFar);
 
         if (key != null && key.StartsWith("inhand-"))
         {
             var right = key.StartsWith("inhand-right");
-            return (Kind.Whole, right == nearRight ? GilbertPuppetGroup.ArmNear : GilbertPuppetGroup.ArmFar);
+            return (Kind.Whole, right == nearRight ? ProcAnimPuppetGroup.ArmNear : ProcAnimPuppetGroup.ArmFar);
         }
 
         var slot = SlotOf(key);
-        if (slot != null && HeadSlots.Contains(slot)) return (Kind.Whole, GilbertPuppetGroup.Head);
-        if (slot != null && TopSlots.Contains(slot)) return (Kind.Whole, GilbertPuppetGroup.TorsoTop);
+        if (slot != null && HeadSlots.Contains(slot)) return (Kind.Whole, ProcAnimPuppetGroup.Head);
+        if (slot != null && TopSlots.Contains(slot)) return (Kind.Whole, ProcAnimPuppetGroup.TorsoTop);
         if (slot == "gloves") return (Kind.Gloves, default);
         if (slot == "shoes") return (Kind.Shoes, default);
         return (Kind.Split, default);
@@ -168,9 +168,9 @@ public static class GilbertFinisherPuppet
         return maxY < 0 ? null : (minY, maxY, minX, maxX);
     }
 
-    private static List<GilbertPuppetGroup> Label(bool[][] masks, GilbertPuppetGroup[] allowed, int y, int x, int c)
+    private static List<ProcAnimPuppetGroup> Label(bool[][] masks, ProcAnimPuppetGroup[] allowed, int y, int x, int c)
     {
-        var hit = new List<GilbertPuppetGroup>();
+        var hit = new List<ProcAnimPuppetGroup>();
         foreach (var g in allowed)
             if (masks[(int) g][y * c + x]) hit.Add(g);
         if (hit.Count > 0)
@@ -269,7 +269,7 @@ public static class GilbertFinisherPuppet
     /// <param name="layers">Visible layers in draw order, each a C x C RGBA canvas.</param>
     /// <param name="size">Canvas size C.</param>
     /// <param name="nearRight">True when the right side of the body faces the viewer (sprite facing east).</param>
-    public static GilbertPuppetResult Build(IReadOnlyList<GilbertPuppetInput> layers, int size, bool nearRight)
+    public static ProcAnimPuppetResult Build(IReadOnlyList<ProcAnimPuppetInput> layers, int size, bool nearRight)
     {
         var c = size;
         var px = c * c;
@@ -288,8 +288,8 @@ public static class GilbertFinisherPuppet
                 continue;
             var key = layers[i].Key ?? string.Empty;
             var img = layers[i].Pixels;
-            var arm = g == GilbertPuppetGroup.ArmNear ? 0 : g == GilbertPuppetGroup.ArmFar ? 1 : -1;
-            var leg = g == GilbertPuppetGroup.LegNear ? 0 : g == GilbertPuppetGroup.LegFar ? 1 : -1;
+            var arm = g == ProcAnimPuppetGroup.ArmNear ? 0 : g == ProcAnimPuppetGroup.ArmFar ? 1 : -1;
+            var leg = g == ProcAnimPuppetGroup.LegNear ? 0 : g == ProcAnimPuppetGroup.LegFar ? 1 : -1;
             for (var p = 0; p < px; p++)
             {
                 if (img[p * 4 + 3] == 0) continue;
@@ -299,20 +299,20 @@ public static class GilbertFinisherPuppet
             }
         }
 
-        var nearN = Count(masks[(int) GilbertPuppetGroup.ArmNear]);
-        var farN = Count(masks[(int) GilbertPuppetGroup.ArmFar]);
+        var nearN = Count(masks[(int) ProcAnimPuppetGroup.ArmNear]);
+        var farN = Count(masks[(int) ProcAnimPuppetGroup.ArmFar]);
         var synth = nearN > 0 && farN < 0.6f * nearN;
         var shift = 0;
         if (synth && BBox(hands[1], c) is { } bf && BBox(hands[0], c) is { } bn)
             shift = nearRight ? bf.MaxX - bn.MaxX : bf.MinX - bn.MinX;
 
-        var labelCache = new Dictionary<(GilbertPuppetGroup[], int), List<GilbertPuppetGroup>>();
-        List<GilbertPuppetGroup> LabelOf(GilbertPuppetGroup[] allowed, GilbertPuppetGroup fallback, int p)
+        var labelCache = new Dictionary<(ProcAnimPuppetGroup[], int), List<ProcAnimPuppetGroup>>();
+        List<ProcAnimPuppetGroup> LabelOf(ProcAnimPuppetGroup[] allowed, ProcAnimPuppetGroup fallback, int p)
         {
             if (labelCache.TryGetValue((allowed, p), out var cached))
                 return cached;
             var gs = Label(masks, allowed, p / c, p % c, c);
-            if (gs.Count == 0) gs = new List<GilbertPuppetGroup> { fallback };
+            if (gs.Count == 0) gs = new List<ProcAnimPuppetGroup> { fallback };
             labelCache[(allowed, p)] = gs;
             return gs;
         }
@@ -329,27 +329,27 @@ public static class GilbertFinisherPuppet
         {
             var (kind, g) = kinds[i];
             var img = layers[i].Pixels;
-            if (kind == Kind.Whole && g is GilbertPuppetGroup.ArmNear or GilbertPuppetGroup.ArmFar)
+            if (kind == Kind.Whole && g is ProcAnimPuppetGroup.ArmNear or ProcAnimPuppetGroup.ArmFar)
             {
-                Over(held[g == GilbertPuppetGroup.ArmNear ? 0 : 1], img);
+                Over(held[g == ProcAnimPuppetGroup.ArmNear ? 0 : 1], img);
                 continue;
             }
 
             if (kind is Kind.Part or Kind.Whole)
             {
-                if (synth && g == GilbertPuppetGroup.ArmFar && kind == Kind.Part)
+                if (synth && g == ProcAnimPuppetGroup.ArmFar && kind == Kind.Part)
                     continue;
                 Over(outImg[(int) g], img);
-                if (g == GilbertPuppetGroup.ArmNear && kind == Kind.Part)
+                if (g == ProcAnimPuppetGroup.ArmNear && kind == Kind.Part)
                     Over(nearBare, img);
                 continue;
             }
 
             var (allowed, fallback) = kind switch
             {
-                Kind.Gloves => (Arms, GilbertPuppetGroup.ArmNear),
-                Kind.Shoes => (Legs, GilbertPuppetGroup.LegNear),
-                _ => (SplitAllowed, GilbertPuppetGroup.Torso),
+                Kind.Gloves => (Arms, ProcAnimPuppetGroup.ArmNear),
+                Kind.Shoes => (Legs, ProcAnimPuppetGroup.LegNear),
+                _ => (SplitAllowed, ProcAnimPuppetGroup.Torso),
             };
 
             var sel = new bool[GroupCount][];
@@ -358,7 +358,7 @@ public static class GilbertFinisherPuppet
                 if (img[p * 4 + 3] == 0) continue;
                 foreach (var grp in LabelOf(allowed, fallback, p))
                 {
-                    if (synth && grp == GilbertPuppetGroup.ArmFar) continue;
+                    if (synth && grp == ProcAnimPuppetGroup.ArmFar) continue;
                     (sel[(int) grp] ??= new bool[px])[p] = true;
                 }
             }
@@ -367,18 +367,18 @@ public static class GilbertFinisherPuppet
             {
                 if (sel[grp] == null) continue;
                 Over(outImg[grp], img, sel[grp]);
-                if (grp == (int) GilbertPuppetGroup.ArmNear)
+                if (grp == (int) ProcAnimPuppetGroup.ArmNear)
                     Over(nearBare, img, sel[grp]);
-                if (kind == Kind.Gloves && grp is (int) GilbertPuppetGroup.ArmNear or (int) GilbertPuppetGroup.ArmFar)
+                if (kind == Kind.Gloves && grp is (int) ProcAnimPuppetGroup.ArmNear or (int) ProcAnimPuppetGroup.ArmFar)
                 {
-                    var gm = glove[grp == (int) GilbertPuppetGroup.ArmNear ? 0 : 1];
+                    var gm = glove[grp == (int) ProcAnimPuppetGroup.ArmNear ? 0 : 1];
                     for (var p = 0; p < px; p++)
                         gm[p] |= sel[grp][p];
                 }
             }
         }
 
-        FillUnderArm(outImg[(int) GilbertPuppetGroup.Torso], masks[(int) GilbertPuppetGroup.ArmNear], c);
+        FillUnderArm(outImg[(int) ProcAnimPuppetGroup.Torso], masks[(int) ProcAnimPuppetGroup.ArmNear], c);
 
         if (synth)
         {
@@ -397,20 +397,20 @@ public static class GilbertFinisherPuppet
 
             var far = new byte[px * 4];
             Over(far, sh);
-            Over(far, outImg[(int) GilbertPuppetGroup.ArmFar]);
-            outImg[(int) GilbertPuppetGroup.ArmFar] = far;
+            Over(far, outImg[(int) ProcAnimPuppetGroup.ArmFar]);
+            outImg[(int) ProcAnimPuppetGroup.ArmFar] = far;
             glove[1] = Shift(glove[0], shift, c);
         }
 
-        var piv = new Dictionary<GilbertPuppetGroup, Vector2>();
-        var j = TopJoint(Any(armOnly[0]) ? armOnly[0] : masks[(int) GilbertPuppetGroup.ArmNear], c);
+        var piv = new Dictionary<ProcAnimPuppetGroup, Vector2>();
+        var j = TopJoint(Any(armOnly[0]) ? armOnly[0] : masks[(int) ProcAnimPuppetGroup.ArmNear], c);
         if (j is { } jn)
         {
-            piv[GilbertPuppetGroup.ArmNear] = jn;
-            if (synth) piv[GilbertPuppetGroup.ArmFar] = jn + new Vector2(shift, 0);
+            piv[ProcAnimPuppetGroup.ArmNear] = jn;
+            if (synth) piv[ProcAnimPuppetGroup.ArmFar] = jn + new Vector2(shift, 0);
         }
-        if (!synth && TopJoint(Any(armOnly[1]) ? armOnly[1] : masks[(int) GilbertPuppetGroup.ArmFar], c) is { } jf)
-            piv[GilbertPuppetGroup.ArmFar] = jf;
+        if (!synth && TopJoint(Any(armOnly[1]) ? armOnly[1] : masks[(int) ProcAnimPuppetGroup.ArmFar], c) is { } jf)
+            piv[ProcAnimPuppetGroup.ArmFar] = jf;
 
         for (var l = 0; l < 2; l++)
         {
@@ -419,37 +419,37 @@ public static class GilbertFinisherPuppet
                 piv[g] = jl;
         }
 
-        if (BBox(masks[(int) GilbertPuppetGroup.Head], c) is { } hb)
+        if (BBox(masks[(int) ProcAnimPuppetGroup.Head], c) is { } hb)
         {
             var y1 = hb.MaxY;
             float sum = 0; var n = 0;
             for (var x = 0; x < c; x++)
-                if (masks[(int) GilbertPuppetGroup.Head][y1 * c + x]) { sum += x; n++; }
-            piv[GilbertPuppetGroup.Head] = new Vector2(sum / n + 0.5f - c / 2f, c / 2f - (y1 + 1));
+                if (masks[(int) ProcAnimPuppetGroup.Head][y1 * c + x]) { sum += x; n++; }
+            piv[ProcAnimPuppetGroup.Head] = new Vector2(sum / n + 0.5f - c / 2f, c / 2f - (y1 + 1));
         }
 
         // Arms and legs have two segments (v10: upper arm, forearm + hand; thigh, shin + foot), cut along rows taken from
         // the masks: the elbow at 2/5 of shoulder -> finger tips, the knee half-way hip -> sole; the wrist (top of the hand mask) is kept
         // as the hand pivot (grip reference). Each lower segment keeps one overlap row
         // above its cut so no seam opens while bending; glove pixels always ride on the hand.
-        var segments = new Dictionary<GilbertPuppetGroup, (int Joint, int Mid, int Tip, int End)>();
-        foreach (var g in new[] { GilbertPuppetGroup.ArmNear, GilbertPuppetGroup.ArmFar, GilbertPuppetGroup.LegNear, GilbertPuppetGroup.LegFar })
+        var segments = new Dictionary<ProcAnimPuppetGroup, (int Joint, int Mid, int Tip, int End)>();
+        foreach (var g in new[] { ProcAnimPuppetGroup.ArmNear, ProcAnimPuppetGroup.ArmFar, ProcAnimPuppetGroup.LegNear, ProcAnimPuppetGroup.LegFar })
         {
             bool[] jm, mm, tm;
             bool[]? gl = null;
-            if (g is GilbertPuppetGroup.ArmNear or GilbertPuppetGroup.ArmFar)
+            if (g is ProcAnimPuppetGroup.ArmNear or ProcAnimPuppetGroup.ArmFar)
             {
-                var a = g == GilbertPuppetGroup.ArmFar && !synth ? 1 : 0;
-                var sdx = g == GilbertPuppetGroup.ArmFar && synth ? shift : 0;
-                var srcMask = masks[(int) (a == 0 ? GilbertPuppetGroup.ArmNear : GilbertPuppetGroup.ArmFar)];
+                var a = g == ProcAnimPuppetGroup.ArmFar && !synth ? 1 : 0;
+                var sdx = g == ProcAnimPuppetGroup.ArmFar && synth ? shift : 0;
+                var srcMask = masks[(int) (a == 0 ? ProcAnimPuppetGroup.ArmNear : ProcAnimPuppetGroup.ArmFar)];
                 jm = Shift(Any(armOnly[a]) ? armOnly[a] : srcMask, sdx, c);
                 mm = Shift(srcMask, sdx, c);
                 tm = Shift(hands[a], sdx, c);
-                gl = glove[g == GilbertPuppetGroup.ArmNear ? 0 : 1];
+                gl = glove[g == ProcAnimPuppetGroup.ArmNear ? 0 : 1];
             }
             else
             {
-                var l = g == GilbertPuppetGroup.LegNear ? 0 : 1;
+                var l = g == ProcAnimPuppetGroup.LegNear ? 0 : 1;
                 jm = Any(legOnly[l]) ? legOnly[l] : masks[(int) g];
                 mm = masks[(int) g];
                 tm = feet[l];
@@ -462,7 +462,7 @@ public static class GilbertFinisherPuppet
             if (len < 6)
                 continue;
 
-            if (g is GilbertPuppetGroup.LegNear or GilbertPuppetGroup.LegFar)
+            if (g is ProcAnimPuppetGroup.LegNear or ProcAnimPuppetGroup.LegFar)
             {
                 // Legs keep two segments: at 32 px the shoe fills the rows below the knee, so a separate foot would
                 // leave a 1-2 px shin and read as a broken leg. Knee half-way between the hip and the sole.
@@ -518,17 +518,17 @@ public static class GilbertFinisherPuppet
         {
             if (!AnyAlpha(held[h]))
                 continue;
-            var g = h == 0 ? GilbertPuppetGroup.HeldNear : GilbertPuppetGroup.HeldFar;
+            var g = h == 0 ? ProcAnimPuppetGroup.HeldNear : ProcAnimPuppetGroup.HeldFar;
             outImg[(int) g] = held[h];
             var a = h == 1 && !synth ? 1 : 0;
             var sdx = h == 1 && synth ? shift : 0;
             if (BBox(Shift(hands[a], sdx, c), c) is { } hb2)
                 piv[g] = new Vector2((hb2.MinX + hb2.MaxX + 1) / 2f - c / 2f, c / 2f - (hb2.MinY + hb2.MaxY + 1) / 2f);
-            else if (piv.TryGetValue(h == 0 ? GilbertPuppetGroup.ArmNearHand : GilbertPuppetGroup.ArmFarHand, out var hp))
+            else if (piv.TryGetValue(h == 0 ? ProcAnimPuppetGroup.ArmNearHand : ProcAnimPuppetGroup.ArmFarHand, out var hp))
                 piv[g] = hp;
         }
 
-        return new GilbertPuppetResult
+        return new ProcAnimPuppetResult
         {
             Size = c,
             Images = outImg,
@@ -539,20 +539,20 @@ public static class GilbertFinisherPuppet
         };
     }
 
-    public static GilbertPuppetGroup LowOf(GilbertPuppetGroup limb) => limb switch
+    public static ProcAnimPuppetGroup LowOf(ProcAnimPuppetGroup limb) => limb switch
     {
-        GilbertPuppetGroup.ArmNear => GilbertPuppetGroup.ArmNearLow,
-        GilbertPuppetGroup.ArmFar => GilbertPuppetGroup.ArmFarLow,
-        GilbertPuppetGroup.LegNear => GilbertPuppetGroup.LegNearLow,
-        _ => GilbertPuppetGroup.LegFarLow,
+        ProcAnimPuppetGroup.ArmNear => ProcAnimPuppetGroup.ArmNearLow,
+        ProcAnimPuppetGroup.ArmFar => ProcAnimPuppetGroup.ArmFarLow,
+        ProcAnimPuppetGroup.LegNear => ProcAnimPuppetGroup.LegNearLow,
+        _ => ProcAnimPuppetGroup.LegFarLow,
     };
 
-    public static GilbertPuppetGroup TipOf(GilbertPuppetGroup limb) => limb switch
+    public static ProcAnimPuppetGroup TipOf(ProcAnimPuppetGroup limb) => limb switch
     {
-        GilbertPuppetGroup.ArmNear => GilbertPuppetGroup.ArmNearHand,
-        GilbertPuppetGroup.ArmFar => GilbertPuppetGroup.ArmFarHand,
-        GilbertPuppetGroup.LegNear => GilbertPuppetGroup.LegNearFoot,
-        _ => GilbertPuppetGroup.LegFarFoot,
+        ProcAnimPuppetGroup.ArmNear => ProcAnimPuppetGroup.ArmNearHand,
+        ProcAnimPuppetGroup.ArmFar => ProcAnimPuppetGroup.ArmFarHand,
+        ProcAnimPuppetGroup.LegNear => ProcAnimPuppetGroup.LegNearFoot,
+        _ => ProcAnimPuppetGroup.LegFarFoot,
     };
 
     private static bool[] Shift(bool[] m, int d, int c)
@@ -590,9 +590,9 @@ public static class GilbertFinisherPuppet
     }
 
     /// <summary>Index of the group with the most opaque pixels under <paramref name="pixels"/>; Torso when none.</summary>
-    public static GilbertPuppetGroup MajorityGroup(GilbertPuppetResult result, byte[] pixels)
+    public static ProcAnimPuppetGroup MajorityGroup(ProcAnimPuppetResult result, byte[] pixels)
     {
-        var best = GilbertPuppetGroup.Torso;
+        var best = ProcAnimPuppetGroup.Torso;
         var bestN = 0;
         for (var g = 0; g < GroupCount; g++)
         {
@@ -600,7 +600,7 @@ public static class GilbertFinisherPuppet
             var n = 0;
             for (var i = 3; i < pixels.Length && i < img.Length; i += 4)
                 if (pixels[i] > 0 && img[i] > 0) n++;
-            if (n > bestN) { bestN = n; best = (GilbertPuppetGroup) g; }
+            if (n > bestN) { bestN = n; best = (ProcAnimPuppetGroup) g; }
         }
 
         return best;

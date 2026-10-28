@@ -1,23 +1,23 @@
 using System.Numerics;
-using Content.Shared._CorvaxGoob.Gilbert.Finisher;
+using Content.Shared._CorvaxGoob.ProcAnim;
 using Robust.Client.Graphics;
 using Robust.Shared.Enums;
 using Robust.Shared.Timing;
 
-namespace Content.Client._CorvaxGoob.Gilbert.Finisher;
+namespace Content.Client._CorvaxGoob.ProcAnim;
 
 /// <summary>
-/// Draws the finisher dizzy stars and blood bursts: deterministic ballistic droplets (<see cref="GilbertFinisherTimeline.Droplets"/>)
+/// Draws the finisher dizzy stars and blood bursts: deterministic ballistic droplets (<see cref="ProcAnimTimeline.Droplets"/>)
 /// as whole-pixel squares in world space; landed drops stay as small stains until the burst fades.
 /// </summary>
-public sealed class GilbertFinisherBloodOverlay : Overlay
+public sealed class ProcAnimBloodOverlay : Overlay
 {
-    private readonly GilbertFinisherVisualsSystem _system;
+    private readonly ProcAnimVisualsSystem _system;
     private readonly IGameTiming _timing;
 
     public override OverlaySpace Space => OverlaySpace.WorldSpace;
 
-    public GilbertFinisherBloodOverlay(GilbertFinisherVisualsSystem system, IGameTiming timing)
+    public ProcAnimBloodOverlay(ProcAnimVisualsSystem system, IGameTiming timing)
     {
         _system = system;
         _timing = timing;
@@ -47,7 +47,7 @@ public sealed class GilbertFinisherBloodOverlay : Overlay
             if (burst.Map != args.MapId)
                 continue;
 
-            foreach (var drop in GilbertFinisherTimeline.Droplets(burst.Blood, burst.EventIndex, burst.Origin, age))
+            foreach (var drop in ProcAnimTimeline.Droplets(burst.Blood, burst.EventIndex, burst.Origin, age))
             {
                 var x = MathF.Round(drop.Position.X);
                 var y = MathF.Round(drop.Position.Y);

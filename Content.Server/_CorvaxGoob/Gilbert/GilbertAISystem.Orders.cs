@@ -133,13 +133,15 @@ public sealed partial class GilbertAISystem
         return false;
     }
 
-    /// <summary>Weighted pick among the configured variants (the shotgun ones only with the shotgun in hand).</summary>
+    /// <summary>
+    /// Weighted pick among the configured variants: only those whose required items (the scene's attacker
+    /// <c>items</c>: shotgun, truncheon...) he really carries, in hand or anywhere on him.
+    /// </summary>
     public string PickFinisher(Entity<GilbertAIComponent> ent)
     {
-        var hasGun = GetGun(ent, out _, out _);
         var options = ent.Comp.FinisherWeights
-            .Where(kv => kv.Value > 0f && _proto.HasIndex<Content.Shared._CorvaxGoob.Gilbert.Finisher.GilbertFinisherPrototype>(kv.Key)
-                         && (hasGun || !ent.Comp.FinisherNeedsShotgun.Contains(kv.Key)))
+            .Where(kv => kv.Value > 0f && _proto.HasIndex<Content.Shared._CorvaxGoob.ProcAnim.ProcAnimScenePrototype>(kv.Key)
+                         && _procAnim.HasRequiredItems(kv.Key, 0, ent))
             .ToList();
         if (options.Count == 0)
             return GilbertFinisherSystem.DefaultFinisher;
