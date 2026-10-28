@@ -5,6 +5,7 @@ using Content.Goobstation.Maths.FixedPoint;
 using Content.Shared._CorvaxGoob.Gilbert.Finisher;
 using Content.Server.Decals;
 using Content.Shared._Shitmed.Medical.Surgery.Wounds.Systems;
+using Content.Shared._Shitmed.Damage;
 using Content.Shared._Shitmed.Targeting;
 using Content.Shared.Body.Components;
 using Content.Shared.Body.Systems;
@@ -175,19 +176,19 @@ public sealed class GilbertFinisherSystem : SharedGilbertFinisherSystem
 
         var now = _timing.CurTime;
         var query = EntityQueryEnumerator<GilbertFinisherComponent>();
-        var done = new List<EntityUid>();
+        var done = new List<(EntityUid Uid, bool Completed)>();
         while (query.MoveNext(out var uid, out var comp))
         {
             if (!_proto.TryIndex(comp.Finisher, out var proto))
             {
-                done.Add(uid);
+                done.Add((uid, false));
                 continue;
             }
 
             // A participant got deleted / gibbed: end it for the other one too.
             if (comp.Partner is not { } partner || TerminatingOrDeleted(partner) || !HasComp<GilbertFinisherComponent>(partner))
             {
-                done.Add(uid);
+                done.Add((uid, false));
                 continue;
             }
 
@@ -200,13 +201,13 @@ public sealed class GilbertFinisherSystem : SharedGilbertFinisherSystem
                 FireEvents(uid, comp, partner, proto, anim);
 
             if (t >= GilbertFinisherTimeline.TotalLength(proto))
-                done.Add(uid);
+                done.Add((uid, true));
         }
 
-        foreach (var uid in done)
+        foreach (var (uid, completed) in done)
         {
             if (TryComp<GilbertFinisherComponent>(uid, out var comp))
-                Finish(uid, comp);
+                Finish(uid, comp, completed);
         }
     }
 
@@ -227,8 +228,11 @@ public sealed class GilbertFinisherSystem : SharedGilbertFinisherSystem
         comp.FlightScale = -1f;
         comp.KeepDown = keepDown;
         comp.HeldState = null;
-        if (role == GilbertFinisherRole.Victim && proto.HoldAlive && TryComp<MobStateComponent>(uid, out var mob)
-            && mob.CurrentState is MobState.Alive or MobState.Critical)
+        // v10.1: a victim already in crit is always held there (crit damage over time / the beats must not kill it
+        // before the final blow); otherwise only with holdAlive.
+        if (role == GilbertFinisherRole.Victim && TryComp<MobStateComponent>(uid, out var mob)
+            && (proto.HoldAlive && mob.CurrentState is MobState.Alive or MobState.Critical
+                || mob.CurrentState == MobState.Critical))
             comp.HeldState = mob.CurrentState;
         Dirty(uid, comp);
 
@@ -353,6 +357,48 @@ public sealed class GilbertFinisherSystem : SharedGilbertFinisherSystem
             _mobState.ChangeMobState(victim, MobState.Dead, mob, attacker);
     }
 
+    /// <summary>
+    /// v10.1: <see cref="GilbertFinisherPrototype.FinalDamage"/> on the victim at the end of the cutscene: through armour
+    /// and resistances, not aimed at a body part: split over every part like suffocation (a single random part would cap
+    /// it at that part's integrity).
+    /// </summary>
+    public void ApplyFinalDamage(EntityUid victim, EntityUid? attacker, GilbertFinisherPrototype proto)
+    {
+        if (proto.FinalDamage is not { } damage || damage.Empty)
+            return;
+        if (!TryComp<DamageableComponent>(victim, out var damageable))
+            return;
+
+        var before = new Dictionary<string, FixedPoint2>(damageable.Damage.DamageDict);
+        _damageable.TryChangeDamage(victim, damage, ignoreResistances: true, interruptsDoAfters: false,
+            origin: attacker, targetPart: TargetBodyPart.All, ignoreBlockers: true, canMiss: false);
+
+        // The split rounds per part and an already wrecked part caps its share: top the remainder up part by part.
+        foreach (var part in FinalDamageTopUpParts)
+        {
+            if (TerminatingOrDeleted(victim))
+                return;
+            var rest = new DamageSpecifier();
+            foreach (var (type, amount) in damage.DamageDict)
+            {
+                var dealt = damageable.Damage.DamageDict.GetValueOrDefault(type) - before.GetValueOrDefault(type);
+                if (amount - dealt > FixedPoint2.Zero)
+                    rest.DamageDict[type] = amount - dealt;
+            }
+            if (rest.Empty)
+                return;
+            _damageable.TryChangeDamage(victim, rest, ignoreResistances: true, interruptsDoAfters: false,
+                origin: attacker, targetPart: part, ignoreBlockers: true, splitDamage: SplitDamageBehavior.None, canMiss: false);
+        }
+    }
+
+    private static readonly TargetBodyPart[] FinalDamageTopUpParts =
+    {
+        TargetBodyPart.Chest, TargetBodyPart.Groin, TargetBodyPart.Head, TargetBodyPart.LeftArm, TargetBodyPart.RightArm,
+        TargetBodyPart.LeftLeg, TargetBodyPart.RightLeg, TargetBodyPart.LeftHand, TargetBodyPart.RightHand,
+        TargetBodyPart.LeftFoot, TargetBodyPart.RightFoot,
+    };
+
     private void ReleaseHold(EntityUid victim)
     {
         if (!TryComp<GilbertFinisherComponent>(victim, out var comp) || comp.HeldState == null)
@@ -429,15 +475,22 @@ public sealed class GilbertFinisherSystem : SharedGilbertFinisherSystem
 
     private const float EyeManagerPpm = 32f;
 
-    private void Finish(EntityUid uid, GilbertFinisherComponent comp)
+    private void Finish(EntityUid uid, GilbertFinisherComponent comp, bool completed = false)
     {
         var role = comp.Role;
         var keepDown = comp.KeepDown;
         var held = comp.HeldState != null;
+        var finisher = comp.Finisher;
+        var partner = comp.Partner;
         comp.HeldState = null;
         RemComp<GilbertFinisherComponent>(uid);
         if (held && !TerminatingOrDeleted(uid))
             _mobState.UpdateMobState(uid);
+
+        // v10.1: played to the end - the final damage on the victim, after the last blow.
+        if (completed && role == GilbertFinisherRole.Victim && !TerminatingOrDeleted(uid)
+            && _proto.TryIndex<GilbertFinisherPrototype>(finisher, out var proto))
+            ApplyFinalDamage(uid, partner, proto);
 
         if (TerminatingOrDeleted(uid))
             return;

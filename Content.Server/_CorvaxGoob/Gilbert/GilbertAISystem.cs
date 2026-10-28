@@ -263,6 +263,7 @@ public sealed partial class GilbertAISystem : EntitySystem
             Think((uid, comp), xform, now);
             OpenDoorsAhead((uid, comp), xform);
             UpdateWatchdog((uid, comp), xform, now);
+            UpdateAttackWatchdog((uid, comp), xform, now);
             UpdateOscillation((uid, comp), xform, now);
         }
     }
@@ -333,6 +334,9 @@ public sealed partial class GilbertAISystem : EntitySystem
                     UpdateTask(ent, now);
                     return;
                 }
+                // v10.1: a crit enemy close by gets finished first.
+                if (UpdateCalmFinisher(ent, xform, now))
+                    return;
                 // v9: his own lost weapon in sight comes first.
                 if (TryStartRecover(ent, xform, now))
                     return;
@@ -352,6 +356,9 @@ public sealed partial class GilbertAISystem : EntitySystem
 
             case GilbertAIState.Combat:
                 // v10: point-blank shot left the target nearly down: run up and finish it.
+                // v10.1: or someone he fought already lies in crit close by.
+                if (seen == null || _mobState.IsCritical(seen.Value))
+                    TrySeekCritFinisher(ent, xform, now);
                 if (UpdateFinisher(ent, now))
                     return;
                 // v9: badly hurt and the enemy out of sight for a moment: a quick injection.
@@ -366,6 +373,9 @@ public sealed partial class GilbertAISystem : EntitySystem
                     EnterCombat(ent, seen.Value, "found");
                     return;
                 }
+                // v10.1: a crit enemy close by gets finished before the search goes on.
+                if (UpdateCalmFinisher(ent, xform, now))
+                    return;
                 if (TryStartHealing(ent, now) || TryStartRecover(ent, xform, now) || TryStartScavenge(ent, xform, now))
                     return;
                 UpdateSearch(ent, xform, now);
@@ -965,6 +975,8 @@ public sealed partial class GilbertAISystem : EntitySystem
 
         if (comp.WeaponMode == GilbertWeaponMode.Melee)
         {
+            // v10.1 (t292u): the NPC swings whatever is in the active hand.
+            SelectBestWeapon(ent);
             var melee = EnsureComp<NPCMeleeCombatComponent>(ent);
             melee.Target = tgt;
             RemComp<NPCRangedCombatComponent>(ent);

@@ -29,6 +29,18 @@ public sealed partial class GilbertFinisherVisualsSystem
 
     public const string PuppetKeyPrefix = "gilbert-finisher-";
 
+    /// <summary>
+    /// Baked puppet segments: sRGB like every RSI texture (the pixels are copied straight from the RSI frames), only
+    /// point sampled. A plain <c>new TextureLoadParameters { .. }</c> leaves <see cref="TextureLoadParameters.Srgb"/>
+    /// false, and then the GPU reads the sRGB bytes as linear: every colour comes out washed towards grey, so the dark
+    /// clothing turns into a pale, see-through-looking ghost during the finisher.
+    /// </summary>
+    public static readonly TextureLoadParameters PuppetTextureParameters = new()
+    {
+        Srgb = true,
+        SampleParameters = TextureSampleParameters.Default with { Filter = false },
+    };
+
     private readonly Dictionary<(ResPath, string), Image<Rgba32>?> _pngCache = new();
 
     private sealed class PuppetData
@@ -490,8 +502,7 @@ public sealed partial class GilbertFinisherVisualsSystem
             }
 
             var key = PuppetKeyPrefix + group;
-            var texture = _clyde.LoadTextureFromImage(image, key,
-                new TextureLoadParameters { SampleParameters = new TextureSampleParameters { Filter = false } });
+            var texture = _clyde.LoadTextureFromImage(image, key, PuppetTextureParameters);
             var index = insertAt++;
             var layer = _sprite.AddBlankLayer(ent, index);
             _sprite.LayerSetTexture(layer, texture);

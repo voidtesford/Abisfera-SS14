@@ -11,6 +11,8 @@ using Content.Server._CorvaxGoob.Gilbert.Finisher;
 using Content.Shared._CorvaxGoob.Gilbert.Finisher;
 using Content.Shared.ActionBlocker;
 using Content.Shared.Humanoid;
+using Content.Shared.Mobs;
+using Content.Shared.Mobs.Components;
 using Content.Shared.Standing;
 using Robust.Client.GameObjects;
 using Robust.Shared.Console;
@@ -581,7 +583,8 @@ public sealed class GilbertFinisherTest
         await server.WaitAssertion(() =>
         {
             Assert.That(sEnt.HasComponent<GilbertFinisherComponent>(a), Is.False);
-            Assert.That(blocker.CanMove(v), Is.True);
+            // v10.1: a finisher that ran to the end applies its finalDamage (200 asphyxiation): the victim is dead.
+            Assert.That(sEnt.GetComponent<MobStateComponent>(v).CurrentState, Is.EqualTo(MobState.Dead), "completed -> final damage");
         });
 
         await pair.CleanReturnAsync();

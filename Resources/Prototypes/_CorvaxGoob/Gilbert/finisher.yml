@@ -35,6 +35,9 @@
   intro: 0.6
   victimStart: 0.85
   requiredRoom: 4.3
+  finalDamage: # v10.1: after the final blow, armour / resistances ignored, untargeted
+    types:
+      Asphyxiation: 200
   attacker:
     holsterHeldItems: true
     holsterAt: -0.18
@@ -1049,6 +1052,9 @@
   length: 6.7
   victimStart: 0.85
   requiredRoom: 3
+  finalDamage: # v10.1: after the final blow, armour / resistances ignored, untargeted
+    types:
+      Asphyxiation: 200
   attacker:
     holsterHeldItems: false
     smooth: true
@@ -2378,6 +2384,9 @@
   length: 12.3
   victimStart: 0.85
   requiredRoom: 3.2
+  finalDamage: # v10.1: after the final blow, armour / resistances ignored, untargeted
+    types:
+      Asphyxiation: 200
   holdAlive: true
   attacker:
     holsterHeldItems: true

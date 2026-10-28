@@ -228,6 +228,14 @@ public sealed partial class GilbertAISystem
     /// </summary>
     private void ReturnGear(Entity<GilbertAIComponent> ent, EntityUid item)
     {
+        PutGearBack(ent, item);
+        // v10.1 (t292u): picking it up made its hand the active one; in a fight the weapon goes back there.
+        if (ent.Comp.State is GilbertAIState.Combat or GilbertAIState.Search)
+            SelectBestWeapon(ent);
+    }
+
+    private void PutGearBack(Entity<GilbertAIComponent> ent, EntityUid item)
+    {
         var comp = ent.Comp;
         var home = comp.OwnGear.TryGetValue(item, out var h) ? h : "back";
         var melee = comp.WeaponMode == GilbertWeaponMode.Melee && comp.State is GilbertAIState.Combat or GilbertAIState.Search;

@@ -287,6 +287,9 @@ public sealed class GilbertV10Test
             var armsGone = !parts.Contains(TargetBodyPart.LeftArm) && !parts.Contains(TargetBodyPart.RightArm);
             TestContext.Out.WriteLine($"[v10] variant {variant}: damage {entMan.GetComponent<DamageableComponent>(v).TotalDamage}, parts {string.Join(",", parts)}");
             Assert.That(armsGone, Is.EqualTo(variant == 3), "V3 tears both arms off, the others don't");
+            // v10.1: every variant ends with the final 200 asphyxiation.
+            Assert.That(entMan.GetComponent<DamageableComponent>(v).Damage.DamageDict.GetValueOrDefault("Asphyxiation"),
+                Is.GreaterThanOrEqualTo(FixedPoint2.New(200)), "final asphyxiation");
             if (variant == 3)
             {
                 Assert.That(parts, Does.Not.Contain(TargetBodyPart.Head), "V3 shoots the head off");

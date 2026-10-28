@@ -2,6 +2,7 @@ using System.Linq;
 using Content.Goobstation.Maths.FixedPoint;
 using Content.Server._CorvaxGoob.Gilbert.Finisher;
 using Content.Server.NPC.Components;
+using Content.Shared.Cuffs.Components;
 using Content.Shared.Damage;
 using Content.Shared.Humanoid;
 using Content.Shared.Mobs;
@@ -54,15 +55,64 @@ public sealed partial class GilbertAISystem
             return false;
         if (!HasComp<HumanoidAppearanceComponent>(victim) || HasComp<GilbertAIComponent>(victim))
             return false;
-        if (!TryComp<MobStateComponent>(victim, out var state) || state.CurrentState != MobState.Alive)
+        // v10.1: already in crit is fine too (the finisher holds the state until its kill beat).
+        if (!TryComp<MobStateComponent>(victim, out var state) || state.CurrentState is not (MobState.Alive or MobState.Critical))
             return false;
         if (_finisher.IsPlaying(victim) || _finisher.IsPlaying(ent))
             return false;
         if (comp.FinisherCooldowns.TryGetValue(victim, out var until) && now < until)
             return false;
-        if (checkMargin && (CritMargin(victim) is not { } margin || margin > comp.FinisherCritMargin))
+        // In crit, or at most FinisherCritMargin damage from it.
+        if (checkMargin && state.CurrentState != MobState.Critical
+            && (CritMargin(victim) is not { } margin || margin > comp.FinisherCritMargin))
             return false;
         return !OtherHostileNear(ent, victim);
+    }
+
+    /// <summary>
+    /// v10.1: someone he fought (seen as an enemy, forced hostile or hunted) lies in crit within
+    /// <see cref="GilbertAIComponent.FinisherSeekRange"/> in plain view: he walks up and finishes them.
+    /// </summary>
+    private bool TrySeekCritFinisher(Entity<GilbertAIComponent> ent, TransformComponent xform, TimeSpan now)
+    {
+        var comp = ent.Comp;
+        if (!comp.FinisherEnabled || !comp.FinisherSeekCrit || comp.FinisherVictim != null || comp.FinisherShot != null
+            || InBerserk(ent))
+            return false;
+
+        EntityUid? best = null;
+        var bestDist = float.MaxValue;
+        foreach (var other in _lookup.GetEntitiesInRange<HumanoidAppearanceComponent>(xform.Coordinates, comp.FinisherSeekRange))
+        {
+            var uid = other.Owner;
+            if (uid == ent.Owner || !_mobState.IsCritical(uid) || !WasHostile(ent, uid))
+                continue;
+            var dist = DistanceTo(ent, uid);
+            if (dist > comp.FinisherSeekRange || dist >= bestDist || !CanSee(ent, uid, comp, xform)
+                || !FinisherEligible(ent, uid, now))
+                continue;
+            best = uid;
+            bestDist = dist;
+        }
+
+        if (best is not { } victim)
+            return false;
+
+        comp.FinisherVictim = victim;
+        comp.FinisherApproachStart = now;
+        AbortTask(ent);
+        StopCombatComponents(ent);
+        return true;
+    }
+
+    /// <summary>Someone he treats as an enemy (or would, were they still standing): not a bystander lying around.</summary>
+    private bool WasHostile(Entity<GilbertAIComponent> ent, EntityUid uid)
+    {
+        if (IsHuntTarget(ent.Comp, uid) || ent.Comp.ForcedHostile.Contains(uid))
+            return true;
+        if (TryComp<CuffableComponent>(uid, out var cuffable) && cuffable.CuffedHandCount > 0)
+            return false;
+        return ent.Comp.EnemyLastSeen.ContainsKey(uid) || ent.Comp.Target == uid;
     }
 
     private bool OtherHostileNear(Entity<GilbertAIComponent> ent, EntityUid victim)
@@ -158,6 +208,14 @@ public sealed partial class GilbertAISystem
 
         comp.LastFinisher = variant;
         return true;
+    }
+
+    /// <summary>v10.1: out of combat (idle / search): seek a crit enemy close by and run the finisher on them.</summary>
+    private bool UpdateCalmFinisher(Entity<GilbertAIComponent> ent, TransformComponent xform, TimeSpan now)
+    {
+        if (ent.Comp.FinisherVictim == null)
+            TrySeekCritFinisher(ent, xform, now);
+        return ent.Comp.FinisherVictim != null && UpdateFinisher(ent, now);
     }
 
     private void AbortFinisher(Entity<GilbertAIComponent> ent, EntityUid victim, TimeSpan now)

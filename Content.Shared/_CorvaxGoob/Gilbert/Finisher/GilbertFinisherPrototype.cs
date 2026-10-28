@@ -49,6 +49,13 @@ public sealed partial class GilbertFinisherPrototype : IPrototype
     [DataField]
     public bool HoldAlive;
 
+    /// <summary>
+    /// v10.1: damage dealt to the victim when the cutscene plays to its end (after the final blow), ignoring armour
+    /// and resistances, not aimed at a body part. Null / empty: nothing.
+    /// </summary>
+    [DataField]
+    public DamageSpecifier? FinalDamage;
+
     [DataField]
     public GilbertFinisherActorTracks Attacker = new();
 

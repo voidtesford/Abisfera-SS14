@@ -710,6 +710,17 @@ public sealed partial class GilbertAIComponent : Component
     [ViewVariables] public Dictionary<EntityUid, TimeSpan> RecoverIgnore = new();
     [ViewVariables] public int Recovered;
 
+    /// <summary>
+    /// v10.1 (t292u): in combat with a hostile in reach and in plain view but no shot / swing for this long (no
+    /// cutscene, no task): the combat state is reset and the best weapon re-equipped into the active hand.
+    /// </summary>
+    [DataField]
+    public TimeSpan AttackWatchdogDelay = TimeSpan.FromSeconds(3);
+
+    [ViewVariables] public TimeSpan AttackStallSince;
+    [ViewVariables] public long AttackSignature;
+    [ViewVariables] public int AttackWatchdogResets;
+
     // ---- v9 (t256u): mental map of the station, routes over it, 5-minute trail ----
 
     /// <summary>The remembered map is scanned this often (not every tick).</summary>
@@ -778,6 +789,14 @@ public sealed partial class GilbertAIComponent : Component
     /// <summary>After the shot the victim must be alive (not crit) with at most this much damage left before crit.</summary>
     [DataField]
     public FixedPoint2 FinisherCritMargin = 20;
+
+    /// <summary>v10.1: walks up to someone he fought who already lies in crit within <see cref="FinisherSeekRange"/>.</summary>
+    [DataField]
+    public bool FinisherSeekCrit = true;
+
+    /// <summary>Tiles.</summary>
+    [DataField]
+    public float FinisherSeekRange = 4f;
 
     /// <summary>The pellets need a moment to land: the margin is checked this long after the shot...</summary>
     [DataField]
