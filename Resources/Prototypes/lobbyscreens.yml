@@ -25,3 +25,21 @@
    name: behonker
    artist: InCrah
 
+ - type: lobbyBackground
+   id: abisfera
+   background: /Textures/LobbyScreens/abisfera.webp
+   name: abisfera
+   artist: San4ou_S
+
+ - type: lobbyBackground
+   id: bar
+   background: /Textures/LobbyScreens/bar.webp
+   name: bar
+   artist: San4ou_S
+
+ - type: lobbyBackground
+   id: evac
+   background: /Textures/LobbyScreens/evac.webp
+   name: evac
+   artist: San4ou_S
+
