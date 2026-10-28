@@ -31,6 +31,9 @@ public sealed partial class GilbertAISystem
         if (IsEnemy(uid))
             return true;
 
+        if (IsHuntTarget(ent.Comp, uid))
+            return true; // v10: gilberttarget - hostile until dead (crit included)
+
         return ent.Comp.ForcedHostile.Contains(uid) && !TerminatingOrDeleted(uid) && _mobState.IsAlive(uid);
     }
 

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Procedurally drawn for Abisfera (Gilbert v10), shaped after the sprites of Objects/Weapons/Melee/truncheon.rsi",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "truncheon"
+    }
+  ]
+}

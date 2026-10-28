@@ -1,0 +1,3681 @@
+# Gilbert's phase-1 finisher cutscene (t265u). Standalone: played by the `gilbertfinisher` admin command,
+# not wired into Gilbert's AI yet.
+# Forward frame: +x = from Gilbert towards the victim, +y = up, rot = degrees, CCW positive when +x is east
+# (Gilbert: a hanging arm/leg swung forward is +rot, his body pitching forward is -rot; the victim faces him,
+# so for the victim it is the other way round). Part x/y are pixels (32 px = 1 tile), `move` is tiles relative
+# to Gilbert's start position. Times are animation time: `hitStop` events freeze everything for a moment and
+# push the rest of the timeline back.
+# Arms and legs have two rigid segments: ArmNear/ArmFar (upper arm) about the shoulder and ArmNearLow/ArmFarLow
+# (forearm + hand + glove, no wrist joint) about the elbow; LegNear/LegFar (thigh) about the hip and LegNearLow/
+# LegFarLow (shin + shoe) about the knee - each relative to its parent segment (joints are measured from the body-part
+# masks of the sprite; the arm poses are solved by a 2-bone IK on the hand centre). Joint limits are applied after the
+# procedural layers: knees fold backwards only, elbows forwards only, shoulders -80..190 degrees
+# (GilbertFinisherTimeline.ApplyJointLimits).
+# HeldNear / HeldFar are the held items while still in the hands (until `holsterAt`), carried by the hands.
+# `intro` seconds (anim time -intro..0) are played first only when the attacker holds something: the holster
+# beat. `views` force a sprite direction for a while (North = back to the camera).
+# On top of the keys: `walk` (procedural walk cycle driven by the distance moved), `idle` (breathing / weight
+# shift while not walking) and `look` (head turns towards the other actor's head).
+# Read by GilbertFinisherVisualsSystem (client), GilbertFinisherSystem (server) and the offline preview renderer.
+#
+# Beats (anim time; hit-stops push real time back): [-0.6..0, only with something in the hands: Gilbert swings
+# the shotgun up over his shoulder onto his back] 0.3 grabs the head - 0.6 pulls it down, victim struggles -
+# 0.88 knee to the face - 0.9..1.6 victim reels back - 1.3..3.2 concussed: staggers, sways, head lolls, dizzy
+# stars, tries to shake it off while Gilbert slowly walks up - 3.05 guard up (forearms in front of the face) -
+# 3.25 shoulders grabbed - 3.72 headbutt - 4.25 falls on the back - 4.4..5.4 Gilbert walks to the head, victim
+# covers the face - 6.12 stomp - 6.5 / 6.86 / 7.24 / 7.58 / 7.98 five more face stomps (the guard breaks after
+# the second) - 8.22 Gilbert turns his back to the camera and steps round below the victim's head - 8.66 high
+# side kick to the temple: the victim tumbles ~1.3 tiles away up-screen (flight 8.66..9.46, shortened by the
+# server if a wall / no floor is in the way) and lies still - 9.3 turns back - 9.7..10.95 Gilbert walks off -
+# 11.1 end.
+
+- type: gilbertFinisher
+  id: GilbertFinisherPhase1
+  length: 11.1
+  intro: 0.6
+  victimStart: 0.85
+  requiredRoom: 4.3
+  attacker:
+    holsterHeldItems: true
+    holsterAt: -0.18
+    views: [{start: 8.22, end: 9.3, facing: North}]
+    walk: {stride: 0.44, fullSpeed: 0.8, legSwing: 26, knee: 36, armSwing: 20, elbow: 12, shoulder: 0.8, bob: 1, lean: 4,
+      sway: 1, nod: 1.5, weight: [{t: 0, x: 1}, {t: 8.18, x: 1}, {t: 8.22, x: 0}, {t: 9.3, x: 0}, {t: 9.4, x: 1}]}
+    idle: {period: 2.6, breath: 0.5, weightShift: 1.2, headNod: 1.5, armSway: 2.5}
+    look: {at: '2, 9', targetAt: '0, 9', max: 40, neck: 35, keys: [{t: 0, x: 1}, {t: 0.75, x: 1}, {t: 0.88, x: 0}, {t: 1.3,
+      x: 1}, {t: 3.5, x: 1}, {t: 3.62, x: 0}, {t: 4, x: 0}, {t: 4.3, x: 1}, {t: 5.9, x: 1}, {t: 6.05, x: 0.6}, {t: 6.3, x: 1},
+      {t: 8.1, x: 1}, {t: 8.2, x: 0}, {t: 9.9, x: 0}]}
+    move:
+    - {t: 0, x: 0}
+    - {t: 0.3, x: 0.08}
+    - {t: 0.88, x: 0.12}
+    - {t: 1.3, x: 0.05}
+    - {t: 1.5, x: 0.05}
+    - {t: 1.8, x: 0.17, ease: In}
+    - {t: 2.85, x: 1.24, ease: Linear}
+    - {t: 3.1, x: 1.36, ease: Out}
+    - {t: 3.3, x: 1.42, ease: Out}
+    - {t: 3.62, x: 1.38}
+    - {t: 3.72, x: 1.46, ease: In}
+    - {t: 4.4, x: 1.46}
+    - {t: 4.62, x: 1.57, ease: In}
+    - {t: 5.2, x: 2.36, ease: Linear}
+    - {t: 5.4, x: 2.45, ease: Out}
+    - {t: 7.98, x: 2.45}
+    - {t: 8.08, x: 2.45}
+    - {t: 8.22, x: 2.47}
+    - {t: 8.46, x: 2.95, y: -0.22, ease: InOut}
+    - {t: 8.66, x: 2.95, y: -0.22}
+    - {t: 8.72, x: 2.92, y: -0.2, ease: Out}
+    - {t: 9, x: 2.95, y: -0.22}
+    - {t: 9.7, x: 2.95, y: -0.22}
+    - {t: 10.75, x: 3.78, y: -0.02, ease: Linear}
+    - {t: 10.95, x: 3.86, ease: Out}
+    - {t: 11.1, x: 3.86}
+    parts:
+      Body:
+        pivot: 0, -14
+        keys:
+        - {t: -0.6, rot: 0}
+        - {t: -0.42, rot: 3}
+        - {t: -0.26, rot: 4}
+        - {t: -0.18, y: -1, rot: 2}
+        - {t: 0, rot: 0}
+        - {t: 0.3, x: 1, rot: -8, ease: Out}
+        - {t: 0.6, rot: 3}
+        - {t: 0.75, x: -1, y: 1, rot: 7}
+        - {t: 0.88, x: 1, y: 2, rot: 2, ease: In}
+        - {t: 1.05, x: 1, y: 1, rot: -2, ease: Out}
+        - {t: 1.4, x: 0, y: 0, rot: 0}
+        - {t: 1.6, rot: -4}
+        - {t: 3, rot: -5}
+        - {t: 3.25, x: 1, rot: -8, ease: Out}
+        - {t: 3.62, x: -2, rot: 16}
+        - {t: 3.72, x: 3, rot: -20, ease: In}
+        - {t: 3.85, x: 2, rot: -16, ease: Out}
+        - {t: 4.2, x: 0, rot: -3}
+        - {t: 5.4, rot: -3}
+        - {t: 5.9, x: -1, y: 1, rot: 8, ease: Out}
+        - {t: 6.05, x: -1, y: 2, rot: 10}
+        - {t: 6.12, x: 2, y: -2, rot: -12, ease: In}
+        - {t: 6.19, x: 2, y: -1, rot: -10, ease: Out}
+        - {t: 6.22, x: 2, y: -1, rot: -10}
+        - {t: 6.43, x: -1, y: 1, rot: 5, ease: Out}
+        - {t: 6.5, x: 2, y: -2, rot: -11, ease: In}
+        - {t: 6.54, x: 2, y: -1.5, rot: -10, ease: Out}
+        - {t: 6.6, x: 2, y: -1, rot: -10}
+        - {t: 6.79, x: -1, y: 1, rot: 5, ease: Out}
+        - {t: 6.86, x: 2, y: -2, rot: -11, ease: In}
+        - {t: 6.9, x: 2, y: -1.5, rot: -10, ease: Out}
+        - {t: 6.96, x: 2, y: -1, rot: -10}
+        - {t: 7.17, x: -1, y: 1, rot: 5, ease: Out}
+        - {t: 7.24, x: 2, y: -2, rot: -11, ease: In}
+        - {t: 7.28, x: 2, y: -1.5, rot: -10, ease: Out}
+        - {t: 7.34, x: 2, y: -1, rot: -10}
+        - {t: 7.51, x: -1, y: 1, rot: 5, ease: Out}
+        - {t: 7.58, x: 2, y: -2, rot: -11, ease: In}
+        - {t: 7.62, x: 2, y: -1.5, rot: -10, ease: Out}
+        - {t: 7.68, x: 2, y: -1, rot: -10}
+        - {t: 7.91, x: -1, y: 1, rot: 9, ease: Out}
+        - {t: 7.98, x: 2, y: -2, rot: -14, ease: In}
+        - {t: 8.02, x: 2, y: -1.5, rot: -10, ease: Out}
+        - {t: 8.12, rot: -2}
+        - {t: 8.22, rot: 0}
+        - {t: 8.32, y: 1, rot: 0}
+        - {t: 8.4, rot: 0}
+        - {t: 8.5, rot: 4, ease: Out}
+        - {t: 8.6, y: -1, rot: 6}
+        - {t: 8.66, x: 1, y: 1, rot: -10, ease: In}
+        - {t: 8.78, x: 1, y: 1, rot: -12, ease: Out}
+        - {t: 8.95, rot: -3}
+        - {t: 9.15, rot: 0}
+        - {t: 9.3, rot: 0}
+        - {t: 9.45, x: 0, y: 0, rot: -2}
+        - {t: 11.1, rot: -2}
+      Head:
+        pivot: 0, 6
+        keys:
+        - {t: -0.6, rot: 0}
+        - {t: -0.3, rot: -6}
+        - {t: -0.1, rot: -2}
+        - {t: 0, rot: 0}
+        - {t: 0.75, rot: 4}
+        - {t: 0.88, rot: -10, ease: In}
+        - {t: 1.2, rot: 0}
+        - {t: 3.5, rot: 0}
+        - {t: 3.62, rot: 10}
+        - {t: 3.72, rot: -8, ease: In}
+        - {t: 4, rot: -4}
+        - {t: 4.3, rot: 0}
+        - {t: 8.12, rot: 0}
+        - {t: 8.66, rot: 6, ease: In}
+        - {t: 9, rot: 3}
+        - {t: 9.3, rot: 0}
+        - {t: 11.1, rot: 0}
+      ArmNear:
+        pivot: 0, 5
+        keys:
+        - {t: -0.6, rot: -3}
+        - {t: -0.42, rot: -55, ease: Out}
+        - {t: -0.26, rot: 190}
+        - {t: -0.18, rot: 190}
+        - {t: -0.05, rot: -9, ease: InOut}
+        - {t: 0, rot: 3}
+        - {t: 0.3, rot: 93, ease: Out}
+        - {t: 0.55, rot: 78}
+        - {t: 0.75, rot: 68}
+        - {t: 0.88, rot: 46, ease: In}
+        - {t: 1.05, rot: 49}
+        - {t: 1.45, rot: 14}
+        - {t: 3, rot: 20}
+        - {t: 3.25, rot: 76, ease: Out}
+        - {t: 3.62, rot: 72}
+        - {t: 3.72, rot: 80, ease: In}
+        - {t: 3.85, rot: 77}
+        - {t: 4.2, rot: 18}
+        - {t: 5.4, rot: 13}
+        - {t: 5.9, rot: 50, ease: Out}
+        - {t: 6.05, rot: 53}
+        - {t: 6.12, rot: -10, ease: In}
+        - {t: 6.22, rot: -6}
+        - {t: 6.43, rot: 41, ease: Out}
+        - {t: 6.5, rot: -8, ease: In}
+        - {t: 6.6, rot: -6}
+        - {t: 6.79, rot: 41, ease: Out}
+        - {t: 6.86, rot: -8, ease: In}
+        - {t: 6.96, rot: -6}
+        - {t: 7.17, rot: 41, ease: Out}
+        - {t: 7.24, rot: -8, ease: In}
+        - {t: 7.34, rot: -6}
+        - {t: 7.51, rot: 41, ease: Out}
+        - {t: 7.58, rot: -8, ease: In}
+        - {t: 7.68, rot: -6}
+        - {t: 7.91, rot: 41, ease: Out}
+        - {t: 7.98, rot: -8, ease: In}
+        - {t: 8.12, rot: -1}
+        - {t: 8.5, rot: -11, ease: Out}
+        - {t: 8.6, rot: -12}
+        - {t: 8.66, rot: 41, ease: In}
+        - {t: 8.78, rot: 48}
+        - {t: 9, rot: 14}
+        - {t: 9.1, rot: 7}
+        - {t: 9.2, rot: 0}
+        - {t: 9.3, rot: 0}
+        - {t: 11.1, rot: 0}
+      ArmNearLow:
+        pivot: 0, 0
+        keys:
+        - {t: -0.6, rot: 5}
+        - {t: -0.42, rot: 30, ease: Out}
+        - {t: -0.26, rot: 86}
+        - {t: -0.18, rot: 84}
+        - {t: -0.05, rot: -5, ease: InOut}
+        - {t: 0, rot: -5}
+        - {t: 0.3, rot: 17, ease: Out}
+        - {t: 0.55, rot: 23}
+        - {t: 0.75, rot: 25}
+        - {t: 0.88, rot: 28, ease: In}
+        - {t: 1.05, rot: 29}
+        - {t: 1.45, rot: -3}
+        - {t: 3, rot: -5}
+        - {t: 3.25, rot: 14, ease: Out}
+        - {t: 3.62, rot: 24}
+        - {t: 3.72, rot: 16, ease: In}
+        - {t: 3.85, rot: 18}
+        - {t: 4.2, rot: -5}
+        - {t: 5.4, rot: 17}
+        - {t: 5.9, rot: 22, ease: Out}
+        - {t: 6.05, rot: 19}
+        - {t: 6.12, rot: -5, ease: In}
+        - {t: 6.22, rot: 12}
+        - {t: 6.43, rot: 25, ease: Out}
+        - {t: 6.5, rot: -5, ease: In}
+        - {t: 6.6, rot: 12}
+        - {t: 6.79, rot: 25, ease: Out}
+        - {t: 6.86, rot: -5, ease: In}
+        - {t: 6.96, rot: 12}
+        - {t: 7.17, rot: 25, ease: Out}
+        - {t: 7.24, rot: -5, ease: In}
+        - {t: 7.34, rot: 13}
+        - {t: 7.51, rot: 25, ease: Out}
+        - {t: 7.58, rot: -5, ease: In}
+        - {t: 7.68, rot: 11}
+        - {t: 7.91, rot: 25, ease: Out}
+        - {t: 7.98, rot: -5, ease: In}
+        - {t: 8.12, rot: 2}
+        - {t: 8.5, rot: 15, ease: Out}
+        - {t: 8.6, rot: 19}
+        - {t: 8.66, rot: 28, ease: In}
+        - {t: 8.78, rot: 28}
+        - {t: 9, rot: 6}
+        - {t: 9.1, rot: 5}
+        - {t: 9.2, rot: 3}
+        - {t: 9.3, rot: 0}
+        - {t: 11.1, rot: 0}
+      HeldNear:
+        pivot: -2, -4
+        keys:
+        - {t: -0.6, rot: -2}
+        - {t: -0.42, rot: -44.2, ease: Out}
+        - {t: -0.26, rot: -116}
+        - {t: -0.18, rot: -132}
+      ArmFar:
+        pivot: 0, 5
+        keys:
+        - {t: -0.6, rot: -10}
+        - {t: -0.3, rot: -3}
+        - {t: 0, rot: -10}
+        - {t: 0.3, rot: -22}
+        - {t: 0.88, rot: -39, ease: In}
+        - {t: 1.45, rot: -11}
+        - {t: 3, rot: -4}
+        - {t: 3.25, rot: 68, ease: Out}
+        - {t: 3.62, rot: 54}
+        - {t: 3.72, rot: 67, ease: In}
+        - {t: 3.85, rot: 64}
+        - {t: 4.2, rot: -9}
+        - {t: 5.4, rot: -17}
+        - {t: 5.9, rot: -56, ease: Out}
+        - {t: 6.05, rot: -59}
+        - {t: 6.12, rot: 11, ease: In}
+        - {t: 6.22, rot: -4}
+        - {t: 6.43, rot: -51, ease: Out}
+        - {t: 6.5, rot: 11, ease: In}
+        - {t: 6.6, rot: -4}
+        - {t: 6.79, rot: -51, ease: Out}
+        - {t: 6.86, rot: 11, ease: In}
+        - {t: 6.96, rot: -4}
+        - {t: 7.17, rot: -51, ease: Out}
+        - {t: 7.24, rot: 11, ease: In}
+        - {t: 7.34, rot: -4}
+        - {t: 7.51, rot: -51, ease: Out}
+        - {t: 7.58, rot: 11, ease: In}
+        - {t: 7.68, rot: -4}
+        - {t: 7.91, rot: -51, ease: Out}
+        - {t: 7.98, rot: 11, ease: In}
+        - {t: 8.12, rot: 3}
+        - {t: 8.5, rot: 14, ease: Out}
+        - {t: 8.6, rot: 21}
+        - {t: 8.66, rot: -33, ease: In}
+        - {t: 8.78, rot: -44}
+        - {t: 9, rot: -38}
+        - {t: 9.1, rot: -19}
+        - {t: 9.2, rot: 0}
+        - {t: 9.3, rot: 0}
+        - {t: 11.1, rot: 0}
+      ArmFarLow:
+        pivot: 0, 0
+        keys:
+        - {t: -0.6, rot: 27}
+        - {t: -0.3, rot: 29}
+        - {t: 0, rot: 27}
+        - {t: 0.3, rot: 31}
+        - {t: 0.88, rot: 40, ease: In}
+        - {t: 1.45, rot: 29}
+        - {t: 3, rot: 27}
+        - {t: 3.25, rot: 22, ease: Out}
+        - {t: 3.62, rot: 35}
+        - {t: 3.72, rot: 28, ease: In}
+        - {t: 3.85, rot: 30}
+        - {t: 4.2, rot: 27}
+        - {t: 5.4, rot: 46}
+        - {t: 5.9, rot: 45, ease: Out}
+        - {t: 6.05, rot: 40}
+        - {t: 6.12, rot: 34, ease: In}
+        - {t: 6.22, rot: 43}
+        - {t: 6.43, rot: 44, ease: Out}
+        - {t: 6.5, rot: 33, ease: In}
+        - {t: 6.6, rot: 43}
+        - {t: 6.79, rot: 44, ease: Out}
+        - {t: 6.86, rot: 33, ease: In}
+        - {t: 6.96, rot: 43}
+        - {t: 7.17, rot: 44, ease: Out}
+        - {t: 7.24, rot: 33, ease: In}
+        - {t: 7.34, rot: 43}
+        - {t: 7.51, rot: 44, ease: Out}
+        - {t: 7.58, rot: 33, ease: In}
+        - {t: 7.68, rot: 42}
+        - {t: 7.91, rot: 44, ease: Out}
+        - {t: 7.98, rot: 33, ease: In}
+        - {t: 8.12, rot: -5}
+        - {t: 8.5, rot: 12, ease: Out}
+        - {t: 8.6, rot: 25}
+        - {t: 8.66, rot: -79, ease: In}
+        - {t: 8.78, rot: -75}
+        - {t: 9, rot: 8}
+        - {t: 9.1, rot: 8}
+        - {t: 9.2, rot: 5}
+        - {t: 9.3, rot: 0}
+        - {t: 11.1, rot: 0}
+      LegNear:
+        pivot: 0, -8
+        keys:
+        - {t: 0}
+        - {t: 0.55, rot: 0}
+        - {t: 0.75, rot: -18}
+        - {t: 0.88, y: 3, rot: 112, ease: In}
+        - {t: 1, y: 2, rot: 105, ease: Out}
+        - {t: 1.3, rot: 0}
+        - {t: 5.4, rot: 0}
+        - {t: 5.9, y: 1, rot: 112, ease: Out}
+        - {t: 6.05, y: 2, rot: 118}
+        - {t: 6.12, y: 4, rot: 62, ease: In}
+        - {t: 6.18, x: 0, y: 4, rot: 62}
+        - {t: 6.42, x: 0, y: 2, rot: 99, ease: Out}
+        - {t: 6.46, x: 0, y: 2, rot: 102}
+        - {t: 6.5, x: 0, y: 4, rot: 62, ease: In}
+        - {t: 6.56, x: 0, y: 4, rot: 62}
+        - {t: 6.78, x: 0, y: 2, rot: 101, ease: Out}
+        - {t: 6.82, x: 0, y: 2, rot: 104}
+        - {t: 6.86, x: 0, y: 4, rot: 62, ease: In}
+        - {t: 6.92, x: 0, y: 4, rot: 62}
+        - {t: 7.16, x: 0, y: 2, rot: 100, ease: Out}
+        - {t: 7.2, x: 0, y: 2, rot: 103}
+        - {t: 7.24, x: 0, y: 4, rot: 62, ease: In}
+        - {t: 7.3, x: 0, y: 4, rot: 62}
+        - {t: 7.5, x: 0, y: 2, rot: 102, ease: Out}
+        - {t: 7.54, x: 0, y: 2, rot: 105}
+        - {t: 7.58, x: 0, y: 4, rot: 62, ease: In}
+        - {t: 7.64, x: 0, y: 4, rot: 62}
+        - {t: 7.9, x: 0, y: 2, rot: 115, ease: Out}
+        - {t: 7.94, x: 0, y: 2, rot: 118}
+        - {t: 7.98, x: 0, y: 4, rot: 62, ease: In}
+        - {t: 8.04, x: 0, y: 4, rot: 60}
+        - {t: 8.12, rot: 0}
+        - {t: 8.24, rot: 0}
+        - {t: 8.34, y: 1, rot: 0}
+        - {t: 8.44, rot: 0}
+        - {t: 8.6, rot: -4}
+        - {t: 8.66, rot: 6, ease: In}
+        - {t: 8.78, rot: 8}
+        - {t: 9, rot: 0}
+        - {t: 9.3, rot: 0}
+        - {t: 11.1, rot: 0}
+      LegNearLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0}
+        - {t: 0.55, rot: 0}
+        - {t: 0.75, rot: -45}
+        - {t: 0.88, rot: -125, ease: In}
+        - {t: 1, rot: -115}
+        - {t: 1.3, rot: 0}
+        - {t: 5.4, rot: 0}
+        - {t: 5.9, rot: -120, ease: Out}
+        - {t: 6.05, rot: -125}
+        - {t: 6.12, rot: -50, ease: In}
+        - {t: 6.18, x: 0, y: 0, rot: -50}
+        - {t: 6.42, x: 0, y: 0, rot: -111, ease: Out}
+        - {t: 6.46, x: 0, y: 0, rot: -114}
+        - {t: 6.5, x: 0, y: 0, rot: -50, ease: In}
+        - {t: 6.56, x: 0, y: 0, rot: -50}
+        - {t: 6.78, x: 0, y: 0, rot: -109, ease: Out}
+        - {t: 6.82, x: 0, y: 0, rot: -112}
+        - {t: 6.86, x: 0, y: 0, rot: -50, ease: In}
+        - {t: 6.92, x: 0, y: 0, rot: -50}
+        - {t: 7.16, x: 0, y: 0, rot: -110, ease: Out}
+        - {t: 7.2, x: 0, y: 0, rot: -113}
+        - {t: 7.24, x: 0, y: 0, rot: -50, ease: In}
+        - {t: 7.3, x: 0, y: 0, rot: -50}
+        - {t: 7.5, x: 0, y: 0, rot: -108, ease: Out}
+        - {t: 7.54, x: 0, y: 0, rot: -111}
+        - {t: 7.58, x: 0, y: 0, rot: -50, ease: In}
+        - {t: 7.64, x: 0, y: 0, rot: -50}
+        - {t: 7.9, x: 0, y: 0, rot: -125, ease: Out}
+        - {t: 7.94, x: 0, y: 0, rot: -128}
+        - {t: 7.98, x: 0, y: 0, rot: -50, ease: In}
+        - {t: 8.04, rot: -52}
+        - {t: 8.12, rot: 0}
+        - {t: 8.6, rot: 8}
+        - {t: 8.66, rot: -4}
+        - {t: 9, rot: 0}
+        - {t: 9.3, rot: 0}
+        - {t: 11.1, rot: 0}
+      LegFar:
+        pivot: 0, -8
+        keys:
+        - {t: 0}
+        - {t: 0.75, rot: 6}
+        - {t: 0.88, rot: -10, ease: In}
+        - {t: 1.3, rot: 0}
+        - {t: 3.62, rot: 0}
+        - {t: 3.72, rot: -12, ease: In}
+        - {t: 4.2, rot: 0}
+        - {t: 5.4, rot: 0}
+        - {t: 6.05, rot: -8}
+        - {t: 6.12, rot: 6, ease: In}
+        - {t: 6.44, rot: -7}
+        - {t: 6.5, rot: 6, ease: In}
+        - {t: 6.8, rot: -7}
+        - {t: 6.86, rot: 6, ease: In}
+        - {t: 7.18, rot: -7}
+        - {t: 7.24, rot: 6, ease: In}
+        - {t: 7.52, rot: -7}
+        - {t: 7.58, rot: 6, ease: In}
+        - {t: 7.92, rot: -7}
+        - {t: 7.98, rot: 6, ease: In}
+        - {t: 8.12, rot: 0}
+        - {t: 8.3, y: 1, rot: 0}
+        - {t: 8.38, rot: 0}
+        - {t: 8.5, rot: -25, ease: Out}
+        - {t: 8.6, y: 1, rot: -40}
+        - {t: 8.66, y: 1, rot: -68, ease: In}
+        - {t: 8.78, y: 1, rot: -74, ease: Out}
+        - {t: 8.9, y: 1, rot: -40}
+        - {t: 9.05, rot: 0}
+        - {t: 9.3, rot: 0}
+        - {t: 11.1, rot: 0}
+      LegFarLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0}
+        - {t: 0.88, rot: -6}
+        - {t: 1.3, rot: 0}
+        - {t: 3.72, rot: -12}
+        - {t: 4.2, rot: 0}
+        - {t: 8.12, rot: 0}
+        - {t: 8.5, rot: 45, ease: Out}
+        - {t: 8.6, rot: 70}
+        - {t: 8.66, rot: -4, ease: In}
+        - {t: 8.78, rot: -6}
+        - {t: 8.9, rot: 35}
+        - {t: 9.05, rot: 0}
+        - {t: 9.3, rot: 0}
+        - {t: 11.1, rot: 0}
+  victim:
+    smooth: true
+    walk: {stride: 0.3, fullSpeed: 1, legSwing: 22, knee: 30, armSwing: 0, elbow: 0, shoulder: 0, bob: 1, lean: 0, sway: 1.5,
+      nod: 0, weight: [{t: 0, x: 0}, {t: 0.9, x: 0}, {t: 1, x: 1}, {t: 1.7, x: 1}, {t: 1.9, x: 0.8}, {t: 3, x: 0.8}, {t: 3.1,
+      x: 0}]}
+    idle: {period: 1.9, breath: 0.6, weightShift: 0.8, headNod: 1, armSway: 2}
+    drag: {lag: 0.08, head: 0.55, arms: 0.45, low: 0.4, legs: 0.15, legsLow: 0.25, max: 22}
+    daze: {period: 1.35, sway: 7, shift: 1.2, dip: 1, loll: 14, arms: 12, knees: 7, weight: [{t: 0, x: 0}, {t: 0.95, x: 0},
+      {t: 1.3, x: 1}, {t: 2, x: 1}, {t: 2.5, x: 0.55}, {t: 3, x: 0.35}, {t: 3.25, x: 0}], stars: {from: Head, at: '0, 17',
+      count: 3, radius: '6, 2', period: 0.85, color: '#ffe066', threshold: 0.6}}
+    flight: {start: 8.66, end: 9.46}
+    move:
+    - {t: 0, x: 0.85}
+    - {t: 0.3, x: 0.78}
+    - {t: 0.7, x: 0.76}
+    - {t: 0.88, x: 0.78}
+    - {t: 1.6, x: 1.75, ease: Out}
+    - {t: 1.85, x: 1.86, y: 0.03}
+    - {t: 2.15, x: 1.76, y: -0.03}
+    - {t: 2.45, x: 1.86, y: 0.04}
+    - {t: 2.75, x: 1.79, y: -0.02}
+    - {t: 3.05, x: 1.83, y: 0}
+    - {t: 3.25, x: 1.78, y: 0}
+    - {t: 3.62, x: 1.72}
+    - {t: 3.72, x: 1.76, ease: In}
+    - {t: 4.25, x: 2.08, ease: Out}
+    - {t: 8.66, x: 2.08, y: 0}
+    - {t: 8.76, x: 2.01, y: 0.2, ease: Linear}
+    - {t: 9.08, x: 1.69, y: 1.03, ease: Linear}
+    - {t: 9.18, x: 1.66, y: 1.14, ease: Out}
+    - {t: 9.46, x: 1.63, y: 1.2, ease: Out}
+    parts:
+      Body:
+        pivot: 0, -10
+        keys:
+        - {t: 0}
+        - {t: 0.3, rot: 25, ease: Out}
+        - {t: 0.5, rot: 38}
+        - {t: 0.7, rot: 50}
+        - {t: 0.88, y: -1, rot: 55, ease: In}
+        - {t: 1.05, x: 1, rot: -22, ease: Out}
+        - {t: 1.6, rot: -10}
+        - {t: 1.9, rot: 4}
+        - {t: 2.25, rot: -4}
+        - {t: 2.6, rot: 3}
+        - {t: 2.85, rot: -2}
+        - {t: 3.05, rot: -6, ease: Out}
+        - {t: 3.25, rot: -2}
+        - {t: 3.62, rot: 8}
+        - {t: 3.72, rot: -12, ease: In}
+        - {t: 3.8, rot: -24, ease: Out}
+        - {t: 4.25, x: 0, y: -2, rot: -90, ease: In}
+        - {t: 4.4, y: -1, rot: -84, ease: Out}
+        - {t: 4.55, y: -2, rot: -90, ease: In}
+        - {t: 6.12, y: -2, rot: -90}
+        - {t: 6.16, x: 0, y: 1, rot: -86, ease: Out}
+        - {t: 6.24, x: 0, y: -2, rot: -91, ease: In}
+        - {t: 6.32, x: 0, y: -0.8, rot: -89}
+        - {t: 6.5, x: 0, y: -2, rot: -90}
+        - {t: 6.54, x: 0, y: 0.4, rot: -86.8, ease: Out}
+        - {t: 6.62, x: 0, y: -2, rot: -91, ease: In}
+        - {t: 6.7, x: 0, y: -1.04, rot: -89}
+        - {t: 6.86, x: 0, y: -2, rot: -90}
+        - {t: 6.9, x: 0, y: -0.2, rot: -87.6, ease: Out}
+        - {t: 6.98, x: 0, y: -2, rot: -91, ease: In}
+        - {t: 7.06, x: 0, y: -1.28, rot: -89}
+        - {t: 7.24, x: 0, y: -2, rot: -90}
+        - {t: 7.28, x: 0, y: 0.1, rot: -87.2, ease: Out}
+        - {t: 7.36, x: 0, y: -2, rot: -91, ease: In}
+        - {t: 7.44, x: 0, y: -1.16, rot: -89}
+        - {t: 7.58, x: 0, y: -2, rot: -90}
+        - {t: 7.62, x: 0, y: -0.5, rot: -88, ease: Out}
+        - {t: 7.7, x: 0, y: -2, rot: -91, ease: In}
+        - {t: 7.78, x: 0, y: -1.4, rot: -89}
+        - {t: 7.98, x: 0, y: -2, rot: -90}
+        - {t: 8.02, x: 0, y: 1, rot: -86, ease: Out}
+        - {t: 8.1, x: 0, y: -2, rot: -91, ease: In}
+        - {t: 8.18, x: 0, y: -0.8, rot: -89}
+        - {t: 8.3, x: 0, y: -2, rot: -90}
+        - {t: 8.66, x: 0, y: -2, rot: -90}
+        - {t: 8.7, x: 0.17, y: 1.16, rot: -102, ease: Out}
+        - {t: 8.76, x: 1.45, y: 6.59, rot: -125}
+        - {t: 8.84, x: 5.26, y: 11.52, rot: -160}
+        - {t: 8.92, x: 10.07, y: 11.73, rot: -195}
+        - {t: 9, x: 13.95, y: 7.35, rot: -228}
+        - {t: 9.08, x: 15.61, y: 0.47, rot: -252, ease: In}
+        - {t: 9.16, x: 15.96, y: 0.34, rot: -264, ease: Out}
+        - {t: 9.24, x: 16, y: -2.28, rot: -272, ease: In}
+        - {t: 9.36, x: 16, y: -1.42, rot: -268}
+        - {t: 9.51, x: 16, y: -2, rot: -270}
+        - {t: 11.1, x: 16, y: -2, rot: -270}
+      Head:
+        pivot: 0, 5
+        keys:
+        - {t: 0}
+        - {t: 0.3, rot: 10}
+        - {t: 0.88, rot: 15}
+        - {t: 1, rot: -28, ease: Out}
+        - {t: 1.4, rot: -8}
+        - {t: 1.9, rot: -6}
+        - {t: 2, rot: 12}
+        - {t: 2.12, rot: -10}
+        - {t: 2.24, rot: 9}
+        - {t: 2.36, rot: -7}
+        - {t: 2.5, rot: 3}
+        - {t: 2.7, rot: 0}
+        - {t: 3.05, rot: 6}
+        - {t: 3.62, rot: 4}
+        - {t: 3.72, rot: -32, ease: Out}
+        - {t: 4.1, rot: -10}
+        - {t: 4.25, rot: 0}
+        - {t: 4.3, rot: 12}
+        - {t: 4.45, rot: 0}
+        - {t: 6.12, rot: 0}
+        - {t: 6.16, rot: 14, ease: Out}
+        - {t: 6.32, rot: 3}
+        - {t: 6.5, rot: 2}
+        - {t: 6.54, rot: 7.2, ease: Out}
+        - {t: 6.7, rot: 3}
+        - {t: 6.86, rot: 2}
+        - {t: 6.9, rot: 8.4, ease: Out}
+        - {t: 7.06, rot: 3}
+        - {t: 7.24, rot: 2}
+        - {t: 7.28, rot: 5.8, ease: Out}
+        - {t: 7.44, rot: 3}
+        - {t: 7.58, rot: 2}
+        - {t: 7.62, rot: 7, ease: Out}
+        - {t: 7.78, rot: 3}
+        - {t: 7.98, rot: 2}
+        - {t: 8.02, rot: 10, ease: Out}
+        - {t: 8.18, rot: 3}
+        - {t: 8.66, rot: 0}
+        - {t: 8.7, rot: -34, ease: Out}
+        - {t: 8.91, rot: 12}
+        - {t: 9.08, rot: -6}
+        - {t: 9.16, rot: -18, ease: Out}
+        - {t: 9.38, rot: -8}
+        - {t: 11.1, rot: -8}
+      ArmNear:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -7}
+        - {t: 0.25, rot: -109, ease: Out}
+        - {t: 0.45, rot: -109}
+        - {t: 0.6, rot: -127}
+        - {t: 0.75, rot: -111}
+        - {t: 0.88, rot: -96}
+        - {t: 1.05, rot: 55, ease: Out}
+        - {t: 1.6, rot: 14}
+        - {t: 1.9, rot: -64}
+        - {t: 2.6, rot: -81}
+        - {t: 2.85, rot: -70}
+        - {t: 3.05, rot: -107, ease: Out}
+        - {t: 3.25, rot: -77}
+        - {t: 3.4, rot: -51}
+        - {t: 3.5, rot: -56}
+        - {t: 3.62, rot: -33}
+        - {t: 3.72, rot: 27, ease: Out}
+        - {t: 4.1, rot: 80}
+        - {t: 4.3, rot: 80}
+        - {t: 4.5, rot: -9}
+        - {t: 4.9, rot: -36}
+        - {t: 5.3, rot: -110}
+        - {t: 6.12, rot: -114}
+        - {t: 6.16, rot: -53, ease: Out}
+        - {t: 6.32, rot: -97}
+        - {t: 6.5, rot: -93}
+        - {t: 6.54, rot: -37, ease: Out}
+        - {t: 6.7, rot: -61}
+        - {t: 6.81, rot: -42}
+        - {t: 6.9, rot: 32, ease: Out}
+        - {t: 7.11, rot: 16}
+        - {t: 7.24, rot: 14}
+        - {t: 7.28, rot: 17, ease: Out}
+        - {t: 7.46, rot: 13}
+        - {t: 7.58, rot: 13}
+        - {t: 7.62, rot: 16, ease: Out}
+        - {t: 7.8, rot: 13}
+        - {t: 7.98, rot: 13}
+        - {t: 8.02, rot: 17, ease: Out}
+        - {t: 8.2, rot: 14}
+        - {t: 8.66, rot: 20}
+        - {t: 8.72, rot: 54, ease: Out}
+        - {t: 8.88, rot: -154}
+        - {t: 9.08, rot: 48}
+        - {t: 9.26, rot: 23}
+        - {t: 9.51, rot: 13}
+      ArmNearLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: 5}
+        - {t: 0.25, rot: -55, ease: Out}
+        - {t: 0.45, rot: -8}
+        - {t: 0.6, rot: -49}
+        - {t: 0.75, rot: -37}
+        - {t: 0.88, rot: -55}
+        - {t: 1.05, rot: 5, ease: Out}
+        - {t: 1.6, rot: 5}
+        - {t: 1.9, rot: -98}
+        - {t: 2.6, rot: -99}
+        - {t: 2.85, rot: -71}
+        - {t: 3.05, rot: -74, ease: Out}
+        - {t: 3.25, rot: -50}
+        - {t: 3.4, rot: -40}
+        - {t: 3.5, rot: -51}
+        - {t: 3.62, rot: -50}
+        - {t: 3.72, rot: 5, ease: Out}
+        - {t: 4.1, rot: 5}
+        - {t: 4.3, rot: 5}
+        - {t: 4.5, rot: -33}
+        - {t: 4.9, rot: -20}
+        - {t: 5.3, rot: -70}
+        - {t: 6.12, rot: -69}
+        - {t: 6.16, rot: 5, ease: Out}
+        - {t: 6.32, rot: -53}
+        - {t: 6.5, rot: -53}
+        - {t: 6.54, rot: 5, ease: Out}
+        - {t: 6.7, rot: -38}
+        - {t: 6.81, rot: -26}
+        - {t: 6.9, rot: 5, ease: Out}
+        - {t: 7.11, rot: -15}
+        - {t: 7.24, rot: -12}
+        - {t: 7.28, rot: 3, ease: Out}
+        - {t: 7.46, rot: -10}
+        - {t: 7.58, rot: -10}
+        - {t: 7.62, rot: 5, ease: Out}
+        - {t: 7.8, rot: -10}
+        - {t: 7.98, rot: -10}
+        - {t: 8.02, rot: 3, ease: Out}
+        - {t: 8.2, rot: -12}
+        - {t: 8.66, rot: -21}
+        - {t: 8.72, rot: 5, ease: Out}
+        - {t: 8.88, rot: -79}
+        - {t: 9.08, rot: 5}
+        - {t: 9.26, rot: -15}
+        - {t: 9.51, rot: -12}
+      ArmFar:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -6}
+        - {t: 0.25, rot: -71, ease: Out}
+        - {t: 0.45, rot: -89}
+        - {t: 0.6, rot: -71}
+        - {t: 0.88, rot: -67}
+        - {t: 1.05, rot: 70, ease: Out}
+        - {t: 1.6, rot: 24}
+        - {t: 2.2, rot: 8}
+        - {t: 2.85, rot: -18}
+        - {t: 3.05, rot: -57, ease: Out}
+        - {t: 3.25, rot: -30}
+        - {t: 3.45, rot: -6}
+        - {t: 3.62, rot: -11}
+        - {t: 3.72, rot: 55, ease: Out}
+        - {t: 4.1, rot: 80}
+        - {t: 4.5, rot: 4}
+        - {t: 5.3, rot: -64}
+        - {t: 6.12, rot: -62}
+        - {t: 6.16, rot: 37, ease: Out}
+        - {t: 6.32, rot: -61}
+        - {t: 6.5, rot: -61}
+        - {t: 6.54, rot: 7, ease: Out}
+        - {t: 6.7, rot: -29}
+        - {t: 6.81, rot: -27}
+        - {t: 6.9, rot: 15, ease: Out}
+        - {t: 7.11, rot: 7}
+        - {t: 7.24, rot: 7}
+        - {t: 7.28, rot: 14, ease: Out}
+        - {t: 7.46, rot: 7}
+        - {t: 7.58, rot: 7}
+        - {t: 7.62, rot: 14, ease: Out}
+        - {t: 7.8, rot: 7}
+        - {t: 7.98, rot: 7}
+        - {t: 8.02, rot: 14, ease: Out}
+        - {t: 8.2, rot: 7}
+        - {t: 8.66, rot: 2}
+        - {t: 8.72, rot: -16, ease: Out}
+        - {t: 8.88, rot: 80}
+        - {t: 9.08, rot: 43}
+        - {t: 9.26, rot: 6}
+        - {t: 9.51, rot: 3}
+      ArmFarLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: 5}
+        - {t: 0.25, rot: -66, ease: Out}
+        - {t: 0.45, rot: -56}
+        - {t: 0.6, rot: -50}
+        - {t: 0.88, rot: -74}
+        - {t: 1.05, rot: 5, ease: Out}
+        - {t: 1.6, rot: -20}
+        - {t: 2.2, rot: -51}
+        - {t: 2.85, rot: -77}
+        - {t: 3.05, rot: -101, ease: Out}
+        - {t: 3.25, rot: -75}
+        - {t: 3.45, rot: -53}
+        - {t: 3.62, rot: -51}
+        - {t: 3.72, rot: -6, ease: Out}
+        - {t: 4.1, rot: 5}
+        - {t: 4.5, rot: -59}
+        - {t: 5.3, rot: -92}
+        - {t: 6.12, rot: -96}
+        - {t: 6.16, rot: 5, ease: Out}
+        - {t: 6.32, rot: -76}
+        - {t: 6.5, rot: -72}
+        - {t: 6.54, rot: 5, ease: Out}
+        - {t: 6.7, rot: -59}
+        - {t: 6.81, rot: -27}
+        - {t: 6.9, rot: 5, ease: Out}
+        - {t: 7.11, rot: -30}
+        - {t: 7.24, rot: -30}
+        - {t: 7.28, rot: -23, ease: Out}
+        - {t: 7.46, rot: -30}
+        - {t: 7.58, rot: -30}
+        - {t: 7.62, rot: -23, ease: Out}
+        - {t: 7.8, rot: -30}
+        - {t: 7.98, rot: -30}
+        - {t: 8.02, rot: -23, ease: Out}
+        - {t: 8.2, rot: -30}
+        - {t: 8.66, rot: -23}
+        - {t: 8.72, rot: -66, ease: Out}
+        - {t: 8.88, rot: 5}
+        - {t: 9.08, rot: -36}
+        - {t: 9.26, rot: -33}
+        - {t: 9.51, rot: -23}
+      LegNear:
+        pivot: 0, -8
+        keys:
+        - {t: 0}
+        - {t: 0.3, rot: -22, ease: Out}
+        - {t: 0.5, rot: -36}
+        - {t: 0.7, rot: -46}
+        - {t: 0.88, rot: -52, ease: In}
+        - {t: 1.05, rot: 24, ease: Out}
+        - {t: 1.6, rot: 12}
+        - {t: 1.9, rot: -8}
+        - {t: 2.25, rot: 8}
+        - {t: 2.6, rot: -4}
+        - {t: 2.85, rot: 0}
+        - {t: 3.05, rot: 6}
+        - {t: 3.62, rot: -4}
+        - {t: 3.72, rot: 18, ease: Out}
+        - {t: 4.1, rot: -35}
+        - {t: 4.4, rot: -5}
+        - {t: 6.12, rot: 5}
+        - {t: 6.16, rot: -40, ease: Out}
+        - {t: 6.3, rot: 5}
+        - {t: 6.38, rot: -10.7}
+        - {t: 6.5, rot: 5}
+        - {t: 6.54, rot: -27, ease: Out}
+        - {t: 6.68, rot: 5}
+        - {t: 6.76, rot: -6.2}
+        - {t: 6.86, rot: 5}
+        - {t: 6.9, rot: -21, ease: Out}
+        - {t: 7.04, rot: 5}
+        - {t: 7.12, rot: -4.1}
+        - {t: 7.24, rot: 5}
+        - {t: 7.28, rot: -15, ease: Out}
+        - {t: 7.42, rot: 5}
+        - {t: 7.5, rot: -2}
+        - {t: 7.58, rot: 5}
+        - {t: 7.62, rot: -9, ease: Out}
+        - {t: 7.76, rot: 5}
+        - {t: 7.84, rot: 0.1}
+        - {t: 7.98, rot: 5}
+        - {t: 8.02, rot: -23, ease: Out}
+        - {t: 8.16, rot: 5}
+        - {t: 8.24, rot: -4.8}
+        - {t: 8.66, rot: 3}
+        - {t: 8.81, rot: -40, ease: Out}
+        - {t: 9.08, rot: 15}
+        - {t: 9.26, rot: -8}
+        - {t: 9.51, rot: -4}
+      LegNearLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0}
+        - {t: 0.5, rot: 12}
+        - {t: 0.88, rot: 16}
+        - {t: 1.05, rot: 0}
+        - {t: 3.72, rot: 0}
+        - {t: 4.1, rot: 40}
+        - {t: 4.4, rot: 5}
+        - {t: 6.12, rot: 5}
+        - {t: 6.16, rot: 54.5, ease: Out}
+        - {t: 6.3, rot: 5}
+        - {t: 6.5, rot: 5}
+        - {t: 6.54, rot: 40.2, ease: Out}
+        - {t: 6.68, rot: 5}
+        - {t: 6.86, rot: 5}
+        - {t: 6.9, rot: 33.6, ease: Out}
+        - {t: 7.04, rot: 5}
+        - {t: 7.24, rot: 5}
+        - {t: 7.28, rot: 27, ease: Out}
+        - {t: 7.42, rot: 5}
+        - {t: 7.58, rot: 5}
+        - {t: 7.62, rot: 20.4, ease: Out}
+        - {t: 7.76, rot: 5}
+        - {t: 7.98, rot: 5}
+        - {t: 8.02, rot: 35.8, ease: Out}
+        - {t: 8.16, rot: 5}
+        - {t: 8.66, rot: 5}
+        - {t: 8.81, rot: 45, ease: Out}
+        - {t: 9.08, rot: 5}
+        - {t: 9.26, rot: 20}
+        - {t: 9.51, rot: 14}
+      LegFar:
+        pivot: 0, -8
+        keys:
+        - {t: 0}
+        - {t: 0.3, rot: -14, ease: Out}
+        - {t: 0.5, rot: -26}
+        - {t: 0.7, rot: -36}
+        - {t: 0.88, rot: -40, ease: In}
+        - {t: 1.05, rot: 12, ease: Out}
+        - {t: 1.6, rot: 14}
+        - {t: 1.9, rot: -6}
+        - {t: 2.25, rot: 6}
+        - {t: 2.6, rot: -3}
+        - {t: 2.85, rot: 0}
+        - {t: 3.05, rot: 4}
+        - {t: 3.62, rot: -6}
+        - {t: 3.72, rot: 6, ease: Out}
+        - {t: 4.1, rot: -20}
+        - {t: 4.4, rot: 0}
+        - {t: 6.12, rot: 3.5}
+        - {t: 6.16, rot: -28, ease: Out}
+        - {t: 6.3, rot: 3.5}
+        - {t: 6.38, rot: -7.5}
+        - {t: 6.5, rot: 3.5}
+        - {t: 6.54, rot: -18.9, ease: Out}
+        - {t: 6.68, rot: 3.5}
+        - {t: 6.76, rot: -4.3}
+        - {t: 6.86, rot: 3.5}
+        - {t: 6.9, rot: -14.7, ease: Out}
+        - {t: 7.04, rot: 3.5}
+        - {t: 7.12, rot: -2.9}
+        - {t: 7.24, rot: 3.5}
+        - {t: 7.28, rot: -10.5, ease: Out}
+        - {t: 7.42, rot: 3.5}
+        - {t: 7.5, rot: -1.4}
+        - {t: 7.58, rot: 3.5}
+        - {t: 7.62, rot: -6.3, ease: Out}
+        - {t: 7.76, rot: 3.5}
+        - {t: 7.84, rot: 0.1}
+        - {t: 7.98, rot: 3.5}
+        - {t: 8.02, rot: -16.1, ease: Out}
+        - {t: 8.16, rot: 3.5}
+        - {t: 8.24, rot: -3.4}
+        - {t: 8.66, rot: 2.1}
+        - {t: 8.81, rot: -25, ease: Out}
+        - {t: 9.08, rot: 20}
+        - {t: 9.26, rot: 4}
+      LegFarLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0}
+        - {t: 0.5, rot: 10}
+        - {t: 1.05, rot: 0}
+        - {t: 4.1, rot: 25}
+        - {t: 4.4, rot: 0}
+        - {t: 6.12, rot: 0}
+        - {t: 6.16, rot: 36, ease: Out}
+        - {t: 6.32, rot: 0}
+        - {t: 6.5, rot: 0}
+        - {t: 6.54, rot: 25.6, ease: Out}
+        - {t: 6.7, rot: 0}
+        - {t: 6.86, rot: 0}
+        - {t: 6.9, rot: 20.8, ease: Out}
+        - {t: 7.06, rot: 0}
+        - {t: 7.24, rot: 0}
+        - {t: 7.28, rot: 16, ease: Out}
+        - {t: 7.44, rot: 0}
+        - {t: 7.58, rot: 0}
+        - {t: 7.62, rot: 11.2, ease: Out}
+        - {t: 7.78, rot: 0}
+        - {t: 7.98, rot: 0}
+        - {t: 8.02, rot: 22.4, ease: Out}
+        - {t: 8.18, rot: 0}
+        - {t: 8.66, rot: 0}
+        - {t: 8.81, rot: 35, ease: Out}
+        - {t: 9.08, rot: 0}
+        - {t: 9.26, rot: 8}
+  events:
+  - {t: -0.6, target: Attacker, beat: holsters the gun, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: -0.18, target: Attacker, beat: gun slung, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 0.3, target: Victim, beat: grabs the head, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 0.6, target: Victim, beat: pulls down, sheet: true}
+  - {t: 0.88, target: Victim, beat: knee, sheet: true, hitStop: 0.06, shake: 0.7, flash: true, sound: {collection: Punch},
+     blood: {from: Head, at: '-4, 7', count: 14, speed: '30, 80', angle: '70, 150', gravity: 300, floor: -15, life: 1.8}}
+  - {t: 0.89, target: Victim, sound: {path: /Audio/Effects/hit_kick.ogg}}
+  - {t: 1.06, target: Victim, sound: {collection: FootstepFloor}}
+  - {t: 1.2, target: Victim, beat: reels back, sheet: true}
+  - {t: 1.26, target: Victim, sound: {collection: FootstepFloor}}
+  - {t: 1.85, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 2.1, target: Victim, beat: shakes it off, sheet: true}
+  - {t: 2.28, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 2.71, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 3.05, target: Victim, beat: guard up, sheet: true}
+  - {t: 3.1, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 3.25, target: Victim, beat: grabs the shoulders, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 3.62, target: Attacker, beat: wind-up}
+  - {t: 3.72, target: Victim, beat: headbutt, sheet: true, hitStop: 0.07, shake: 0.9, flash: true, sound: {collection: Punch},
+     blood: {from: Head, at: '-4, 8', count: 16, speed: '40, 105', angle: '20, 165', gravity: 300, floor: -15, life: 1.8}}
+  - {t: 3.73, target: Victim, sound: {path: /Audio/Effects/gen_hit.ogg}}
+  - {t: 4.25, target: Victim, beat: falls on the back, sheet: true, shake: 0.45, sound: {collection: BodyFall}}
+  - {t: 4.6, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 4.92, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 5.26, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 5.3, target: Victim, beat: covers the face, sheet: true}
+  - {t: 5.4, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 6, target: Attacker, beat: wind-up, sheet: true}
+  - {t: 6.12, target: Victim, beat: stomp, sheet: true, sheetDelay: 0.05, hitStop: 0.1, shake: 1.4, flash: true,
+     sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '0, 9', count: 24, speed: '45, 140', angle: '-5, 185',
+     gravity: 360, floor: -16, floorJitter: 6, life: 2.2, bigChance: 0.45}, decal: {id: splatter, from: Head, at: '0, 9', color: '#80000099'}}
+  - {t: 6.13, target: Victim, sound: {collection: BoneGone}}
+  - {t: 6.5, target: Victim, beat: stomp 2, sheet: true, sheetDelay: 0.04, hitStop: 0.05, shake: 0.9, flash: true,
+     sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '0, 9', count: 14, speed: '40, 120', angle: '0, 180',
+     gravity: 360, floor: -16, floorJitter: 6, life: 2, bigChance: 0.4}}
+  - {t: 6.51, target: Victim, sound: {collection: Punch}}
+  - {t: 6.62, target: Victim, beat: guard breaks}
+  - {t: 6.86, target: Victim, beat: stomp 3, sheet: true, sheetDelay: 0.04, hitStop: 0.04, shake: 0.8, flash: true,
+     sound: {collection: Punch}, blood: {from: Head, at: '0, 9', count: 12, speed: '40, 120', angle: '0, 180', gravity: 360, floor: -16,
+     floorJitter: 6, life: 2, bigChance: 0.4}, decal: {id: splatter, from: Head, at: '0, 9', color: '#80000099'}}
+  - {t: 6.87, target: Victim, sound: {collection: BoneGone}}
+  - {t: 7.24, target: Victim, beat: stomp 4, hitStop: 0.05, shake: 0.9, flash: true, sound: {path: /Audio/Effects/gen_hit.ogg},
+     blood: {from: Head, at: '0, 9', count: 14, speed: '40, 120', angle: '0, 180', gravity: 360, floor: -16, floorJitter: 6, life: 2, bigChance: 0.4}}
+  - {t: 7.25, target: Victim, sound: {collection: Punch}}
+  - {t: 7.58, target: Victim, beat: stomp 5, hitStop: 0.04, shake: 0.8, flash: true, sound: {path: /Audio/Effects/hit_kick.ogg},
+     blood: {from: Head, at: '0, 9', count: 12, speed: '40, 120', angle: '0, 180', gravity: 360, floor: -16, floorJitter: 6, life: 2, bigChance: 0.4}}
+  - {t: 7.59, target: Victim, sound: {collection: Punch}}
+  - {t: 7.98, target: Victim, beat: stomp 6, sheet: true, sheetDelay: 0.04, hitStop: 0.08, shake: 1.2, flash: true,
+     sound: {collection: Punch}, blood: {from: Head, at: '0, 9', count: 20, speed: '50, 140', angle: '0, 180', gravity: 360, floor: -16,
+     floorJitter: 6, life: 2, bigChance: 0.4}, decal: {id: splatter, from: Head, at: '0, 9', color: '#80000099'}}
+  - {t: 7.99, target: Victim, sound: {collection: BoneGone}}
+  - {t: 8.22, target: Attacker, beat: turns his back, sheet: true, sound: {collection: FootstepHeavySuit}}
+  - {t: 8.46, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 8.56, target: Attacker, beat: kick wind-up, sheet: true}
+  - {damage: [{part: Head, damage: {types: {Blunt: 60}}, ignoreArmor: true}], t: 8.66, target: Victim, beat: temple kick, sheet: true, sheetDelay: 0.05, hitStop: 0.12, shake: 2, flash: true,
+     sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '0, 9', count: 26, speed: '60, 160', angle: '20, 160',
+     gravity: 360, floor: -16, floorJitter: 6, life: 2.4, bigChance: 0.5}, decal: {id: splatter, from: Head, at: '0, 9', color: '#80000099'}}
+  - {t: 8.67, target: Victim, sound: {collection: Punch}}
+  - {t: 8.72, target: Victim, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 8.86, target: Victim, beat: flies, sheet: true}
+  - {t: 9.08, target: Victim, beat: lands, sheet: true, shake: 0.7, sound: {collection: BodyFall}, blood: {from: Head, at: '0, 6',
+     count: 8, speed: '20, 60', angle: '30, 150', gravity: 300, floor: -16, life: 1.8}, decal: {id: splatter, from: Head, at: '0, 6',
+     color: '#80000077'}}
+  - {t: 9.26, target: Victim, sound: {collection: BodyFall}}
+  - {t: 9.3, target: Attacker, beat: turns back, sheet: true}
+  - {t: 9.7, target: Attacker, beat: walks off, sheet: true, sound: {collection: FootstepHeavySuit}}
+  - {t: 10.06, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 10.43, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 10.8, target: Attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 11.1, target: Attacker, beat: end}
+
+# ==== v10 variants (compose_v10.py: v2.py, v3.py) ========================================
+
+# V2 (gilbertfinisher <gilbert> <victim> 2): the shotgun by the barrel. Gilbert flips the shotgun and catches it by
+# the barrel, winds the stock back and hooks the victim's ankles (0.78), the victim falls onto the side (1.1, front
+# sprite rotated = lying on the side), a kick to the ribs (2.0) rolls it onto the back, Gilbert flips the gun back
+# to the grip, walks round behind the shoulders, rams the bayonet into the throat (3.0) and fires (3.4: 90 Piercing
+# to the head, ignoring armour), pulls it out (3.95), steps back and walks off. The gun stays in the hands
+# (holsterHeldItems: false); HeldNear keys hold the gun's grip / barrel on the hand found by the arm IK.
+- type: gilbertFinisher
+  id: GilbertFinisherBarrel
+  length: 6.7
+  victimStart: 0.85
+  requiredRoom: 3
+  attacker:
+    holsterHeldItems: false
+    smooth: true
+    walk: {stride: 0.44, fullSpeed: 0.8, legSwing: 26, knee: 36, armSwing: 5, elbow: 3, shoulder: 0.4, bob: 1, lean: 4,
+      sway: 1, nod: 1.5, weight: [{t: 0, x: 0}, {t: 1.3, x: 0}, {t: 1.38, x: 1}, {t: 1.66, x: 1}, {t: 1.72, x: 0}, {t: 2.26,
+      x: 0}, {t: 2.32, x: 1}, {t: 2.6, x: 1}, {t: 2.66, x: 0}, {t: 4.62, x: 0}, {t: 4.72, x: 1}]}
+    idle: {period: 2.6, breath: 0.5, weightShift: 0.6, headNod: 1, armSway: 0}
+    look: {at: '2, 9', targetAt: '0, 9', max: 40, neck: 35, keys: [{t: 0, x: 1}, {t: 0.7, x: 1}, {t: 0.78, x: 0.3}, {t: 1.2,
+      x: 1}, {t: 4.7, x: 1}, {t: 5.3, x: 0}]}
+    move:
+    - {t: 0, x: 0}
+    - {t: 0.3, x: 0.02}
+    - {t: 0.5, x: 0}
+    - {t: 0.78, x: 0.22, ease: In}
+    - {t: 0.95, x: 0.2, ease: Out}
+    - {t: 1.3, x: 0.2}
+    - {t: 1.7, x: 1, y: -0.16}
+    - {t: 1.78, x: 1.06, y: -0.16, ease: Out}
+    - {t: 2.25, x: 1.06, y: -0.16}
+    - {t: 2.6, x: 1.312, y: 0.14}
+    - {t: 2.66, x: 1.322, y: 0.14, ease: Out}
+    - {t: 3.95, x: 1.322, y: 0.14}
+    - {t: 4.35, x: 1.112, y: 0.14, ease: InOut}
+    - {t: 4.62, x: 1.112, y: 0.14}
+    - {t: 4.8, x: 1.212, y: 0.1, ease: In}
+    - {t: 6.45, x: 3.212, ease: Linear}
+    - {t: 6.6, x: 3.272, ease: Out}
+    - {t: 6.7, x: 3.272}
+    parts:
+      Body:
+        pivot: 0, -14
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.3, rot: -2}
+        - {t: 0.52, x: -1, y: -1, rot: 10}
+        - {t: 0.78, x: 1, y: -2, rot: -14, ease: In}
+        - {t: 0.95, y: -1.5, rot: -4, ease: Out}
+        - {t: 1.3, rot: -2}
+        - {t: 1.72, rot: -3}
+        - {t: 1.86, x: -1, rot: 6}
+        - {t: 2, x: -1, rot: 10, ease: Out}
+        - {t: 2.12, rot: 4}
+        - {t: 2.25, rot: 0}
+        - {t: 2.66, rot: -2}
+        - {t: 2.84, x: -1, y: 0.5, rot: 4}
+        - {t: 3, x: 1, y: -2.5, rot: -14, ease: In}
+        - {t: 3.36, x: 1, y: -3, rot: -16}
+        - {t: 3.43, y: -2, rot: -8, ease: Out}
+        - {t: 3.62, x: 1, y: -3, rot: -15}
+        - {t: 3.95, y: -1, rot: -2, ease: Out}
+        - {t: 4.2, rot: 3}
+        - {t: 4.4, rot: 0}
+        - {t: 4.62, rot: 0}
+        - {t: 6.7, rot: 0}
+      Head:
+        pivot: 0, 6
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.52, rot: -6}
+        - {t: 0.78, rot: 4}
+        - {t: 2, rot: -4}
+        - {t: 3, rot: 8}
+        - {t: 3.43, rot: -6}
+        - {t: 6.7, rot: 0}
+      ArmNear:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -3}
+        - {t: 0.04, rot: -5}
+        - {t: 0.08, rot: 35}
+        - {t: 0.1, rot: 71}
+        - {t: 0.12, rot: 72.5}
+        - {t: 0.16, rot: 85.5}
+        - {t: 0.2, rot: 141}
+        - {t: 0.24, rot: 113.5}
+        - {t: 0.28, rot: 91}
+        - {t: 0.3, rot: 90}
+        - {t: 0.32, rot: 92}
+        - {t: 0.36, rot: 107}
+        - {t: 0.4, rot: 121}
+        - {t: 0.44, rot: 126}
+        - {t: 0.48, rot: 122}
+        - {t: 0.52, rot: 102}
+        - {t: 0.56, rot: 104}
+        - {t: 0.6, rot: 125.5}
+        - {t: 0.64, rot: 131}
+        - {t: 0.68, rot: 129}
+        - {t: 0.72, rot: 109.5}
+        - {t: 0.76, rot: 40.5}
+        - {t: 0.78, rot: 12.5}
+        - {t: 0.8, rot: 1.5}
+        - {t: 0.84, rot: -12}
+        - {t: 0.88, rot: -18}
+        - {t: 0.92, rot: -20.5}
+        - {t: 0.95, rot: -20.5}
+        - {t: 0.96, rot: -20.5}
+        - {t: 1, rot: -16}
+        - {t: 1.04, rot: -6.5}
+        - {t: 1.08, rot: 6.5}
+        - {t: 1.12, rot: 21}
+        - {t: 1.16, rot: 36}
+        - {t: 1.2, rot: 50.5}
+        - {t: 1.24, rot: 64.5}
+        - {t: 1.28, rot: 76.5}
+        - {t: 1.3, rot: 79.5}
+        - {t: 1.32, rot: 80}
+        - {t: 1.36, rot: 65}
+        - {t: 1.4, rot: 58.5}
+        - {t: 1.44, rot: 52}
+        - {t: 1.48, rot: 58}
+        - {t: 1.52, rot: 58}
+        - {t: 1.56, rot: 53.5}
+        - {t: 1.6, rot: 59}
+        - {t: 1.64, rot: 64.5}
+        - {t: 1.68, rot: 67.5}
+        - {t: 1.7, rot: 71.5}
+        - {t: 1.72, rot: 72.5}
+        - {t: 1.76, rot: 80}
+        - {t: 1.8, rot: 96.5}
+        - {t: 1.84, rot: 98}
+        - {t: 1.88, rot: 99.5}
+        - {t: 1.92, rot: 100}
+        - {t: 1.96, rot: 102.5}
+        - {t: 2, rot: 104.5}
+        - {t: 2.04, rot: 108.5}
+        - {t: 2.05, rot: 109.5}
+        - {t: 2.08, rot: 94}
+        - {t: 2.12, rot: 81.5}
+        - {t: 2.16, rot: 76.5}
+        - {t: 2.2, rot: 76}
+        - {t: 2.24, rot: 82}
+        - {t: 2.28, rot: 90}
+        - {t: 2.3, rot: 88.5}
+        - {t: 2.32, rot: 100}
+        - {t: 2.36, rot: 130}
+        - {t: 2.4, rot: 126.5}
+        - {t: 2.42, rot: -63}
+        - {t: 2.44, rot: 173.5}
+        - {t: 2.48, rot: 96}
+        - {t: 2.52, rot: 127.5}
+        - {t: 2.55, rot: 125}
+        - {t: 2.56, rot: 124.5}
+        - {t: 2.6, rot: 125}
+        - {t: 2.64, rot: 124}
+        - {t: 2.68, rot: 123}
+        - {t: 2.72, rot: 119.5}
+        - {t: 2.76, rot: 115}
+        - {t: 2.8, rot: 111}
+        - {t: 2.84, rot: 109.5}
+        - {t: 2.88, rot: 109.5}
+        - {t: 2.92, rot: 110.5}
+        - {t: 2.96, rot: 112}
+        - {t: 3, rot: -74.5}
+        - {t: 3.04, rot: -80}
+        - {t: 3.08, rot: -80}
+        - {t: 3.12, rot: -80}
+        - {t: 3.16, rot: -80}
+        - {t: 3.2, rot: -80}
+        - {t: 3.24, rot: -80}
+        - {t: 3.28, rot: -80}
+        - {t: 3.32, rot: -80}
+        - {t: 3.36, rot: -78.5}
+        - {t: 3.4, rot: 68.5}
+        - {t: 3.43, rot: 79}
+        - {t: 3.44, rot: 78.5}
+        - {t: 3.48, rot: 57}
+        - {t: 3.52, rot: -14}
+        - {t: 3.56, rot: -69}
+        - {t: 3.6, rot: -62.5}
+        - {t: 3.62, rot: -60.5}
+        - {t: 3.64, rot: -21.5}
+        - {t: 3.68, rot: 51}
+        - {t: 3.72, rot: 92.5}
+        - {t: 3.76, rot: 116}
+        - {t: 3.8, rot: 116.5}
+        - {t: 3.84, rot: 117}
+        - {t: 3.88, rot: 117}
+        - {t: 3.92, rot: 117}
+        - {t: 3.95, rot: 117}
+        - {t: 3.96, rot: 117}
+        - {t: 4, rot: 115}
+        - {t: 4.04, rot: 111}
+        - {t: 4.08, rot: 105}
+        - {t: 4.12, rot: 97}
+        - {t: 4.16, rot: 61}
+        - {t: 4.2, rot: 31}
+        - {t: 4.24, rot: 2.5}
+        - {t: 4.28, rot: -20.5}
+        - {t: 4.32, rot: -31}
+        - {t: 4.36, rot: -31}
+        - {t: 4.4, rot: -26}
+        - {t: 4.44, rot: -20}
+        - {t: 4.48, rot: -14.5}
+        - {t: 4.52, rot: -9.5}
+        - {t: 4.56, rot: -6}
+        - {t: 4.6, rot: -3.5}
+        - {t: 4.62, rot: -3}
+        - {t: 4.64, rot: -3}
+        - {t: 4.68, rot: -9}
+        - {t: 4.72, rot: -19.5}
+        - {t: 4.76, rot: -22}
+        - {t: 4.8, rot: -12.5}
+        - {t: 4.84, rot: -5}
+        - {t: 4.88, rot: -4}
+        - {t: 4.92, rot: -3.5}
+        - {t: 4.96, rot: -10}
+        - {t: 5, rot: -17.5}
+        - {t: 5.04, rot: -25}
+        - {t: 5.08, rot: -29.5}
+        - {t: 5.12, rot: -22}
+        - {t: 5.16, rot: -13.5}
+        - {t: 5.2, rot: -5}
+        - {t: 5.24, rot: -4}
+        - {t: 5.28, rot: -3}
+        - {t: 5.32, rot: -9.5}
+        - {t: 5.36, rot: -16.5}
+        - {t: 5.4, rot: -24.5}
+        - {t: 5.44, rot: -29.5}
+        - {t: 5.48, rot: -22.5}
+        - {t: 5.52, rot: -14}
+        - {t: 5.56, rot: -6}
+        - {t: 5.6, rot: -4}
+        - {t: 5.64, rot: -3}
+        - {t: 5.68, rot: -8.5}
+        - {t: 5.72, rot: -16.5}
+        - {t: 5.76, rot: -24}
+        - {t: 5.8, rot: -30}
+        - {t: 5.84, rot: -23}
+        - {t: 5.88, rot: -15}
+        - {t: 5.92, rot: -6}
+        - {t: 5.96, rot: -4}
+        - {t: 6, rot: -3}
+        - {t: 6.04, rot: -8.5}
+        - {t: 6.08, rot: -15.5}
+        - {t: 6.12, rot: -23}
+        - {t: 6.16, rot: -30.5}
+        - {t: 6.2, rot: -24}
+        - {t: 6.24, rot: -15.5}
+        - {t: 6.28, rot: -7}
+        - {t: 6.32, rot: -4}
+        - {t: 6.36, rot: -3.5}
+        - {t: 6.4, rot: -8}
+        - {t: 6.44, rot: -15}
+        - {t: 6.48, rot: -21}
+        - {t: 6.52, rot: -14.5}
+        - {t: 6.56, rot: -7}
+        - {t: 6.6, rot: -4}
+        - {t: 6.64, rot: -3}
+        - {t: 6.68, rot: -3}
+        - {t: 6.7, rot: -3}
+      ArmNearLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: 5}
+        - {t: 0.04, rot: 16}
+        - {t: 0.08, rot: 8.5}
+        - {t: 0.1, rot: -5}
+        - {t: 0.12, rot: -5}
+        - {t: 0.16, rot: -5}
+        - {t: 0.2, rot: -5}
+        - {t: 0.24, rot: -5}
+        - {t: 0.28, rot: -5}
+        - {t: 0.3, rot: -5}
+        - {t: 0.32, rot: -5}
+        - {t: 0.36, rot: -5}
+        - {t: 0.4, rot: -5}
+        - {t: 0.44, rot: -5}
+        - {t: 0.48, rot: 6.5}
+        - {t: 0.52, rot: 44.5}
+        - {t: 0.56, rot: 41}
+        - {t: 0.6, rot: 4}
+        - {t: 0.64, rot: -5}
+        - {t: 0.68, rot: -5}
+        - {t: 0.72, rot: 19.5}
+        - {t: 0.76, rot: 86.5}
+        - {t: 0.78, rot: 89.5}
+        - {t: 0.8, rot: 93}
+        - {t: 0.84, rot: 96.5}
+        - {t: 0.88, rot: 98}
+        - {t: 0.92, rot: 99}
+        - {t: 0.95, rot: 99}
+        - {t: 0.96, rot: 99}
+        - {t: 1, rot: 97.5}
+        - {t: 1.04, rot: 93}
+        - {t: 1.08, rot: 85.5}
+        - {t: 1.12, rot: 74}
+        - {t: 1.16, rot: 58.5}
+        - {t: 1.2, rot: 41}
+        - {t: 1.24, rot: 21.5}
+        - {t: 1.28, rot: 3.5}
+        - {t: 1.3, rot: -1}
+        - {t: 1.32, rot: -1}
+        - {t: 1.36, rot: 37.5}
+        - {t: 1.4, rot: 54}
+        - {t: 1.44, rot: 58}
+        - {t: 1.48, rot: 45}
+        - {t: 1.52, rot: 58}
+        - {t: 1.56, rot: 55.5}
+        - {t: 1.6, rot: 49}
+        - {t: 1.64, rot: 42.5}
+        - {t: 1.68, rot: 38}
+        - {t: 1.7, rot: 29.5}
+        - {t: 1.72, rot: 28.5}
+        - {t: 1.76, rot: 20.5}
+        - {t: 1.8, rot: -5}
+        - {t: 1.84, rot: -5}
+        - {t: 1.88, rot: -5}
+        - {t: 1.92, rot: -5}
+        - {t: 1.96, rot: -5}
+        - {t: 2, rot: -5}
+        - {t: 2.04, rot: -5}
+        - {t: 2.05, rot: -5}
+        - {t: 2.08, rot: 27.5}
+        - {t: 2.12, rot: 46}
+        - {t: 2.16, rot: 43.5}
+        - {t: 2.2, rot: 33}
+        - {t: 2.24, rot: 13.5}
+        - {t: 2.28, rot: -5}
+        - {t: 2.3, rot: -0.5}
+        - {t: 2.32, rot: -0.5}
+        - {t: 2.36, rot: -5}
+        - {t: 2.4, rot: -5}
+        - {t: 2.42, rot: 56}
+        - {t: 2.44, rot: 150}
+        - {t: 2.48, rot: 60}
+        - {t: 2.52, rot: -5}
+        - {t: 2.55, rot: -5}
+        - {t: 2.56, rot: -5}
+        - {t: 2.6, rot: -5}
+        - {t: 2.64, rot: -5}
+        - {t: 2.68, rot: -5}
+        - {t: 2.72, rot: -5}
+        - {t: 2.76, rot: -5}
+        - {t: 2.8, rot: -5}
+        - {t: 2.84, rot: -5}
+        - {t: 2.88, rot: -5}
+        - {t: 2.92, rot: -5}
+        - {t: 2.96, rot: -5}
+        - {t: 3, rot: 142.5}
+        - {t: 3.04, rot: 143.5}
+        - {t: 3.08, rot: 142}
+        - {t: 3.12, rot: 140}
+        - {t: 3.16, rot: 138}
+        - {t: 3.2, rot: 135.5}
+        - {t: 3.24, rot: 133.5}
+        - {t: 3.28, rot: 131.5}
+        - {t: 3.32, rot: 130.5}
+        - {t: 3.36, rot: 129.5}
+        - {t: 3.4, rot: 117}
+        - {t: 3.43, rot: 109}
+        - {t: 3.44, rot: 109.5}
+        - {t: 3.48, rot: 124}
+        - {t: 3.52, rot: 145}
+        - {t: 3.56, rot: 139}
+        - {t: 3.6, rot: 123.5}
+        - {t: 3.62, rot: 120.5}
+        - {t: 3.64, rot: 123}
+        - {t: 3.68, rot: 84}
+        - {t: 3.72, rot: 31}
+        - {t: 3.76, rot: -5}
+        - {t: 3.8, rot: -5}
+        - {t: 3.84, rot: -5}
+        - {t: 3.88, rot: -5}
+        - {t: 3.92, rot: -5}
+        - {t: 3.95, rot: -5}
+        - {t: 3.96, rot: -5}
+        - {t: 4, rot: -5}
+        - {t: 4.04, rot: -5}
+        - {t: 4.08, rot: -5}
+        - {t: 4.12, rot: -5}
+        - {t: 4.16, rot: 39}
+        - {t: 4.2, rot: 65}
+        - {t: 4.24, rot: 80.5}
+        - {t: 4.28, rot: 83}
+        - {t: 4.32, rot: 74}
+        - {t: 4.36, rot: 59}
+        - {t: 4.4, rot: 45}
+        - {t: 4.44, rot: 34}
+        - {t: 4.48, rot: 24.5}
+        - {t: 4.52, rot: 16}
+        - {t: 4.56, rot: 10}
+        - {t: 4.6, rot: 6}
+        - {t: 4.62, rot: 5}
+        - {t: 4.64, rot: 5}
+        - {t: 4.68, rot: 13.5}
+        - {t: 4.72, rot: 25}
+        - {t: 4.76, rot: 23.5}
+        - {t: 4.8, rot: 7.5}
+        - {t: 4.84, rot: -4.5}
+        - {t: 4.88, rot: -5}
+        - {t: 4.92, rot: -4}
+        - {t: 4.96, rot: 8}
+        - {t: 5, rot: 20.5}
+        - {t: 5.04, rot: 31.5}
+        - {t: 5.08, rot: 37}
+        - {t: 5.12, rot: 23.5}
+        - {t: 5.16, rot: 9}
+        - {t: 5.2, rot: -4.5}
+        - {t: 5.24, rot: -5}
+        - {t: 5.28, rot: -5}
+        - {t: 5.32, rot: 7}
+        - {t: 5.36, rot: 19}
+        - {t: 5.4, rot: 31}
+        - {t: 5.44, rot: 37}
+        - {t: 5.48, rot: 24.5}
+        - {t: 5.52, rot: 10}
+        - {t: 5.56, rot: -3}
+        - {t: 5.6, rot: -5}
+        - {t: 5.64, rot: -5}
+        - {t: 5.68, rot: 5.5}
+        - {t: 5.72, rot: 19}
+        - {t: 5.76, rot: 30.5}
+        - {t: 5.8, rot: 38}
+        - {t: 5.84, rot: 25.5}
+        - {t: 5.88, rot: 11.5}
+        - {t: 5.92, rot: -3}
+        - {t: 5.96, rot: -5}
+        - {t: 6, rot: -5}
+        - {t: 6.04, rot: 5.5}
+        - {t: 6.08, rot: 17.5}
+        - {t: 6.12, rot: 29}
+        - {t: 6.16, rot: 39}
+        - {t: 6.2, rot: 27}
+        - {t: 6.24, rot: 12.5}
+        - {t: 6.28, rot: -1.5}
+        - {t: 6.32, rot: -5}
+        - {t: 6.36, rot: -4.5}
+        - {t: 6.4, rot: 4.5}
+        - {t: 6.44, rot: 16.5}
+        - {t: 6.48, rot: 26}
+        - {t: 6.52, rot: 19}
+        - {t: 6.56, rot: 8.5}
+        - {t: 6.6, rot: 4}
+        - {t: 6.64, rot: 2.5}
+        - {t: 6.68, rot: 2.5}
+        - {t: 6.7, rot: 2.5}
+      HeldNear:
+        pivot: -2, -4
+        keys:
+        - {t: 0, rot: -2}
+        - {t: 0.04, rot: -8.4}
+        - {t: 0.08, rot: -23}
+        - {t: 0.1, rot: -26}
+        - {t: 0.12, rot: -19.5}
+        - {t: 0.16, rot: 8.6}
+        - {t: 0.2, x: -6.79, y: -1.41, rot: -20.1}
+        - {t: 0.24, x: -12.95, y: -8.06, rot: 54.7}
+        - {t: 0.28, x: -8.03, y: -13.43, rot: 89.9}
+        - {t: 0.3, x: -7.62, y: -11.59, rot: 91.4}
+        - {t: 0.32, x: -8.52, y: -10.94, rot: 86.8}
+        - {t: 0.36, x: -13.1, y: -4.57, rot: 54}
+        - {t: 0.4, x: -12.79, y: 5.35, rot: 12}
+        - {t: 0.44, x: -7.42, y: 11.72, rot: -22.9}
+        - {t: 0.48, x: -0.23, y: 13.87, rot: -54.3}
+        - {t: 0.52, x: 6.26, y: 12.38, rot: -82.1}
+        - {t: 0.56, x: 5.69, y: 12.65, rot: -79.5}
+        - {t: 0.6, x: 0.24, y: 13.87, rot: -56.3}
+        - {t: 0.64, x: -5.53, y: 12.72, rot: -31.8}
+        - {t: 0.68, x: -12.7, y: 5.57, rot: 11}
+        - {t: 0.72, x: -13.87, y: 0.13, rot: 34.2}
+        - {t: 0.76, x: -11.73, y: -7.4, rot: 67}
+        - {t: 0.78, x: -3.88, y: -13.32, rot: 108.5}
+        - {t: 0.8, x: -3.59, y: -13.4, rot: 109.7}
+        - {t: 0.84, x: -3.19, y: -13.5, rot: 111.4}
+        - {t: 0.88, x: -3.07, y: -13.53, rot: 111.9}
+        - {t: 0.92, x: -3.02, y: -13.54, rot: 112.2}
+        - {t: 0.95, x: -3.04, y: -13.53, rot: 112.1}
+        - {t: 0.96, x: -3.05, y: -13.53, rot: 112}
+        - {t: 1, x: -4.04, y: -13.27, rot: 107.8}
+        - {t: 1.04, x: -5.76, y: -12.62, rot: 100.2}
+        - {t: 1.08, x: -7.66, y: -11.56, rot: 91.2}
+        - {t: 1.12, x: -9.01, y: -10.54, rot: 84.2}
+        - {t: 1.16, x: -9.64, y: -9.97, rot: 80.7}
+        - {t: 1.2, x: -9.76, y: -9.86, rot: 80}
+        - {t: 1.24, x: -9.29, y: -10.3, rot: 82.7}
+        - {t: 1.28, x: -8.48, y: -10.98, rot: 87}
+        - {t: 1.3, x: -8.23, y: -11.16, rot: 88.3}
+        - {t: 1.32, x: -8.31, y: -11.1, rot: 87.9}
+        - {t: 1.36, x: -11.52, y: -7.73, rot: 68.6}
+        - {t: 1.4, x: -12.43, y: -6.16, rot: 61.1}
+        - {t: 1.44, x: -12.23, y: -6.55, rot: 62.9}
+        - {t: 1.48, x: -12.23, y: -6.54, rot: 62.9}
+        - {t: 1.52, x: -13.51, y: -3.13, rot: 47.8}
+        - {t: 1.56, x: -12.53, y: -5.94, rot: 60.1}
+        - {t: 1.6, x: -12.15, y: -6.7, rot: 63.6}
+        - {t: 1.64, x: -11.97, y: -7, rot: 65}
+        - {t: 1.68, x: -11.84, y: -7.23, rot: 66.1}
+        - {t: 1.7, x: -11.37, y: -7.95, rot: 69.7}
+        - {t: 1.72, x: -11.4, y: -7.9, rot: 69.4}
+        - {t: 1.76, x: -11.44, y: -7.85, rot: 69.2}
+        - {t: 1.8, x: -10.46, y: -9.11, rot: 75.8}
+        - {t: 1.84, x: -10.99, y: -8.46, rot: 72.3}
+        - {t: 1.88, x: -11.42, y: -7.88, rot: 69.3}
+        - {t: 1.92, x: -11.86, y: -7.19, rot: 66}
+        - {t: 1.96, x: -12.51, y: -5.99, rot: 60.3}
+        - {t: 2, x: -12.96, y: -4.93, rot: 55.6}
+        - {t: 2.04, x: -13.3, y: -3.94, rot: 51.2}
+        - {t: 2.05, x: -13.33, y: -3.82, rot: 50.7}
+        - {t: 2.08, x: -13.87, y: -0.3, rot: 35.9}
+        - {t: 2.12, x: -13.86, y: 0.39, rot: 33.1}
+        - {t: 2.16, x: -13.71, y: -2.12, rot: 43.5}
+        - {t: 2.2, x: -12.8, y: -5.34, rot: 57.4}
+        - {t: 2.24, x: -10.88, y: -8.6, rot: 73}
+        - {t: 2.28, x: -8.91, y: -10.63, rot: 84.7}
+        - {t: 2.3, x: -9.24, y: -10.34, rot: 83}
+        - {t: 2.32, x: -11.87, y: -7.18, rot: 65.9}
+        - {t: 2.36, x: -11.89, y: 7.14, rot: 3.7}
+        - {t: 2.4, x: -5.46, y: 12.75, rot: -32.1}
+        - {t: 2.42, x: 0.51, y: -0.06, rot: 89.4}
+        - {t: 2.44, x: 0.5, y: -0.32, rot: 79.5}
+        - {t: 2.48, x: -0.19, y: -0.14, rot: 194.4}
+        - {t: 2.52, x: 0.08, y: -1.42, rot: 210.9}
+        - {t: 2.55, rot: 211.7}
+        - {t: 2.56, rot: 212.1}
+        - {t: 2.6, rot: 211.4}
+        - {t: 2.64, rot: 211.7}
+        - {t: 2.68, rot: 211.7}
+        - {t: 2.72, rot: 213}
+        - {t: 2.76, rot: 214.8}
+        - {t: 2.8, rot: 216.5}
+        - {t: 2.84, rot: 217.1}
+        - {t: 2.88, rot: 217.4}
+        - {t: 2.92, rot: 218.5}
+        - {t: 2.96, rot: 223}
+        - {t: 3, rot: 273.5}
+        - {t: 3.04, rot: 278.1}
+        - {t: 3.08, rot: 279.7}
+        - {t: 3.12, rot: 282}
+        - {t: 3.16, rot: 284.3}
+        - {t: 3.2, rot: 287.1}
+        - {t: 3.24, rot: 289.4}
+        - {t: 3.28, rot: 291.6}
+        - {t: 3.32, rot: 292.8}
+        - {t: 3.36, rot: 292.3}
+        - {t: 3.4, rot: 154.1}
+        - {t: 3.43, rot: 151.2}
+        - {t: 3.44, rot: 151.3}
+        - {t: 3.48, rot: 158.7}
+        - {t: 3.52, rot: 209.5}
+        - {t: 3.56, rot: 271.4}
+        - {t: 3.6, rot: 281}
+        - {t: 3.62, rot: 282.1}
+        - {t: 3.64, rot: 239.4}
+        - {t: 3.68, rot: 203.9}
+        - {t: 3.72, rot: 213.9}
+        - {t: 3.76, rot: 225.3}
+        - {t: 3.8, rot: 224.1}
+        - {t: 3.84, rot: 223.2}
+        - {t: 3.88, rot: 222.9}
+        - {t: 3.92, rot: 222.8}
+        - {t: 3.95, rot: 222.8}
+        - {t: 3.96, rot: 222.8}
+        - {t: 4, rot: 225.5}
+        - {t: 4.04, rot: 230.9}
+        - {t: 4.08, rot: 239.2}
+        - {t: 4.12, rot: 250.3}
+        - {t: 4.16, rot: 246}
+        - {t: 4.2, rot: 254.3}
+        - {t: 4.24, rot: 272.1}
+        - {t: 4.28, rot: 297.4}
+        - {t: 4.32, rot: 321}
+        - {t: 4.36, rot: 338.9}
+        - {t: 4.4, rot: 349}
+        - {t: 4.44, rot: 353.3}
+        - {t: 4.48, rot: 355.6}
+        - {t: 4.52, rot: 356.9}
+        - {t: 4.56, rot: 357.4}
+        - {t: 4.6, rot: 357.6}
+        - {t: 4.62, rot: 357.9}
+        - {t: 4.64, rot: 357.9}
+        - {t: 4.68, rot: 356.7}
+        - {t: 4.72, rot: 359}
+        - {t: 4.76, rot: 365.3}
+        - {t: 4.8, rot: 371}
+        - {t: 4.84, rot: 373.8}
+        - {t: 4.88, rot: 371.1}
+        - {t: 4.92, rot: 366.8}
+        - {t: 4.96, rot: 358.8}
+        - {t: 5, rot: 352.2}
+        - {t: 5.04, rot: 348.2}
+        - {t: 5.08, rot: 347.7}
+        - {t: 5.12, rot: 354.8}
+        - {t: 5.16, rot: 362.4}
+        - {t: 5.2, rot: 369}
+        - {t: 5.24, rot: 370}
+        - {t: 5.28, rot: 370.2}
+        - {t: 5.32, rot: 365.9}
+        - {t: 5.36, rot: 362.1}
+        - {t: 5.4, rot: 359.2}
+        - {t: 5.44, rot: 359.1}
+        - {t: 5.48, rot: 364.8}
+        - {t: 5.52, rot: 370.2}
+        - {t: 5.56, rot: 373.6}
+        - {t: 5.6, rot: 371.4}
+        - {t: 5.64, rot: 367.7}
+        - {t: 5.68, rot: 360.1}
+        - {t: 5.72, rot: 352.9}
+        - {t: 5.76, rot: 348.2}
+        - {t: 5.8, rot: 347.1}
+        - {t: 5.84, rot: 353.6}
+        - {t: 5.88, rot: 361.1}
+        - {t: 5.92, rot: 368.2}
+        - {t: 5.96, rot: 369.8}
+        - {t: 6, rot: 370.1}
+        - {t: 6.04, rot: 366.2}
+        - {t: 6.08, rot: 362.4}
+        - {t: 6.12, rot: 359.6}
+        - {t: 6.16, rot: 358}
+        - {t: 6.2, rot: 363.8}
+        - {t: 6.24, rot: 369.3}
+        - {t: 6.28, rot: 373.4}
+        - {t: 6.32, rot: 371.8}
+        - {t: 6.36, rot: 368.1}
+        - {t: 6.4, rot: 361}
+        - {t: 6.44, rot: 354.1}
+        - {t: 6.48, rot: 349.9}
+        - {t: 6.52, rot: 353.7}
+        - {t: 6.56, rot: 358.7}
+        - {t: 6.6, rot: 360.9}
+        - {t: 6.64, rot: 361.5}
+        - {t: 6.68, rot: 361.5}
+        - {t: 6.7, rot: 361.5}
+      ArmFar:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -10}
+        - {t: 0.04, rot: -13.5}
+        - {t: 0.08, rot: 24}
+        - {t: 0.2, rot: 30}
+        - {t: 0.3, rot: 16}
+        - {t: 0.32, rot: 14}
+        - {t: 0.36, rot: 1.5}
+        - {t: 0.4, rot: -3.5}
+        - {t: 0.44, rot: 126}
+        - {t: 0.48, rot: 162}
+        - {t: 0.52, rot: 184.5}
+        - {t: 0.56, rot: 182.5}
+        - {t: 0.6, rot: 166.5}
+        - {t: 0.64, rot: 146.5}
+        - {t: 0.68, rot: 59.5}
+        - {t: 0.72, rot: 34.5}
+        - {t: 0.76, rot: -19.5}
+        - {t: 0.78, rot: -27}
+        - {t: 0.8, rot: -41}
+        - {t: 0.84, rot: -50.5}
+        - {t: 0.88, rot: -52.5}
+        - {t: 0.92, rot: -53.5}
+        - {t: 0.95, rot: -53.5}
+        - {t: 0.96, rot: -53}
+        - {t: 1, rot: -51}
+        - {t: 1.04, rot: -45.5}
+        - {t: 1.08, rot: -38.5}
+        - {t: 1.12, rot: -29.5}
+        - {t: 1.16, rot: -19}
+        - {t: 1.2, rot: -9.5}
+        - {t: 1.24, rot: -1.5}
+        - {t: 1.28, rot: 4}
+        - {t: 1.3, rot: 5}
+        - {t: 1.32, rot: 5}
+        - {t: 1.36, rot: -15.5}
+        - {t: 1.4, rot: -29.5}
+        - {t: 1.44, rot: -29}
+        - {t: 1.48, rot: -12}
+        - {t: 1.52, rot: -15}
+        - {t: 1.56, rot: -20}
+        - {t: 1.6, rot: -20.5}
+        - {t: 1.64, rot: -16}
+        - {t: 1.68, rot: -11.5}
+        - {t: 1.7, rot: -4.5}
+        - {t: 1.72, rot: -3.5}
+        - {t: 1.76, rot: -0.5}
+        - {t: 1.8, rot: 5}
+        - {t: 1.84, rot: 3}
+        - {t: 1.88, rot: 1.5}
+        - {t: 1.92, rot: -2}
+        - {t: 1.96, rot: -6}
+        - {t: 2, rot: -9.5}
+        - {t: 2.04, rot: -10}
+        - {t: 2.05, rot: -9}
+        - {t: 2.08, rot: -21.5}
+        - {t: 2.12, rot: -32.5}
+        - {t: 2.16, rot: -23}
+        - {t: 2.2, rot: -10.5}
+        - {t: 2.24, rot: 1.5}
+        - {t: 2.28, rot: 8}
+        - {t: 2.3, rot: 6}
+        - {t: 2.32, rot: -0.5}
+        - {t: 2.36, rot: 51}
+        - {t: 2.4, rot: 149}
+        - {t: 2.42, rot: 40}
+        - {t: 2.55, rot: -19}
+        - {t: 2.56, rot: -19.5}
+        - {t: 2.6, rot: -20.5}
+        - {t: 2.64, rot: -21.5}
+        - {t: 2.68, rot: -22.5}
+        - {t: 2.72, rot: -23}
+        - {t: 2.76, rot: -23.5}
+        - {t: 2.8, rot: -23}
+        - {t: 2.84, rot: -23}
+        - {t: 2.88, rot: -22.5}
+        - {t: 2.92, rot: -19.5}
+        - {t: 2.96, rot: -9}
+        - {t: 3, rot: -33}
+        - {t: 3.04, rot: -33.5}
+        - {t: 3.08, rot: -32}
+        - {t: 3.12, rot: -29.5}
+        - {t: 3.16, rot: -26.5}
+        - {t: 3.2, rot: -23}
+        - {t: 3.24, rot: -19}
+        - {t: 3.28, rot: -14.5}
+        - {t: 3.32, rot: -11.5}
+        - {t: 3.36, rot: -11.5}
+        - {t: 3.4, rot: -80}
+        - {t: 3.43, rot: -80}
+        - {t: 3.44, rot: -80}
+        - {t: 3.48, rot: -80}
+        - {t: 3.52, rot: -59.5}
+        - {t: 3.56, rot: -29}
+        - {t: 3.6, rot: -9}
+        - {t: 3.62, rot: -8.5}
+        - {t: 3.64, rot: -23.5}
+        - {t: 3.68, rot: -28.5}
+        - {t: 3.72, rot: -7}
+        - {t: 3.76, rot: 0.5}
+        - {t: 3.8, rot: -1.5}
+        - {t: 3.84, rot: -3}
+        - {t: 3.88, rot: -3.5}
+        - {t: 3.92, rot: -4}
+        - {t: 3.95, rot: -4}
+        - {t: 3.96, rot: -4}
+        - {t: 4, rot: -0.5}
+        - {t: 4.04, rot: 6.5}
+        - {t: 4.08, rot: 18}
+        - {t: 4.12, rot: 40}
+        - {t: 4.16, rot: 35.5}
+        - {t: 4.2, rot: 26.5}
+        - {t: 4.24, rot: 19}
+        - {t: 4.28, rot: 12}
+        - {t: 4.32, rot: 7}
+        - {t: 4.36, rot: 4}
+        - {t: 4.4, rot: -32}
+        - {t: 4.44, rot: -26.5}
+        - {t: 4.48, rot: -19.5}
+        - {t: 4.52, rot: -11.5}
+        - {t: 4.56, rot: -4}
+        - {t: 4.6, rot: 2.5}
+        - {t: 4.62, rot: -8}
+        - {t: 5, rot: -8}
+        - {t: 6.7, rot: -8}
+      ArmFarLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: 27}
+        - {t: 0.04, rot: 42}
+        - {t: 0.08, rot: 59.5}
+        - {t: 0.2, rot: 40}
+        - {t: 0.3, rot: 72.5}
+        - {t: 0.32, rot: 77}
+        - {t: 0.36, rot: 109.5}
+        - {t: 0.4, rot: 150}
+        - {t: 0.44, rot: 122}
+        - {t: 0.48, rot: 87}
+        - {t: 0.52, rot: 67}
+        - {t: 0.56, rot: 68.5}
+        - {t: 0.6, rot: 79.5}
+        - {t: 0.64, rot: 104}
+        - {t: 0.68, rot: 135}
+        - {t: 0.72, rot: 120}
+        - {t: 0.76, rot: 124}
+        - {t: 0.78, rot: 114.5}
+        - {t: 0.8, rot: 109.5}
+        - {t: 0.84, rot: 98.5}
+        - {t: 0.88, rot: 92}
+        - {t: 0.92, rot: 90}
+        - {t: 0.95, rot: 89.5}
+        - {t: 0.96, rot: 89}
+        - {t: 1, rot: 89}
+        - {t: 1.04, rot: 88}
+        - {t: 1.08, rot: 86.5}
+        - {t: 1.12, rot: 83.5}
+        - {t: 1.16, rot: 78}
+        - {t: 1.2, rot: 72}
+        - {t: 1.24, rot: 65.5}
+        - {t: 1.28, rot: 61}
+        - {t: 1.3, rot: 60}
+        - {t: 1.32, rot: 60.5}
+        - {t: 1.36, rot: 88.5}
+        - {t: 1.4, rot: 102}
+        - {t: 1.44, rot: 99}
+        - {t: 1.48, rot: 92}
+        - {t: 1.52, rot: 110}
+        - {t: 1.56, rot: 99}
+        - {t: 1.6, rot: 97}
+        - {t: 1.64, rot: 93.5}
+        - {t: 1.68, rot: 89.5}
+        - {t: 1.7, rot: 81.5}
+        - {t: 1.72, rot: 80.5}
+        - {t: 1.76, rot: 82}
+        - {t: 1.8, rot: 79}
+        - {t: 1.84, rot: 82.5}
+        - {t: 1.88, rot: 85.5}
+        - {t: 1.92, rot: 88.5}
+        - {t: 1.96, rot: 94.5}
+        - {t: 2, rot: 100}
+        - {t: 2.04, rot: 107.5}
+        - {t: 2.05, rot: 108.5}
+        - {t: 2.08, rot: 120}
+        - {t: 2.12, rot: 122}
+        - {t: 2.16, rot: 109.5}
+        - {t: 2.2, rot: 94}
+        - {t: 2.24, rot: 77.5}
+        - {t: 2.28, rot: 68}
+        - {t: 2.3, rot: 72}
+        - {t: 2.32, rot: 95}
+        - {t: 2.36, rot: 150}
+        - {t: 2.4, rot: 116}
+        - {t: 2.42, rot: 50}
+        - {t: 2.55, rot: 104.5}
+        - {t: 2.56, rot: 104}
+        - {t: 2.6, rot: 106}
+        - {t: 2.64, rot: 105}
+        - {t: 2.68, rot: 104.5}
+        - {t: 2.72, rot: 99.5}
+        - {t: 2.76, rot: 93}
+        - {t: 2.8, rot: 86.5}
+        - {t: 2.84, rot: 84}
+        - {t: 2.88, rot: 84.5}
+        - {t: 2.92, rot: 85.5}
+        - {t: 2.96, rot: 82.5}
+        - {t: 3, rot: 33}
+        - {t: 3.04, rot: 32.5}
+        - {t: 3.08, rot: 30}
+        - {t: 3.12, rot: 26}
+        - {t: 3.16, rot: 21}
+        - {t: 3.2, rot: 15}
+        - {t: 3.24, rot: 8}
+        - {t: 3.28, rot: 0}
+        - {t: 3.32, rot: -5}
+        - {t: 3.36, rot: -5}
+        - {t: 3.4, rot: 98.5}
+        - {t: 3.43, rot: 103}
+        - {t: 3.44, rot: 102.5}
+        - {t: 3.48, rot: 95}
+        - {t: 3.52, rot: 71}
+        - {t: 3.56, rot: 27}
+        - {t: 3.6, rot: -5}
+        - {t: 3.62, rot: -5}
+        - {t: 3.64, rot: 32.5}
+        - {t: 3.68, rot: 76}
+        - {t: 3.72, rot: 81}
+        - {t: 3.76, rot: 81}
+        - {t: 3.8, rot: 82.5}
+        - {t: 3.84, rot: 83.5}
+        - {t: 3.88, rot: 83.5}
+        - {t: 3.92, rot: 83}
+        - {t: 3.95, rot: 82.5}
+        - {t: 3.96, rot: 82.5}
+        - {t: 4, rot: 76}
+        - {t: 4.04, rot: 63.5}
+        - {t: 4.08, rot: 42.5}
+        - {t: 4.12, rot: 1.5}
+        - {t: 4.16, rot: -5}
+        - {t: 4.2, rot: -5}
+        - {t: 4.24, rot: -5}
+        - {t: 4.28, rot: -5}
+        - {t: 4.32, rot: -5}
+        - {t: 4.36, rot: -5}
+        - {t: 4.4, rot: 65}
+        - {t: 4.44, rot: 54.5}
+        - {t: 4.48, rot: 42.5}
+        - {t: 4.52, rot: 28.5}
+        - {t: 4.56, rot: 15.5}
+        - {t: 4.6, rot: 4.5}
+        - {t: 4.62, rot: 14}
+        - {t: 5, rot: 14}
+        - {t: 6.7, rot: 14}
+      LegNear:
+        pivot: 0, -8
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.52, rot: -14}
+        - {t: 0.78, rot: 34, ease: In}
+        - {t: 0.95, rot: 26, ease: Out}
+        - {t: 1.3, rot: 0}
+        - {t: 1.72, rot: 0}
+        - {t: 1.86, rot: -26}
+        - {t: 2, rot: 90, ease: Out}
+        - {t: 2.12, rot: 40}
+        - {t: 2.25, rot: 0}
+        - {t: 2.66, rot: 0}
+        - {t: 2.84, rot: 8}
+        - {t: 3, rot: 18, ease: In}
+        - {t: 3.36, rot: 20}
+        - {t: 3.43, rot: 20, ease: Out}
+        - {t: 3.62, rot: 20}
+        - {t: 3.95, rot: 10, ease: Out}
+        - {t: 4.2, rot: -10}
+        - {t: 4.4, rot: 0}
+        - {t: 4.62, rot: 0}
+        - {t: 6.7, rot: 0}
+      LegNearLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.52, rot: -8}
+        - {t: 0.78, rot: -6, ease: In}
+        - {t: 0.95, rot: -14, ease: Out}
+        - {t: 1.3, rot: 0}
+        - {t: 1.72, rot: 0}
+        - {t: 1.86, rot: -70}
+        - {t: 2, rot: -10, ease: Out}
+        - {t: 2.12, rot: -50}
+        - {t: 2.25, rot: 0}
+        - {t: 2.66, rot: 0}
+        - {t: 2.84, rot: -4}
+        - {t: 3, rot: -26, ease: In}
+        - {t: 3.36, rot: -30}
+        - {t: 3.43, rot: -26, ease: Out}
+        - {t: 3.62, rot: -30}
+        - {t: 3.95, rot: -10, ease: Out}
+        - {t: 4.2, rot: -12}
+        - {t: 4.4, rot: 0}
+        - {t: 4.62, rot: 0}
+        - {t: 6.7, rot: 0}
+      LegFar:
+        pivot: 0, -8
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.52, rot: 18}
+        - {t: 0.78, rot: -22, ease: In}
+        - {t: 0.95, rot: -16, ease: Out}
+        - {t: 1.3, rot: 0}
+        - {t: 1.72, rot: 0}
+        - {t: 1.86, rot: 4}
+        - {t: 2, rot: -6, ease: Out}
+        - {t: 2.12, rot: -2}
+        - {t: 2.25, rot: 0}
+        - {t: 2.66, rot: 0}
+        - {t: 2.84, rot: -6}
+        - {t: 3, rot: -12, ease: In}
+        - {t: 3.36, rot: -12}
+        - {t: 3.43, rot: -12, ease: Out}
+        - {t: 3.62, rot: -12}
+        - {t: 3.95, rot: -6, ease: Out}
+        - {t: 4.2, rot: 8}
+        - {t: 4.4, rot: 0}
+        - {t: 4.62, rot: 0}
+        - {t: 6.7, rot: 0}
+      LegFarLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.52, rot: -20}
+        - {t: 0.78, rot: -24, ease: In}
+        - {t: 0.95, rot: -20, ease: Out}
+        - {t: 1.3, rot: 0}
+        - {t: 1.72, rot: 0}
+        - {t: 1.86, rot: -8}
+        - {t: 2, rot: -10, ease: Out}
+        - {t: 2.12, rot: -6}
+        - {t: 2.25, rot: 0}
+        - {t: 2.66, rot: 0}
+        - {t: 2.84, rot: -4}
+        - {t: 3, rot: -22, ease: In}
+        - {t: 3.36, rot: -26}
+        - {t: 3.43, rot: -22, ease: Out}
+        - {t: 3.62, rot: -26}
+        - {t: 3.95, rot: -8, ease: Out}
+        - {t: 4.2, rot: -6}
+        - {t: 4.4, rot: 0}
+        - {t: 4.62, rot: 0}
+        - {t: 6.7, rot: 0}
+  victim:
+    smooth: true
+    views: [{start: 1.1, end: 2.1, facing: South}]
+    idle: {period: 1.9, breath: 0.6, weightShift: 0.8, headNod: 1, armSway: 2}
+    drag: {lag: 0.08, head: 0.55, arms: 0.45, low: 0.4, legs: 0.15, legsLow: 0.25, max: 22}
+    daze: {period: 1.35, sway: 5, shift: 1, dip: 1, loll: 10, arms: 8, knees: 6, weight: [{t: 0, x: 0.8}, {t: 0.7, x: 0.8},
+      {t: 0.78, x: 0}]}
+    move:
+    - {t: 0, x: 0.85}
+    - {t: 0.4, x: 0.83}
+    - {t: 0.78, x: 0.84}
+    - {t: 0.92, x: 0.88}
+    - {t: 1.1, x: 0.95, ease: Out}
+    - {t: 2.1, x: 1}
+    - {t: 6.7, x: 1}
+    parts:
+      Body:
+        pivot: 0, -10
+        keys:
+        - {t: 0, rot: 6}
+        - {t: 0.4, y: -1, rot: 10}
+        - {t: 0.74, y: -1, rot: 8}
+        - {t: 0.8, rot: 2, ease: Out}
+        - {t: 0.92, x: 1, y: 1, rot: -32}
+        - {t: 1.06, x: 1, rot: -70}
+        - {t: 1.1, x: 1, y: -2, rot: -90, ease: Out}
+        - {t: 1.2, x: 1, y: -0.5, rot: -86}
+        - {t: 1.34, x: 1, y: -2, rot: -90}
+        - {t: 1.95, x: 1, y: -2, rot: -91}
+        - {t: 2.02, x: 2, y: 1.5, rot: -96, ease: Out}
+        - {t: 2.09, x: 2, y: 2, rot: -100}
+        - {t: 2.1, x: 2, y: 2, rot: -96}
+        - {t: 2.22, x: 2, y: -2, rot: -90, ease: Out}
+        - {t: 2.32, x: 2, y: -1.2, rot: -89}
+        - {t: 2.45, x: 2, y: -2, rot: -90}
+        - {t: 2.8, x: 2, y: -2, rot: -90}
+        - {t: 2.98, x: 2, y: -2, rot: -90}
+        - {t: 3.04, x: 2, y: -1, rot: -88, ease: Out}
+        - {t: 3.2, x: 2, y: -2, rot: -90}
+        - {t: 3.38, x: 2, y: -2, rot: -90}
+        - {t: 3.43, x: 2, rot: -86, ease: Out}
+        - {t: 3.6, x: 2, y: -2.4, rot: -90}
+        - {t: 3.75, x: 2, y: -2, rot: -90}
+        - {t: 3.92, x: 2, y: -1.6, rot: -90}
+        - {t: 4.05, x: 2, y: -2, rot: -90}
+        - {t: 6.7, x: 2, y: -2, rot: -90}
+      Head:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -4}
+        - {t: 0.4, rot: -8}
+        - {t: 0.74, rot: -6}
+        - {t: 0.8, rot: 8, ease: Out}
+        - {t: 0.92, rot: 18}
+        - {t: 1.06, rot: 14}
+        - {t: 1.1, rot: 6, ease: Out}
+        - {t: 1.2, rot: -4}
+        - {t: 1.34, rot: 2}
+        - {t: 1.95, rot: 4}
+        - {t: 2.02, rot: -6, ease: Out}
+        - {t: 2.09, rot: -4}
+        - {t: 2.1, rot: 6}
+        - {t: 2.22, rot: -2, ease: Out}
+        - {t: 2.32, rot: 3}
+        - {t: 2.45, rot: 0}
+        - {t: 2.8, rot: -6}
+        - {t: 2.98, rot: -8}
+        - {t: 3.04, rot: 10, ease: Out}
+        - {t: 3.2, rot: 6}
+        - {t: 3.38, rot: 6}
+        - {t: 3.43, rot: 16, ease: Out}
+        - {t: 3.6, rot: 4}
+        - {t: 3.75, rot: 8}
+        - {t: 3.92, rot: -6}
+        - {t: 4.05, rot: 6}
+        - {t: 6.7, rot: 6}
+      ArmNear:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -22}
+        - {t: 0.4, rot: -26}
+        - {t: 0.74, rot: -24}
+        - {t: 0.8, rot: -40, ease: Out}
+        - {t: 0.92, rot: -95}
+        - {t: 1.06, rot: -70}
+        - {t: 1.1, rot: -4, ease: Out}
+        - {t: 1.2, rot: -12}
+        - {t: 1.34, rot: -8}
+        - {t: 1.95, rot: -10}
+        - {t: 2.02, rot: -20, ease: Out}
+        - {t: 2.09, rot: -14}
+        - {t: 2.1, rot: -30}
+        - {t: 2.22, rot: -8, ease: Out}
+        - {t: 2.32, rot: -14}
+        - {t: 2.45, rot: -10}
+        - {t: 2.8, rot: -40}
+        - {t: 2.98, rot: -55}
+        - {t: 3.04, rot: -70, ease: Out}
+        - {t: 3.2, rot: -58}
+        - {t: 3.38, rot: -56}
+        - {t: 3.43, rot: -80, ease: Out}
+        - {t: 3.6, rot: -20}
+        - {t: 3.75, rot: -6}
+        - {t: 3.92, rot: -6}
+        - {t: 4.05, rot: -4}
+        - {t: 6.7, rot: -4}
+      ArmNearLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: -58}
+        - {t: 0.4, rot: -62}
+        - {t: 0.74, rot: -60}
+        - {t: 0.8, rot: -40, ease: Out}
+        - {t: 0.92, rot: -30}
+        - {t: 1.06, rot: -20}
+        - {t: 1.1, rot: -10, ease: Out}
+        - {t: 1.2, rot: -18}
+        - {t: 1.34, rot: -14}
+        - {t: 1.95, rot: -16}
+        - {t: 2.02, rot: -24, ease: Out}
+        - {t: 2.09, rot: -18}
+        - {t: 2.1, rot: -40}
+        - {t: 2.22, rot: -20, ease: Out}
+        - {t: 2.32, rot: -26}
+        - {t: 2.45, rot: -22}
+        - {t: 2.8, rot: -55}
+        - {t: 2.98, rot: -70}
+        - {t: 3.04, rot: -30, ease: Out}
+        - {t: 3.2, rot: -48}
+        - {t: 3.38, rot: -50}
+        - {t: 3.43, rot: -14, ease: Out}
+        - {t: 3.6, rot: -10}
+        - {t: 3.75, rot: -4}
+        - {t: 3.92, rot: -4}
+        - {t: 4.05, rot: -2}
+        - {t: 6.7, rot: -2}
+      ArmFar:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -10}
+        - {t: 0.4, rot: -14}
+        - {t: 0.74, rot: -12}
+        - {t: 0.8, rot: -30, ease: Out}
+        - {t: 0.92, rot: -80}
+        - {t: 1.06, rot: -60}
+        - {t: 1.1, rot: 4, ease: Out}
+        - {t: 1.2, rot: 10}
+        - {t: 1.34, rot: 6}
+        - {t: 1.95, rot: 8}
+        - {t: 2.02, rot: 16, ease: Out}
+        - {t: 2.09, rot: 12}
+        - {t: 2.1, rot: -45}
+        - {t: 2.22, rot: -20, ease: Out}
+        - {t: 2.32, rot: -26}
+        - {t: 2.45, rot: -22}
+        - {t: 2.8, rot: -24}
+        - {t: 2.98, rot: -28}
+        - {t: 3.04, rot: -50, ease: Out}
+        - {t: 3.2, rot: -40}
+        - {t: 3.38, rot: -38}
+        - {t: 3.43, rot: -66, ease: Out}
+        - {t: 3.6, rot: -12}
+        - {t: 3.75, rot: -4}
+        - {t: 3.92, rot: -4}
+        - {t: 4.05, rot: -2}
+        - {t: 6.7, rot: -2}
+      ArmFarLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: -20}
+        - {t: 0.4, rot: -26}
+        - {t: 0.74, rot: -24}
+        - {t: 0.8, rot: -30, ease: Out}
+        - {t: 0.92, rot: -35}
+        - {t: 1.06, rot: -25}
+        - {t: 1.1, rot: 10, ease: Out}
+        - {t: 1.2, rot: 16}
+        - {t: 1.34, rot: 12}
+        - {t: 1.95, rot: 14}
+        - {t: 2.02, rot: 20, ease: Out}
+        - {t: 2.09, rot: 16}
+        - {t: 2.1, rot: -35}
+        - {t: 2.22, rot: -30, ease: Out}
+        - {t: 2.32, rot: -36}
+        - {t: 2.45, rot: -32}
+        - {t: 2.8, rot: -34}
+        - {t: 2.98, rot: -40}
+        - {t: 3.04, rot: -30, ease: Out}
+        - {t: 3.2, rot: -38}
+        - {t: 3.38, rot: -38}
+        - {t: 3.43, rot: -14, ease: Out}
+        - {t: 3.6, rot: -8}
+        - {t: 3.75, rot: -2}
+        - {t: 3.92, rot: -2}
+        - {t: 4.05, rot: 0}
+        - {t: 6.7, rot: 0}
+      LegNear:
+        pivot: 0, -8
+        keys:
+        - {t: 0, rot: -4}
+        - {t: 0.4, rot: -6}
+        - {t: 0.74, rot: -4}
+        - {t: 0.8, rot: -48, ease: Out}
+        - {t: 0.92, rot: -58}
+        - {t: 1.06, rot: -30}
+        - {t: 1.1, rot: 8, ease: Out}
+        - {t: 1.2, rot: 12}
+        - {t: 1.34, rot: 10}
+        - {t: 1.95, rot: 12}
+        - {t: 2.02, rot: 14, ease: Out}
+        - {t: 2.09, rot: 10}
+        - {t: 2.1, rot: -14}
+        - {t: 2.22, rot: -6, ease: Out}
+        - {t: 2.32, rot: -10}
+        - {t: 2.45, rot: -8}
+        - {t: 2.8, rot: -14}
+        - {t: 2.98, rot: -16}
+        - {t: 3.04, rot: -22, ease: Out}
+        - {t: 3.2, rot: -18}
+        - {t: 3.38, rot: -18}
+        - {t: 3.43, rot: -28, ease: Out}
+        - {t: 3.6, rot: -6}
+        - {t: 3.75, rot: -2}
+        - {t: 3.92, rot: -2}
+        - {t: 4.05, rot: -2}
+        - {t: 6.7, rot: -2}
+      LegNearLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0, rot: 6}
+        - {t: 0.4, rot: 10}
+        - {t: 0.74, rot: 8}
+        - {t: 0.8, rot: 10, ease: Out}
+        - {t: 0.92, rot: 8}
+        - {t: 1.06, rot: 6}
+        - {t: 1.1, rot: 0, ease: Out}
+        - {t: 1.2, rot: 0}
+        - {t: 1.34, rot: 0}
+        - {t: 1.95, rot: 0}
+        - {t: 2.02, rot: 0, ease: Out}
+        - {t: 2.09, rot: 0}
+        - {t: 2.1, rot: 10}
+        - {t: 2.22, rot: 6, ease: Out}
+        - {t: 2.32, rot: 8}
+        - {t: 2.45, rot: 8}
+        - {t: 2.8, rot: 14}
+        - {t: 2.98, rot: 16}
+        - {t: 3.04, rot: 20, ease: Out}
+        - {t: 3.2, rot: 18}
+        - {t: 3.38, rot: 18}
+        - {t: 3.43, rot: 12, ease: Out}
+        - {t: 3.6, rot: 6}
+        - {t: 3.75, rot: 2}
+        - {t: 3.92, rot: 2}
+        - {t: 4.05, rot: 2}
+        - {t: 6.7, rot: 2}
+      LegFar:
+        pivot: 0, -8
+        keys:
+        - {t: 0, rot: 6}
+        - {t: 0.4, rot: 8}
+        - {t: 0.74, rot: 6}
+        - {t: 0.8, rot: -36, ease: Out}
+        - {t: 0.92, rot: -50}
+        - {t: 1.06, rot: -26}
+        - {t: 1.1, rot: -6, ease: Out}
+        - {t: 1.2, rot: -10}
+        - {t: 1.34, rot: -8}
+        - {t: 1.95, rot: -6}
+        - {t: 2.02, rot: -10, ease: Out}
+        - {t: 2.09, rot: -6}
+        - {t: 2.1, rot: -8}
+        - {t: 2.22, rot: -2, ease: Out}
+        - {t: 2.32, rot: -4}
+        - {t: 2.45, rot: -3}
+        - {t: 2.8, rot: -4}
+        - {t: 2.98, rot: -6}
+        - {t: 3.04, rot: -10, ease: Out}
+        - {t: 3.2, rot: -8}
+        - {t: 3.38, rot: -8}
+        - {t: 3.43, rot: -16, ease: Out}
+        - {t: 3.6, rot: -2}
+        - {t: 3.75, rot: 0}
+        - {t: 3.92, rot: 0}
+        - {t: 4.05, rot: 0}
+        - {t: 6.7, rot: 0}
+      LegFarLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0, rot: 4}
+        - {t: 0.4, rot: 8}
+        - {t: 0.74, rot: 6}
+        - {t: 0.8, rot: 6, ease: Out}
+        - {t: 0.92, rot: 10}
+        - {t: 1.06, rot: 8}
+        - {t: 1.1, rot: 0, ease: Out}
+        - {t: 1.2, rot: 0}
+        - {t: 1.34, rot: 0}
+        - {t: 1.95, rot: 0}
+        - {t: 2.02, rot: 0, ease: Out}
+        - {t: 2.09, rot: 0}
+        - {t: 2.1, rot: 6}
+        - {t: 2.22, rot: 4, ease: Out}
+        - {t: 2.32, rot: 6}
+        - {t: 2.45, rot: 5}
+        - {t: 2.8, rot: 6}
+        - {t: 2.98, rot: 8}
+        - {t: 3.04, rot: 10, ease: Out}
+        - {t: 3.2, rot: 8}
+        - {t: 3.38, rot: 8}
+        - {t: 3.43, rot: 6, ease: Out}
+        - {t: 3.6, rot: 2}
+        - {t: 3.75, rot: 0}
+        - {t: 3.92, rot: 0}
+        - {t: 4.05, rot: 0}
+        - {t: 6.7, rot: 0}
+  events:
+  - {t: 0, target: Attacker, beat: flips the shotgun, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 0.3, target: Attacker, beat: grabs the barrel, sheet: true, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 0.6, target: Attacker, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 0.78, target: Victim, beat: stock sweeps the legs, sheet: true, hitStop: 0.07, shake: 0.8, flash: true,
+     sound: {path: /Audio/Effects/hit_kick.ogg}}
+  - {t: 0.79, target: Victim, sound: {collection: Punch}}
+  - {t: 1.1, target: Victim, beat: falls on the side, sheet: true, sheetDelay: 0.05, shake: 0.9, sound: {collection: BodyFall}}
+  - {t: 1.86, target: Attacker, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 2, target: Victim, beat: rib kick, sheet: true, hitStop: 0.06, shake: 0.9, flash: true, sound: {path: /Audio/Effects/hit_kick.ogg}}
+  - {t: 2.22, target: Victim, beat: rolled onto the back, sound: {collection: BodyFall}, shake: 0.4}
+  - {t: 2.42, target: Attacker, beat: re-grips, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 2.55, target: Attacker, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 3, target: Victim, beat: bayonet into the throat, sheet: true, sheetDelay: 0.05, hitStop: 0.08, shake: 1, flash: true,
+     sound: {path: /Audio/Weapons/pierce.ogg}, blood: {from: Body, at: '-2, 7', count: 16, speed: '30, 100', angle: '20, 160', gravity: 340,
+     floor: -16, life: 1.8}}
+  - {t: 3.4, target: Attacker, sound: {path: /Audio/Weapons/Guns/Gunshots/shotgun.ogg}, blood: {from: HeldNear, at: '11.5, -14.0', count: 10,
+     speed: '90, 190', angle: '60, 120', gravity: 60, floor: -30, life: 0.22, bigChance: 0.6, color: '#ffd84a'}}
+  - {t: 3.4, target: Victim, beat: fires, sheet: true, sheetDelay: 0.03, hitStop: 0.12, shake: 1.8, flash: true, blood: {from: Body, at: '-2, 7',
+     count: 34, speed: '60, 190', angle: '-10, 190', gravity: 380, floor: -16, life: 2.4, bigChance: 0.5}, decal: {id: splatter, from: Body,
+     at: '-2, 7', color: '#80000099'}, damage: [{part: Head, damage: {types: {Piercing: 90}}, ignoreArmor: true}]}
+  - {t: 3.41, target: Victim, sound: {collection: BoneGone}}
+  - {t: 3.95, target: Victim, beat: pulls it out, sound: {path: /Audio/Weapons/bladeslice.ogg}, blood: {from: Body, at: '-2, 7', count: 10,
+     speed: '20, 70', angle: '40, 140', gravity: 340, floor: -16, life: 1.6}}
+  - {t: 4.35, target: Attacker, beat: steps back, sheet: true}
+  - {t: 5.4, target: Attacker, beat: walks off}
+
+# V3 "ground and pound" (gilbertfinisher <gilbert> <victim> 3), v10b rework. Authored in /workspace/gilbert/finisher/v3.py (lib10).
+# Right-to-left buttstroke into the jaw spins the victim round (North view, then Turned: back to Gilbert) -> shot into the
+# back of the knees (the leg damage lands here) drops it onto its knees -> he slings the shotgun (holsterAt), walks up
+# behind it and plants his foot on its upper back -> rips off the right arm, then the left (real amputations when each
+# thrown arm lands, with `hide`) -> draws a baton (visual prop), wrenches the head back by the hair and rams the baton
+# into the mouth, the victim looking straight up -> takes the shotgun back (unholsterAt) and blows the head off: real
+# Head amputation + `kill` on the same event (60 Blunt head + 40 Blunt chest, armor ignored) -> pulls the baton out of
+# the stump, the corpse topples forward -> flicks and stows the baton, walks off. holdAlive keeps the victim from
+# going crit / dead before the head shot.
+- type: gilbertFinisher
+  id: GilbertFinisherGroundPound
+  length: 12.3
+  victimStart: 0.85
+  requiredRoom: 3.2
+  holdAlive: true
+  attacker:
+    holsterHeldItems: true
+    holsterAt: 1.82
+    unholsterAt: 7.92
+    smooth: true
+    props:
+    - {sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 6.5, end: 7.25, part: ArmFarHand,
+        keys: [{t: 6.5, x: 3.61, y: -8.96, rot: -83}, {t: 6.75, x: -0.12, y: -0.09, rot: -231.4}, {t: 7.1, x: 3.04, y: 1,
+        rot: -270.4}, {t: 7.25, x: 2.21, y: 0.94, rot: 99.1}]}
+    - {sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 9.55, end: 10.42, part: ArmFarHand,
+        keys: [{t: 9.55, x: 0.79, y: 0.49, rot: 116.2}, {t: 9.72, x: 3.48, y: -8.98, rot: -84.5}, {t: 9.95, x: 7.81, y: -2.65,
+        rot: 15.7}, {t: 10.05, x: 7.85, y: -5.23, rot: -14.2}, {t: 10.35, x: 2.91, y: -9, rot: -91}, {t: 10.42, x: 2.92, y: -9,
+        rot: -90.9}]}
+    walk: {stride: 0.44, fullSpeed: 0.8, legSwing: 26, knee: 36, armSwing: 14, elbow: 8, shoulder: 0.6, bob: 1, lean: 4,
+      sway: 1, nod: 1.5, weight: [{t: 0, x: 0}, {t: 2, x: 0}, {t: 2.06, x: 1}, {t: 2.5, x: 1}, {t: 2.56, x: 0}, {t: 6.32,
+      x: 0}, {t: 6.36, x: 0.6}, {t: 6.56, x: 0.6}, {t: 6.6, x: 0}, {t: 8.2, x: 0}, {t: 8.26, x: 0.6}, {t: 8.5, x: 0.6},
+      {t: 8.56, x: 0}, {t: 9.1, x: 0}, {t: 9.16, x: 0.6}, {t: 9.38, x: 0.6}, {t: 9.44, x: 0}, {t: 11, x: 0}, {t: 11.1, x: 1}]}
+    idle: {period: 2.6, breath: 0.5, weightShift: 0.6, headNod: 1, armSway: 0}
+    look: {at: '2, 9', targetAt: '0, 9', max: 40, neck: 35, keys: [{t: 0, x: 1}, {t: 0.3, x: 1}, {t: 0.36, x: 0.3}, {t: 0.7,
+      x: 1}, {t: 2.5, x: 1}, {t: 2.62, x: 0}, {t: 10.9, x: 0}, {t: 11.2, x: 0.4}]}
+    move:
+    - {t: 0, x: 0}
+    - {t: 0.1, x: 0}
+    - {t: 0.36, x: 0.2, ease: In}
+    - {t: 0.52, x: 0.23, ease: Out}
+    - {t: 0.8, x: 0.22}
+    - {t: 2, x: 0.22}
+    - {t: 2.06, x: 0.22}
+    - {t: 2.55, x: 1.006, y: 0.06, ease: InOut}
+    - {t: 6.32, x: 1.006, y: 0.06}
+    - {t: 6.6, x: 0.725, y: 0.06, ease: InOut}
+    - {t: 8.2, x: 0.725, y: 0.06}
+    - {t: 8.55, x: 0.04, y: 0.06, ease: InOut}
+    - {t: 9.1, x: 0.04, y: 0.06}
+    - {t: 9.42, x: 1.006, y: 0.06, ease: InOut}
+    - {t: 9.9, x: 1.006, y: 0.06}
+    - {t: 10.95, x: 1.006, y: 0.06}
+    - {t: 11.15, x: 1.106, y: -0.04, ease: In}
+    - {t: 12.2, x: 2.306, y: -0.28, ease: Linear}
+    - {t: 12.3, x: 2.356, y: -0.28, ease: Out}
+    parts:
+      Body:
+        pivot: 0, -14
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.2, x: -1, y: -1, rot: 10}
+        - {t: 0.36, x: 1, y: -2, rot: -14, ease: In}
+        - {t: 0.5, x: 1, y: -1, rot: -8, ease: Out}
+        - {t: 0.8, rot: -2}
+        - {t: 1.05, rot: -3}
+        - {t: 1.09, x: -1, rot: 5, ease: Out}
+        - {t: 1.4, rot: 0}
+        - {t: 1.58, rot: 3}
+        - {t: 1.74, rot: 4}
+        - {t: 1.82, y: -1, rot: 2}
+        - {t: 2, rot: 0}
+        - {t: 2.55, rot: -2}
+        - {t: 2.72, rot: -4}
+        - {t: 2.85, rot: 4, ease: In}
+        - {t: 2.95, rot: 6}
+        - {t: 3, rot: 2}
+        - {t: 3.15, rot: -2}
+        - {t: 3.55, rot: 6}
+        - {t: 3.82, rot: 10}
+        - {t: 3.87, rot: 14, ease: Out}
+        - {t: 4, rot: 12}
+        - {t: 4.1, rot: 4, ease: In}
+        - {t: 4.45, rot: 2}
+        - {t: 4.6, rot: 2}
+        - {t: 4.75, rot: -2}
+        - {t: 5.15, rot: 6}
+        - {t: 5.42, rot: 10}
+        - {t: 5.47, rot: 14, ease: Out}
+        - {t: 5.6, rot: 12}
+        - {t: 5.7, rot: 4, ease: In}
+        - {t: 6.05, rot: 2}
+        - {t: 6.3, rot: 0, ease: InOut}
+        - {t: 6.75, rot: -8, ease: Out}
+        - {t: 6.92, rot: -6}
+        - {t: 7.05, rot: 6}
+        - {t: 7.25, y: -1, rot: -6, ease: In}
+        - {t: 7.34, rot: -2, ease: Out}
+        - {t: 7.42, y: -1, rot: -5, ease: In}
+        - {t: 7.6, rot: 0, ease: InOut}
+        - {t: 7.92, rot: -3}
+        - {t: 8.02, rot: -4}
+        - {t: 8.18, y: -1, rot: -2}
+        - {t: 8.35, rot: 0}
+        - {t: 8.4, rot: 2, ease: InOut}
+        - {t: 8.6, rot: 0, ease: InOut}
+        - {t: 9.06, x: -1, rot: 8, ease: Out}
+        - {t: 9.3, rot: 0, ease: InOut}
+        - {t: 9.45, rot: -4}
+        - {t: 9.72, rot: 4, ease: Out}
+        - {t: 10.7, rot: -2}
+        - {t: 11.15, rot: -2}
+        - {t: 12.3, rot: 0}
+      Head:
+        pivot: 0, 6
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.2, rot: -4}
+        - {t: 0.36, rot: 6, ease: In}
+        - {t: 0.5, rot: 2, ease: Out}
+        - {t: 0.8, rot: 0}
+        - {t: 1.09, rot: -4, ease: Out}
+        - {t: 1.4, rot: 0}
+        - {t: 2.55, rot: -6}
+        - {t: 2.72, rot: -12}
+        - {t: 2.85, rot: -16, ease: In}
+        - {t: 2.95, rot: -12}
+        - {t: 3, rot: -24}
+        - {t: 3.15, rot: -30}
+        - {t: 3.55, rot: -20}
+        - {t: 3.82, rot: -14}
+        - {t: 3.87, rot: -6, ease: Out}
+        - {t: 4, rot: -2}
+        - {t: 4.1, rot: -10, ease: In}
+        - {t: 4.45, rot: -12}
+        - {t: 4.6, rot: -24}
+        - {t: 4.75, rot: -30}
+        - {t: 5.15, rot: -20}
+        - {t: 5.42, rot: -14}
+        - {t: 5.47, rot: -6, ease: Out}
+        - {t: 5.6, rot: -2}
+        - {t: 5.7, rot: -10, ease: In}
+        - {t: 6.05, rot: -12}
+        - {t: 6.3, rot: -8, ease: InOut}
+        - {t: 6.75, rot: -12, ease: Out}
+        - {t: 6.92, rot: -14}
+        - {t: 7.05, rot: -14}
+        - {t: 7.25, rot: -16, ease: In}
+        - {t: 7.6, rot: -6, ease: InOut}
+        - {t: 8.4, rot: -10, ease: InOut}
+        - {t: 8.6, rot: -12, ease: InOut}
+        - {t: 9.06, rot: -4, ease: Out}
+        - {t: 9.3, rot: -10, ease: InOut}
+        - {t: 9.45, rot: -14}
+        - {t: 9.72, rot: -6, ease: Out}
+        - {t: 10.7, rot: -6}
+        - {t: 11.15, rot: 0}
+        - {t: 12.3, rot: 0}
+      ArmNear:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -3}
+        - {t: 0.04, rot: -31}
+        - {t: 0.08, rot: -74}
+        - {t: 0.12, rot: -37.5}
+        - {t: 0.16, rot: 82.5}
+        - {t: 0.2, rot: 105}
+        - {t: 0.24, rot: 100.5}
+        - {t: 0.28, rot: 77}
+        - {t: 0.32, rot: 107}
+        - {t: 0.36, rot: 143.5}
+        - {t: 0.4, rot: 146}
+        - {t: 0.44, rot: 148.5}
+        - {t: 0.48, rot: 150}
+        - {t: 0.5, rot: 150}
+        - {t: 0.52, rot: 147}
+        - {t: 0.56, rot: 129.5}
+        - {t: 0.6, rot: 105.5}
+        - {t: 0.64, rot: 83.5}
+        - {t: 0.68, rot: 68}
+        - {t: 0.72, rot: 64}
+        - {t: 0.76, rot: 73.5}
+        - {t: 0.8, rot: 81.5}
+        - {t: 0.84, rot: 81}
+        - {t: 0.88, rot: 77.5}
+        - {t: 0.92, rot: 74.5}
+        - {t: 0.96, rot: 73}
+        - {t: 1, rot: 72}
+        - {t: 1.04, rot: 72.5}
+        - {t: 1.05, rot: 72}
+        - {t: 1.08, rot: 78.5}
+        - {t: 1.09, rot: 78.5}
+        - {t: 1.12, rot: 78}
+        - {t: 1.16, rot: 75.5}
+        - {t: 1.2, rot: 71.5}
+        - {t: 1.24, rot: 65}
+        - {t: 1.25, rot: 63}
+        - {t: 1.28, rot: 50.5}
+        - {t: 1.32, rot: 12.5}
+        - {t: 1.36, rot: -5}
+        - {t: 1.4, rot: -3}
+        - {t: 1.58, rot: -55, ease: Out}
+        - {t: 1.74, rot: 190}
+        - {t: 1.82, rot: 190}
+        - {t: 1.95, rot: -9, ease: InOut}
+        - {t: 2, rot: 3}
+        - {t: 2.55, rot: 3}
+        - {t: 2.72, rot: 10}
+        - {t: 3.15, rot: 12}
+        - {t: 3.55, rot: 49.5}
+        - {t: 3.82, rot: 44.5}
+        - {t: 3.87, rot: 163.5, ease: Out}
+        - {t: 4, rot: 170}
+        - {t: 4.1, rot: 110, ease: In}
+        - {t: 4.45, rot: -6}
+        - {t: 4.75, rot: 21}
+        - {t: 5.15, rot: 39.5}
+        - {t: 5.42, rot: 30}
+        - {t: 5.47, rot: 163, ease: Out}
+        - {t: 5.6, rot: 170}
+        - {t: 5.7, rot: 110, ease: In}
+        - {t: 6.05, rot: -6}
+        - {t: 6.3, rot: -4, ease: InOut}
+        - {t: 6.75, rot: 132, ease: InOut}
+        - {t: 6.92, rot: 52.5}
+        - {t: 7.05, rot: -40, ease: Out}
+        - {t: 7.1, rot: -20}
+        - {t: 7.25, rot: -55, ease: In}
+        - {t: 7.34, rot: -45}
+        - {t: 7.42, rot: -55.5}
+        - {t: 7.55, rot: 30, ease: Out}
+        - {t: 7.8, rot: 190, ease: InOut}
+        - {t: 7.92, rot: 190}
+        - {t: 8.02, rot: 190}
+        - {t: 8.18, rot: -55, ease: In}
+        - {t: 8.35, rot: -3, ease: Out}
+        - {t: 8.6, rot: 7, ease: InOut}
+        - {t: 8.85, rot: -3}
+        - {t: 8.97, rot: 9.5}
+        - {t: 9, rot: 9.5}
+        - {t: 9.06, rot: 40, ease: Out}
+        - {t: 9.3, rot: -3, ease: InOut}
+        - {t: 10.7, rot: -3}
+        - {t: 12.3, rot: -3}
+      ArmNearLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: 5}
+        - {t: 0.04, rot: 49.5}
+        - {t: 0.08, rot: 108.5}
+        - {t: 0.12, rot: 150}
+        - {t: 0.16, rot: 99.5}
+        - {t: 0.2, rot: 69.5}
+        - {t: 0.24, rot: 72.5}
+        - {t: 0.28, rot: 77.5}
+        - {t: 0.32, rot: -5}
+        - {t: 0.36, rot: -5}
+        - {t: 0.4, rot: -5}
+        - {t: 0.44, rot: -5}
+        - {t: 0.48, rot: -5}
+        - {t: 0.5, rot: -5}
+        - {t: 0.52, rot: -5}
+        - {t: 0.56, rot: -5}
+        - {t: 0.6, rot: -5}
+        - {t: 0.64, rot: -5}
+        - {t: 0.68, rot: -5}
+        - {t: 0.72, rot: -5}
+        - {t: 0.76, rot: -5}
+        - {t: 0.8, rot: -4.5}
+        - {t: 0.84, rot: -1}
+        - {t: 0.88, rot: 4}
+        - {t: 0.92, rot: 5.5}
+        - {t: 0.96, rot: 3.5}
+        - {t: 1, rot: 1}
+        - {t: 1.04, rot: -2}
+        - {t: 1.05, rot: -1.5}
+        - {t: 1.08, rot: -5}
+        - {t: 1.09, rot: -5}
+        - {t: 1.12, rot: -5}
+        - {t: 1.16, rot: -5}
+        - {t: 1.2, rot: -5}
+        - {t: 1.24, rot: -5}
+        - {t: 1.25, rot: -5}
+        - {t: 1.28, rot: 1}
+        - {t: 1.32, rot: 30}
+        - {t: 1.36, rot: 22.5}
+        - {t: 1.4, rot: 5}
+        - {t: 1.58, rot: 30, ease: Out}
+        - {t: 1.74, rot: 86}
+        - {t: 1.82, rot: 84}
+        - {t: 1.95, rot: -5, ease: InOut}
+        - {t: 2, rot: -5}
+        - {t: 2.55, rot: -5}
+        - {t: 2.72, rot: 10}
+        - {t: 3.15, rot: -5}
+        - {t: 3.55, rot: -5}
+        - {t: 3.82, rot: -5}
+        - {t: 3.87, rot: 44.5, ease: Out}
+        - {t: 4, rot: 20}
+        - {t: 4.1, rot: 10, ease: In}
+        - {t: 4.45, rot: 6}
+        - {t: 4.75, rot: -5}
+        - {t: 5.15, rot: -5}
+        - {t: 5.42, rot: -5}
+        - {t: 5.47, rot: 44.5, ease: Out}
+        - {t: 5.6, rot: 20}
+        - {t: 5.7, rot: 10, ease: In}
+        - {t: 6.05, rot: 6}
+        - {t: 6.3, rot: 6, ease: InOut}
+        - {t: 6.75, rot: -5, ease: InOut}
+        - {t: 6.92, rot: 78.5}
+        - {t: 7.05, rot: 48, ease: Out}
+        - {t: 7.1, rot: 54.5}
+        - {t: 7.25, rot: 53.5, ease: In}
+        - {t: 7.34, rot: 68}
+        - {t: 7.42, rot: 53}
+        - {t: 7.55, rot: 40, ease: Out}
+        - {t: 7.8, rot: 84, ease: InOut}
+        - {t: 7.92, rot: 84}
+        - {t: 8.02, rot: 86}
+        - {t: 8.18, rot: 30, ease: In}
+        - {t: 8.35, rot: 5, ease: Out}
+        - {t: 8.6, rot: 66, ease: InOut}
+        - {t: 8.85, rot: 65.5}
+        - {t: 8.97, rot: 54}
+        - {t: 9, rot: 54}
+        - {t: 9.06, rot: 60, ease: Out}
+        - {t: 9.3, rot: 5, ease: InOut}
+        - {t: 10.7, rot: 5}
+        - {t: 12.3, rot: 5}
+      HeldNear:
+        pivot: -2, -4
+        keys:
+        - {t: 0, rot: -2}
+        - {t: 0.04, rot: -12.9}
+        - {t: 0.08, rot: -15.4}
+        - {t: 0.12, rot: -77.2}
+        - {t: 0.16, rot: -133.2}
+        - {t: 0.2, rot: -120.1}
+        - {t: 0.24, rot: -115.6}
+        - {t: 0.28, rot: -76.3}
+        - {t: 0.32, rot: 32.6}
+        - {t: 0.36, rot: 105.9}
+        - {t: 0.4, rot: 119.9}
+        - {t: 0.44, rot: 124.9}
+        - {t: 0.48, rot: 125.3}
+        - {t: 0.5, rot: 125.4}
+        - {t: 0.52, rot: 125.5}
+        - {t: 0.56, rot: 122.1}
+        - {t: 0.6, rot: 110.4}
+        - {t: 0.64, rot: 88}
+        - {t: 0.68, rot: 56.8}
+        - {t: 0.72, rot: 18}
+        - {t: 0.76, rot: -24}
+        - {t: 0.8, rot: -48.5}
+        - {t: 0.84, rot: -56.8}
+        - {t: 0.88, rot: -62.7}
+        - {t: 0.92, rot: -64.8}
+        - {t: 0.96, rot: -64}
+        - {t: 1, rot: -62.2}
+        - {t: 1.04, rot: -60.4}
+        - {t: 1.05, rot: -60.5}
+        - {t: 1.08, rot: -42.2}
+        - {t: 1.09, rot: -41.8}
+        - {t: 1.12, rot: -44}
+        - {t: 1.16, rot: -50.5}
+        - {t: 1.2, rot: -57.2}
+        - {t: 1.24, rot: -57.6}
+        - {t: 1.25, rot: -56.1}
+        - {t: 1.28, rot: -50.2}
+        - {t: 1.32, rot: -41.7}
+        - {t: 1.36, rot: -17}
+        - {t: 1.4, rot: -2}
+        - {t: 1.58, rot: -44.2, ease: Out}
+        - {t: 1.74, rot: -116}
+        - {t: 1.82, rot: -132}
+        - {t: 1.95, rot: -132}
+        - {t: 7.8, rot: -132}
+        - {t: 7.92, rot: -132}
+        - {t: 8.02, rot: -116}
+        - {t: 8.18, rot: -44.2, ease: In}
+        - {t: 8.35, rot: -2, ease: Out}
+        - {t: 8.6, rot: -44.4, ease: InOut}
+        - {t: 8.85, rot: -34}
+        - {t: 8.97, rot: -35.1}
+        - {t: 9, rot: -35.1}
+        - {t: 9.06, rot: -39.6, ease: Out}
+        - {t: 9.3, rot: -2, ease: InOut}
+      ArmFar:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -10}
+        - {t: 0.04, rot: -40}
+        - {t: 0.08, rot: -80}
+        - {t: 0.12, rot: 116}
+        - {t: 0.16, rot: 178}
+        - {t: 0.2, rot: 135}
+        - {t: 0.24, rot: 139}
+        - {t: 0.28, rot: 148}
+        - {t: 0.32, rot: 167.5}
+        - {t: 0.36, rot: 190}
+        - {t: 0.4, rot: 190}
+        - {t: 0.44, rot: 190}
+        - {t: 0.48, rot: 190}
+        - {t: 0.5, rot: 190}
+        - {t: 0.52, rot: 190}
+        - {t: 0.56, rot: 190}
+        - {t: 0.6, rot: 190}
+        - {t: 0.64, rot: 155.5}
+        - {t: 0.68, rot: 101.5}
+        - {t: 0.72, rot: 90.5}
+        - {t: 0.76, rot: 79}
+        - {t: 0.8, rot: 73.5}
+        - {t: 0.84, rot: 70.5}
+        - {t: 0.88, rot: 66.5}
+        - {t: 0.92, rot: 62}
+        - {t: 0.96, rot: 57.5}
+        - {t: 1, rot: 54.5}
+        - {t: 1.04, rot: 52.5}
+        - {t: 1.05, rot: 52.5}
+        - {t: 1.08, rot: 71.5}
+        - {t: 1.09, rot: 72}
+        - {t: 1.12, rot: 69.5}
+        - {t: 1.16, rot: 60.5}
+        - {t: 1.2, rot: 49.5}
+        - {t: 1.24, rot: 40}
+        - {t: 1.25, rot: 70.5}
+        - {t: 1.28, rot: 61.5}
+        - {t: 1.32, rot: 19}
+        - {t: 1.36, rot: -5.5}
+        - {t: 1.4, rot: -10}
+        - {t: 2, rot: -10}
+        - {t: 2.55, rot: -10}
+        - {t: 2.72, rot: -14}
+        - {t: 3.15, rot: -4.5}
+        - {t: 3.55, rot: 7.5}
+        - {t: 3.82, rot: 22.5}
+        - {t: 3.87, rot: 190, ease: Out}
+        - {t: 4, rot: 40}
+        - {t: 4.1, rot: 20, ease: In}
+        - {t: 4.45, rot: -10}
+        - {t: 4.75, rot: 9}
+        - {t: 5.15, rot: 25}
+        - {t: 5.42, rot: 16}
+        - {t: 5.47, rot: 190, ease: Out}
+        - {t: 5.6, rot: 40}
+        - {t: 5.7, rot: 20, ease: In}
+        - {t: 6.05, rot: -10}
+        - {t: 6.3, rot: -10, ease: InOut}
+        - {t: 6.48, rot: 2, ease: InOut}
+        - {t: 6.5, rot: 2}
+        - {t: 6.75, rot: 120, ease: Out}
+        - {t: 7.1, rot: 150, ease: InOut}
+        - {t: 7.25, rot: 162.5, ease: In}
+        - {t: 7.34, rot: 136}
+        - {t: 7.42, rot: 165.5}
+        - {t: 7.6, rot: -10, ease: InOut}
+        - {t: 8.6, rot: 39, ease: InOut}
+        - {t: 8.85, rot: 38.5}
+        - {t: 8.97, rot: 41.5}
+        - {t: 9, rot: 41.5}
+        - {t: 9.06, rot: 40, ease: Out}
+        - {t: 9.3, rot: -10, ease: InOut}
+        - {t: 9.45, rot: 138.5, ease: InOut}
+        - {t: 9.55, rot: 138.5}
+        - {t: 9.72, rot: 60, ease: Out}
+        - {t: 9.95, rot: -40, ease: In}
+        - {t: 10.05, rot: -20, ease: Out}
+        - {t: 10.35, rot: 2, ease: InOut}
+        - {t: 10.42, rot: 2}
+        - {t: 10.62, rot: -10, ease: InOut}
+        - {t: 10.7, rot: -10}
+        - {t: 12.3, rot: -10}
+      ArmFarLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: 27}
+        - {t: 0.04, rot: 75}
+        - {t: 0.08, rot: 145.5}
+        - {t: 0.12, rot: 87}
+        - {t: 0.16, rot: -5}
+        - {t: 0.2, rot: 12.5}
+        - {t: 0.24, rot: 6}
+        - {t: 0.28, rot: -5}
+        - {t: 0.32, rot: -5}
+        - {t: 0.36, rot: 58}
+        - {t: 0.4, rot: 70}
+        - {t: 0.44, rot: 74.5}
+        - {t: 0.48, rot: 75}
+        - {t: 0.5, rot: 75}
+        - {t: 0.52, rot: 74.5}
+        - {t: 0.56, rot: 69}
+        - {t: 0.6, rot: 52.5}
+        - {t: 0.64, rot: 57.5}
+        - {t: 0.68, rot: 61}
+        - {t: 0.72, rot: 5.5}
+        - {t: 0.76, rot: -5}
+        - {t: 0.8, rot: -5}
+        - {t: 0.84, rot: -5}
+        - {t: 0.88, rot: -5}
+        - {t: 0.92, rot: -5}
+        - {t: 0.96, rot: -5}
+        - {t: 1, rot: -5}
+        - {t: 1.04, rot: -5}
+        - {t: 1.05, rot: -5}
+        - {t: 1.08, rot: -5}
+        - {t: 1.09, rot: -5}
+        - {t: 1.12, rot: -5}
+        - {t: 1.16, rot: -5}
+        - {t: 1.2, rot: -5}
+        - {t: 1.24, rot: -5}
+        - {t: 1.25, rot: -5}
+        - {t: 1.28, rot: -5}
+        - {t: 1.32, rot: 32}
+        - {t: 1.36, rot: 34.5}
+        - {t: 1.4, rot: 27}
+        - {t: 2, rot: 10}
+        - {t: 2.55, rot: 10}
+        - {t: 2.72, rot: 16}
+        - {t: 3.15, rot: -5}
+        - {t: 3.55, rot: 25}
+        - {t: 3.82, rot: -5}
+        - {t: 3.87, rot: 48, ease: Out}
+        - {t: 4, rot: 40}
+        - {t: 4.1, rot: 30, ease: In}
+        - {t: 4.45, rot: 12}
+        - {t: 4.75, rot: -5}
+        - {t: 5.15, rot: -5}
+        - {t: 5.42, rot: -5}
+        - {t: 5.47, rot: 47.5, ease: Out}
+        - {t: 5.6, rot: 40}
+        - {t: 5.7, rot: 30, ease: In}
+        - {t: 6.05, rot: 12}
+        - {t: 6.3, rot: 12, ease: InOut}
+        - {t: 6.48, rot: -5, ease: InOut}
+        - {t: 6.5, rot: -5}
+        - {t: 6.75, rot: 60, ease: Out}
+        - {t: 7.1, rot: 40, ease: InOut}
+        - {t: 7.25, rot: -5, ease: In}
+        - {t: 7.34, rot: -5}
+        - {t: 7.42, rot: -5}
+        - {t: 7.6, rot: 14, ease: InOut}
+        - {t: 8.6, rot: 9, ease: InOut}
+        - {t: 8.85, rot: -5}
+        - {t: 8.97, rot: -5}
+        - {t: 9, rot: -5}
+        - {t: 9.06, rot: 60, ease: Out}
+        - {t: 9.3, rot: 14, ease: InOut}
+        - {t: 9.45, rot: -5, ease: InOut}
+        - {t: 9.55, rot: -5}
+        - {t: 9.72, rot: 90, ease: Out}
+        - {t: 9.95, rot: 30, ease: In}
+        - {t: 10.05, rot: 20, ease: Out}
+        - {t: 10.35, rot: -5, ease: InOut}
+        - {t: 10.42, rot: -5}
+        - {t: 10.62, rot: 10, ease: InOut}
+        - {t: 10.7, rot: 10}
+        - {t: 12.3, rot: 10}
+      LegNear:
+        pivot: 0, -8
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.2, rot: -10}
+        - {t: 0.36, rot: 30, ease: In}
+        - {t: 0.5, rot: 24, ease: Out}
+        - {t: 0.8, rot: 12}
+        - {t: 1.05, rot: 14}
+        - {t: 1.4, rot: 0}
+        - {t: 2.55, rot: 0}
+        - {t: 2.72, rot: 80}
+        - {t: 2.85, rot: 125, ease: In}
+        - {t: 2.95, rot: 125}
+        - {t: 3, rot: 125}
+        - {t: 3.15, rot: 125}
+        - {t: 3.55, rot: 125}
+        - {t: 3.82, rot: 125}
+        - {t: 3.87, rot: 113.5, ease: Out}
+        - {t: 4, rot: 125}
+        - {t: 4.1, rot: 125, ease: In}
+        - {t: 4.45, rot: 125}
+        - {t: 4.6, rot: 125}
+        - {t: 4.75, rot: 125}
+        - {t: 5.15, rot: 125}
+        - {t: 5.42, rot: 122}
+        - {t: 5.47, rot: 111, ease: Out}
+        - {t: 5.6, rot: 125}
+        - {t: 5.7, rot: 125, ease: In}
+        - {t: 6.05, rot: 125}
+        - {t: 6.3, rot: 8, ease: InOut}
+        - {t: 6.4, rot: 0, ease: Out}
+        - {t: 8.4, rot: -14, ease: InOut}
+        - {t: 8.6, rot: -8, ease: InOut}
+        - {t: 10.7, rot: 0}
+        - {t: 12.3, rot: 0}
+      LegNearLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.2, rot: -10}
+        - {t: 0.36, rot: -8, ease: In}
+        - {t: 0.5, rot: -10, ease: Out}
+        - {t: 0.8, rot: -6}
+        - {t: 1.05, rot: -8}
+        - {t: 1.4, rot: 0}
+        - {t: 2.55, rot: 0}
+        - {t: 2.72, rot: -100}
+        - {t: 2.85, rot: -32.5, ease: In}
+        - {t: 2.95, rot: -28.5}
+        - {t: 3, rot: -17.5}
+        - {t: 3.15, rot: -11}
+        - {t: 3.55, rot: -36}
+        - {t: 3.82, rot: -48}
+        - {t: 3.87, rot: -37, ease: Out}
+        - {t: 4, rot: -40.5}
+        - {t: 4.1, rot: -30.5, ease: In}
+        - {t: 4.45, rot: -28}
+        - {t: 4.6, rot: -28}
+        - {t: 4.75, rot: -18.5}
+        - {t: 5.15, rot: -40}
+        - {t: 5.42, rot: -45.5}
+        - {t: 5.47, rot: -34.5, ease: Out}
+        - {t: 5.6, rot: -42}
+        - {t: 5.7, rot: -31.5, ease: In}
+        - {t: 6.05, rot: -25}
+        - {t: 6.3, rot: -10, ease: InOut}
+        - {t: 6.4, rot: 0, ease: Out}
+        - {t: 8.4, rot: -6, ease: InOut}
+        - {t: 8.6, rot: -4, ease: InOut}
+        - {t: 10.7, rot: 0}
+        - {t: 12.3, rot: 0}
+      LegFar:
+        pivot: 0, -8
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.2, rot: 14}
+        - {t: 0.36, rot: -24, ease: In}
+        - {t: 0.5, rot: -18, ease: Out}
+        - {t: 0.8, rot: -10}
+        - {t: 1.05, rot: -12}
+        - {t: 1.4, rot: 0}
+        - {t: 2.55, rot: 0}
+        - {t: 2.72, rot: -4}
+        - {t: 2.85, rot: 5, ease: In}
+        - {t: 2.95, rot: 4}
+        - {t: 3, rot: 6}
+        - {t: 3.15, rot: 7.5}
+        - {t: 3.55, rot: 4}
+        - {t: 3.82, rot: 2.5}
+        - {t: 3.87, rot: 1, ease: Out}
+        - {t: 4, rot: 1.5}
+        - {t: 4.1, rot: 4.5, ease: In}
+        - {t: 4.45, rot: 5.5}
+        - {t: 4.6, rot: 5.5}
+        - {t: 4.75, rot: 7}
+        - {t: 5.15, rot: 4}
+        - {t: 5.42, rot: 2.5}
+        - {t: 5.47, rot: 0.5, ease: Out}
+        - {t: 5.6, rot: 1.5}
+        - {t: 5.7, rot: 5, ease: In}
+        - {t: 6.05, rot: 5.5}
+        - {t: 6.3, rot: 0, ease: InOut}
+        - {t: 8.4, rot: 16, ease: InOut}
+        - {t: 8.6, rot: 8, ease: InOut}
+        - {t: 10.7, rot: 0}
+        - {t: 12.3, rot: 0}
+      LegFarLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.2, rot: -14}
+        - {t: 0.36, rot: -22, ease: In}
+        - {t: 0.5, rot: -18, ease: Out}
+        - {t: 0.8, rot: -8}
+        - {t: 1.05, rot: -10}
+        - {t: 1.4, rot: 0}
+        - {t: 2.55, rot: 0}
+        - {t: 2.72, rot: -2}
+        - {t: 2.85, rot: -1, ease: In}
+        - {t: 2.95, rot: -1}
+        - {t: 3, rot: -1.5}
+        - {t: 3.15, rot: -1.5}
+        - {t: 3.55, rot: -1}
+        - {t: 3.82, rot: -1.5}
+        - {t: 3.87, rot: -1.5, ease: Out}
+        - {t: 4, rot: -1}
+        - {t: 4.1, rot: -1, ease: In}
+        - {t: 4.45, rot: -1.5}
+        - {t: 4.6, rot: -1.5}
+        - {t: 4.75, rot: -1}
+        - {t: 5.15, rot: -1.5}
+        - {t: 5.42, rot: -1.5}
+        - {t: 5.47, rot: -1, ease: Out}
+        - {t: 5.6, rot: -1}
+        - {t: 5.7, rot: -1.5, ease: In}
+        - {t: 6.05, rot: -1}
+        - {t: 6.3, rot: 0, ease: InOut}
+        - {t: 8.4, rot: -12, ease: InOut}
+        - {t: 8.6, rot: -6, ease: InOut}
+        - {t: 10.7, rot: 0}
+        - {t: 12.3, rot: 0}
+  victim:
+    smooth: true
+    props:
+    - {sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 7.25, end: 9, part: Head,
+        keys: [{t: 7.25, x: 7.5, y: 6.6, rot: 191.6}]}
+    - {sprite: _CorvaxGoob/Effects/Gilbert/finisher_props.rsi, state: truncheon, start: 9, end: 9.55, part: Body, keys: [{t: 9,
+        x: 1.22, y: 10.86, rot: 262}, {t: 9.06, x: -0.97, y: 10.82, rot: 280}, {t: 9.15, x: 2.18, y: 10.65, rot: 254},
+        {t: 9.25, x: 0.49, y: 10.92, rot: 268}, {t: 9.4, x: 1.22, y: 10.86, rot: 262}, {t: 9.45, x: 1.22, y: 10.86, rot: 262},
+        {t: 9.5, x: 1.22, y: 10.86, rot: 262}]}
+    views: [{start: 0.44, end: 0.56, facing: North}, {start: 0.56, end: 13.3, turned: true}]
+    hide: [{t: 4.61, parts: [ArmNear]}, {t: 6.21, parts: [ArmFar]}, {t: 9, parts: [Head]}]
+    idle: {period: 1.9, breath: 0.6, weightShift: 0.8, headNod: 1, armSway: 2}
+    drag: {lag: 0.08, head: 0.55, arms: 0.35, low: 0.3, legs: 0, legsLow: 0, max: 22}
+    daze: {period: 1.35, sway: 4, shift: 0.6, dip: 0.6, loll: 12, arms: 8, knees: 0, weight: [{t: 0, x: 0.8}, {t: 0.3, x: 0.8},
+      {t: 0.36, x: 0}, {t: 0.6, x: 0}, {t: 0.8, x: 0.7}, {t: 1, x: 0.7}, {t: 1.06, x: 0}, {t: 1.5, x: 0}, {t: 1.8, x: 0.9},
+      {t: 2.5, x: 0.9}, {t: 2.7, x: 0}, {t: 6.15, x: 0}, {t: 6.4, x: 0.5}, {t: 6.7, x: 0}]}
+    move:
+    - {t: 0, x: 0.85}
+    - {t: 0.3, x: 0.84}
+    - {t: 0.36, x: 0.86}
+    - {t: 0.62, x: 0.97, ease: Out}
+    - {t: 0.9, x: 1.02, ease: InOut}
+    - {t: 12.3, x: 1.02}
+    parts:
+      Body:
+        pivot: 0, -10
+        keys:
+        - {t: 0, rot: 6}
+        - {t: 0.3, y: -1, rot: 9}
+        - {t: 0.38, y: 1, rot: -4, ease: Out}
+        - {t: 0.435, rot: -8}
+        - {t: 0.44, rot: 8}
+        - {t: 0.555, y: -1, rot: -10}
+        - {t: 0.56, y: -1, rot: -12}
+        - {t: 0.72, y: -1, rot: -16, ease: Out}
+        - {t: 0.88, y: -1, rot: -6}
+        - {t: 1.02, y: -1, rot: -4}
+        - {t: 1.08, y: -2, rot: 8, ease: Out}
+        - {t: 1.2, y: -3, rot: 2}
+        - {t: 1.32, x: -0.22, y: -4.05, rot: -6, ease: Out}
+        - {t: 1.44, x: -0.08, y: -4.02, rot: -2}
+        - {t: 1.7, x: -0.65, y: -3.99, rot: -10}
+        - {t: 2.3, x: -0.09, y: -3.82, rot: -14}
+        - {t: 2.55, x: -0.55, y: -3.97, rot: -16}
+        - {t: 2.85, x: -1.92, y: -3.48, rot: -58, ease: Out}
+        - {t: 2.95, x: -1.82, y: -3.59, rot: -54}
+        - {t: 3, x: -1.86, y: -3.55, rot: -56}
+        - {t: 3.15, x: -1.91, y: -3.5, rot: -58}
+        - {t: 3.55, x: -2.01, y: -3.4, rot: -62}
+        - {t: 3.82, x: -2.07, y: -3.35, rot: -64}
+        - {t: 3.87, x: -1.81, y: -3.6, rot: -54, ease: Out}
+        - {t: 4, x: -1.86, y: -3.55, rot: -56}
+        - {t: 4.45, x: -1.88, y: -3.53, rot: -56}
+        - {t: 4.6, x: -1.88, y: -3.52, rot: -56}
+        - {t: 4.75, x: -1.95, y: -3.47, rot: -58}
+        - {t: 5.15, x: -2.05, y: -3.36, rot: -62}
+        - {t: 5.42, x: -2.09, y: -3.3, rot: -64}
+        - {t: 5.47, x: -1.84, y: -3.56, rot: -54, ease: Out}
+        - {t: 5.6, x: -1.89, y: -3.53, rot: -56}
+        - {t: 6.05, x: -1.88, y: -3.54, rot: -56}
+        - {t: 6.35, x: -0.19, y: -3.93, rot: -12, ease: InOut}
+        - {t: 6.7, x: -0.04, y: -4.01, rot: -2}
+        - {t: 6.92, x: -1.2, y: -4.2, rot: 6}
+        - {t: 7.05, x: -2.62, y: -5.2, rot: 10, ease: Out}
+        - {t: 7.1, x: -2.75, y: -5.36, rot: 10}
+        - {t: 7.25, x: -3.05, y: -5.84, rot: 12, ease: In}
+        - {t: 7.34, x: -2.95, y: -5.55, rot: 8, ease: Out}
+        - {t: 7.42, x: -3.05, y: -5.85, rot: 12, ease: In}
+        - {t: 7.6, x: -3.1, y: -5.61, rot: 4}
+        - {t: 7.8, x: -2.98, y: -5.57, rot: 8}
+        - {t: 8, x: -3.18, y: -5.64, rot: 2}
+        - {t: 8.25, x: -3.06, y: -5.59, rot: 6}
+        - {t: 8.5, x: -3.13, y: -5.62, rot: 4}
+        - {t: 8.75, x: -3.02, y: -5.58, rot: 7}
+        - {t: 8.98, x: -3.07, y: -5.6, rot: 5}
+        - {t: 9.06, x: -0.86, y: -4.03, rot: -24, ease: Out}
+        - {t: 9.25, x: -0.35, y: -4.06, rot: -10}
+        - {t: 9.6, x: -0.48, y: -4.06, rot: -14}
+        - {t: 9.78, x: -0.76, y: -4.04, rot: -22}
+        - {t: 9.95, x: -1.04, y: -3.99, rot: -30}
+        - {t: 10.22, x: -6.28, y: -2.43, rot: -86, ease: In}
+        - {t: 10.3, x: -6.18, y: -1.98, rot: -84, ease: Out}
+        - {t: 10.42, x: -5.92, y: -2.33, rot: -87}
+        - {t: 12.3, x: -5.87, y: -2.2, rot: -87}
+      Head:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -4}
+        - {t: 0.3, rot: -6}
+        - {t: 0.38, rot: -26, ease: Out}
+        - {t: 0.435, rot: -30}
+        - {t: 0.44, rot: 12}
+        - {t: 0.555, rot: -14}
+        - {t: 0.56, rot: -10}
+        - {t: 0.72, rot: -16, ease: Out}
+        - {t: 0.88, rot: -8}
+        - {t: 1.02, rot: -6}
+        - {t: 1.08, rot: 14, ease: Out}
+        - {t: 1.2, rot: 10}
+        - {t: 1.32, rot: 20, ease: Out}
+        - {t: 1.44, rot: -8}
+        - {t: 1.7, rot: -24}
+        - {t: 2.3, rot: -30}
+        - {t: 2.55, rot: -28}
+        - {t: 2.85, rot: -36, ease: Out}
+        - {t: 2.95, rot: -30}
+        - {t: 3, rot: -30}
+        - {t: 3.15, rot: -26}
+        - {t: 3.55, rot: -12}
+        - {t: 3.82, rot: -4}
+        - {t: 3.87, rot: 22, ease: Out}
+        - {t: 4, rot: 10}
+        - {t: 4.45, rot: -20}
+        - {t: 4.6, rot: -30}
+        - {t: 4.75, rot: -26}
+        - {t: 5.15, rot: -12}
+        - {t: 5.42, rot: -4}
+        - {t: 5.47, rot: 22, ease: Out}
+        - {t: 5.6, rot: 10}
+        - {t: 6.05, rot: -20}
+        - {t: 6.35, rot: -26, ease: InOut}
+        - {t: 6.7, rot: -14}
+        - {t: 6.92, rot: -6}
+        - {t: 7.05, rot: 50, ease: Out}
+        - {t: 7.1, rot: 52}
+        - {t: 7.25, rot: 46, ease: In}
+        - {t: 7.34, rot: 44, ease: Out}
+        - {t: 7.42, rot: 50, ease: In}
+        - {t: 7.6, rot: 46}
+        - {t: 7.8, rot: 52}
+        - {t: 8, rot: 44}
+        - {t: 8.25, rot: 50}
+        - {t: 8.5, rot: 46}
+        - {t: 8.75, rot: 50}
+        - {t: 8.98, rot: 47}
+        - {t: 9.06, rot: 0, ease: Out}
+        - {t: 9.25, rot: 0}
+        - {t: 9.6, rot: 0}
+        - {t: 9.78, rot: 0}
+        - {t: 9.95, rot: 0}
+        - {t: 10.22, rot: 0, ease: In}
+      ArmNear:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -22}
+        - {t: 0.3, rot: -26}
+        - {t: 0.38, rot: 40, ease: Out}
+        - {t: 0.435, rot: 60}
+        - {t: 0.44, rot: 50}
+        - {t: 0.555, rot: 70}
+        - {t: 0.56, rot: 30}
+        - {t: 0.72, rot: 40, ease: Out}
+        - {t: 0.88, rot: 10}
+        - {t: 1.02, rot: 6}
+        - {t: 1.08, rot: -30, ease: Out}
+        - {t: 1.2, rot: -10}
+        - {t: 1.32, rot: 10, ease: Out}
+        - {t: 1.44, rot: -4}
+        - {t: 1.7, rot: 0}
+        - {t: 2.3, rot: 2}
+        - {t: 2.55, rot: 4}
+        - {t: 2.85, rot: -20, ease: Out}
+        - {t: 2.95, rot: -30}
+        - {t: 3, rot: -30}
+        - {t: 3.15, rot: -40}
+        - {t: 3.55, rot: -80}
+        - {t: 3.82, rot: -50.5}
+        - {t: 3.87, x: -12.4, y: -4.27, rot: -70.5, ease: Out}
+        - {t: 4, x: -19.08, y: 1.37, rot: 9.5}
+        - {t: 4.1, x: -16.8, y: 7.9, rot: 49.5, ease: In}
+        - {t: 4.158, x: -19.29, y: 1.56, rot: 76.2, ease: Linear}
+        - {t: 4.217, x: -20.66, y: -5.52, rot: 102.8, ease: Linear}
+        - {t: 4.275, x: -20.9, y: -13.34, rot: 129.5, ease: Linear}
+        - {t: 4.333, x: -20.02, y: -21.87, rot: 156.2, ease: Linear}
+        - {t: 4.392, x: -18, y: -31.13, rot: 182.8, ease: Linear}
+        - {t: 4.45, x: -14.84, y: -41.1, rot: 209.5, ease: Linear}
+        - {t: 4.53, x: -16.45, y: -41.72, rot: 201.5, ease: Out}
+        - {t: 4.61, x: -15.84, y: -42.6, rot: 209.5}
+        - {t: 5.15, rot: 30}
+        - {t: 5.42, rot: 40}
+        - {t: 5.47, rot: 60, ease: Out}
+        - {t: 5.6, rot: 30}
+      ArmNearLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: -58}
+        - {t: 0.3, rot: -62}
+        - {t: 0.38, rot: -20, ease: Out}
+        - {t: 0.435, rot: -30}
+        - {t: 0.44, rot: 20}
+        - {t: 0.555, rot: 30}
+        - {t: 0.56, rot: 20}
+        - {t: 0.72, rot: 40, ease: Out}
+        - {t: 0.88, rot: 20}
+        - {t: 1.02, rot: 14}
+        - {t: 1.08, rot: 30, ease: Out}
+        - {t: 1.2, rot: 20}
+        - {t: 1.32, rot: 10, ease: Out}
+        - {t: 1.44, rot: 16}
+        - {t: 1.7, rot: 10}
+        - {t: 2.3, rot: 8}
+        - {t: 2.55, rot: 8}
+        - {t: 2.85, rot: 20, ease: Out}
+        - {t: 2.95, rot: 16}
+        - {t: 3, rot: 20}
+        - {t: 3.15, rot: 16}
+        - {t: 3.55, rot: 0}
+        - {t: 3.82, rot: -21}
+        - {t: 3.87, rot: -21, ease: Out}
+        - {t: 4, rot: -31}
+        - {t: 4.1, rot: -31, ease: In}
+        - {t: 4.158, rot: -29.7, ease: Linear}
+        - {t: 4.217, rot: -28.3, ease: Linear}
+        - {t: 4.275, rot: -27, ease: Linear}
+        - {t: 4.333, rot: -25.7, ease: Linear}
+        - {t: 4.392, rot: -24.3, ease: Linear}
+        - {t: 4.45, rot: -23, ease: Linear}
+        - {t: 4.53, rot: -23, ease: Out}
+        - {t: 4.61, rot: -23}
+        - {t: 5.15, rot: 40}
+        - {t: 5.42, rot: 50}
+        - {t: 5.47, rot: 70, ease: Out}
+        - {t: 5.6, rot: 40}
+      ArmFar:
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: -10}
+        - {t: 0.3, rot: -14}
+        - {t: 0.38, rot: -30, ease: Out}
+        - {t: 0.435, rot: -40}
+        - {t: 0.44, rot: -50}
+        - {t: 0.555, rot: -60}
+        - {t: 0.56, rot: -30}
+        - {t: 0.72, rot: 50, ease: Out}
+        - {t: 0.88, rot: 24}
+        - {t: 1.02, rot: 12}
+        - {t: 1.08, rot: -20, ease: Out}
+        - {t: 1.2, rot: -6}
+        - {t: 1.32, rot: 14, ease: Out}
+        - {t: 1.44, rot: 0}
+        - {t: 1.7, rot: 4}
+        - {t: 2.3, rot: 6}
+        - {t: 2.55, rot: 8}
+        - {t: 2.85, rot: -10, ease: Out}
+        - {t: 2.95, rot: -20}
+        - {t: 3.55, rot: 30}
+        - {t: 3.82, rot: 40}
+        - {t: 3.87, rot: 60, ease: Out}
+        - {t: 4, rot: 30}
+        - {t: 4.6, rot: -30}
+        - {t: 4.75, rot: -40}
+        - {t: 5.15, rot: -80}
+        - {t: 5.42, rot: -45.5}
+        - {t: 5.47, x: -17.91, y: -3.58, rot: -65.5, ease: Out}
+        - {t: 5.6, x: -25.4, y: 1.88, rot: 14.5}
+        - {t: 5.7, x: -23.27, y: 8.18, rot: 54.5, ease: In}
+        - {t: 5.758, x: -25.43, y: 1.81, rot: 81.2, ease: Linear}
+        - {t: 5.817, x: -26.5, y: -5.29, rot: 107.8, ease: Linear}
+        - {t: 5.875, x: -26.49, y: -13.12, rot: 134.5, ease: Linear}
+        - {t: 5.933, x: -25.39, y: -21.69, rot: 161.2, ease: Linear}
+        - {t: 5.992, x: -23.22, y: -30.99, rot: 187.8, ease: Linear}
+        - {t: 6.05, x: -19.97, y: -41.02, rot: 214.5, ease: Linear}
+        - {t: 6.13, x: -21.7, y: -41.71, rot: 206.5, ease: Out}
+        - {t: 6.21, x: -21.17, y: -42.66, rot: 214.5}
+      ArmFarLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: -20}
+        - {t: 0.3, rot: -26}
+        - {t: 0.38, rot: -30, ease: Out}
+        - {t: 0.435, rot: -40}
+        - {t: 0.44, rot: -20}
+        - {t: 0.555, rot: -30}
+        - {t: 0.56, rot: 30}
+        - {t: 0.72, rot: 30, ease: Out}
+        - {t: 0.88, rot: 20}
+        - {t: 1.02, rot: 16}
+        - {t: 1.08, rot: 30, ease: Out}
+        - {t: 1.2, rot: 20}
+        - {t: 1.32, rot: 10, ease: Out}
+        - {t: 1.44, rot: 14}
+        - {t: 1.7, rot: 12}
+        - {t: 2.3, rot: 10}
+        - {t: 2.55, rot: 10}
+        - {t: 2.85, rot: 20, ease: Out}
+        - {t: 2.95, rot: 16}
+        - {t: 3.55, rot: 40}
+        - {t: 3.82, rot: 50}
+        - {t: 3.87, rot: 70, ease: Out}
+        - {t: 4, rot: 40}
+        - {t: 4.6, rot: 20}
+        - {t: 4.75, rot: 16}
+        - {t: 5.15, rot: 0}
+        - {t: 5.42, rot: -22}
+        - {t: 5.47, rot: -22, ease: Out}
+        - {t: 5.6, rot: -32}
+        - {t: 5.7, rot: -32, ease: In}
+        - {t: 5.758, rot: -30.7, ease: Linear}
+        - {t: 5.817, rot: -29.3, ease: Linear}
+        - {t: 5.875, rot: -28, ease: Linear}
+        - {t: 5.933, rot: -26.7, ease: Linear}
+        - {t: 5.992, rot: -25.3, ease: Linear}
+        - {t: 6.05, rot: -24, ease: Linear}
+        - {t: 6.13, rot: -24, ease: Out}
+        - {t: 6.21, rot: -24}
+      LegNear:
+        pivot: 0, -8
+        keys:
+        - {t: 0, rot: -4}
+        - {t: 0.3, rot: -6}
+        - {t: 0.38, rot: -10, ease: Out}
+        - {t: 0.435, rot: -12}
+        - {t: 0.44, rot: 6}
+        - {t: 0.555, rot: -8}
+        - {t: 0.56, rot: 14}
+        - {t: 0.72, rot: -14, ease: Out}
+        - {t: 0.88, rot: 6}
+        - {t: 1.02, rot: 2}
+        - {t: 1.08, rot: -20, ease: Out}
+        - {t: 1.2, rot: -8}
+        - {t: 1.32, rot: 6, ease: Out}
+        - {t: 1.44, rot: 2}
+        - {t: 1.7, rot: 10}
+        - {t: 2.3, rot: 14}
+        - {t: 2.55, rot: 16}
+        - {t: 2.85, rot: 58, ease: Out}
+        - {t: 2.95, rot: 54}
+        - {t: 3, rot: 56}
+        - {t: 3.15, rot: 58}
+        - {t: 3.55, rot: 62}
+        - {t: 3.82, rot: 64}
+        - {t: 3.87, rot: 54, ease: Out}
+        - {t: 4, rot: 56}
+        - {t: 4.45, rot: 56}
+        - {t: 4.6, rot: 56}
+        - {t: 4.75, rot: 58}
+        - {t: 5.15, rot: 62}
+        - {t: 5.42, rot: 64}
+        - {t: 5.47, rot: 54, ease: Out}
+        - {t: 5.6, rot: 56}
+        - {t: 6.05, rot: 56}
+        - {t: 6.35, rot: 12, ease: InOut}
+        - {t: 6.7, rot: 2}
+        - {t: 6.92, rot: 15}
+        - {t: 7.05, rot: 38, ease: Out}
+        - {t: 7.1, rot: 41}
+        - {t: 7.25, rot: 48, ease: In}
+        - {t: 7.34, rot: 46, ease: Out}
+        - {t: 7.42, rot: 48, ease: In}
+        - {t: 7.6, rot: 50}
+        - {t: 7.8, rot: 46}
+        - {t: 8, rot: 52}
+        - {t: 8.25, rot: 48}
+        - {t: 8.5, rot: 50}
+        - {t: 8.75, rot: 47}
+        - {t: 8.98, rot: 49}
+        - {t: 9.06, rot: 24, ease: Out}
+        - {t: 9.25, rot: 10}
+        - {t: 9.6, rot: 14}
+        - {t: 9.78, rot: 22}
+        - {t: 9.95, rot: 30}
+        - {t: 10.22, rot: 10, ease: In}
+        - {t: 10.3, rot: 16, ease: Out}
+        - {t: 10.42, rot: 6}
+        - {t: 12.3, rot: 6}
+      LegNearLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0, rot: 6}
+        - {t: 0.3, rot: 10}
+        - {t: 0.38, rot: 8, ease: Out}
+        - {t: 0.435, rot: 10}
+        - {t: 0.44, rot: 0}
+        - {t: 0.555, rot: 0}
+        - {t: 0.56, rot: -20}
+        - {t: 0.72, rot: -10, ease: Out}
+        - {t: 0.88, rot: -6}
+        - {t: 1.02, rot: -4}
+        - {t: 1.08, rot: -50, ease: Out}
+        - {t: 1.2, rot: -80}
+        - {t: 1.32, rot: -90, ease: Out}
+        - {t: 1.44, rot: -90}
+        - {t: 1.7, rot: -90}
+        - {t: 2.3, rot: -90}
+        - {t: 2.55, rot: -90}
+        - {t: 2.85, rot: -90, ease: Out}
+        - {t: 2.95, rot: -90}
+        - {t: 3, rot: -90}
+        - {t: 3.15, rot: -90}
+        - {t: 3.55, rot: -90}
+        - {t: 3.82, rot: -90}
+        - {t: 3.87, rot: -90, ease: Out}
+        - {t: 4, rot: -90}
+        - {t: 4.45, rot: -90}
+        - {t: 4.6, rot: -90}
+        - {t: 4.75, rot: -90}
+        - {t: 5.15, rot: -90}
+        - {t: 5.42, rot: -90}
+        - {t: 5.47, rot: -90, ease: Out}
+        - {t: 5.6, rot: -90}
+        - {t: 6.05, rot: -90}
+        - {t: 6.35, rot: -90, ease: InOut}
+        - {t: 6.7, rot: -90}
+        - {t: 6.92, rot: -111}
+        - {t: 7.05, rot: -138, ease: Out}
+        - {t: 7.1, rot: -141}
+        - {t: 7.25, rot: -150, ease: In}
+        - {t: 7.34, rot: -144, ease: Out}
+        - {t: 7.42, rot: -150, ease: In}
+        - {t: 7.6, rot: -144}
+        - {t: 7.8, rot: -144}
+        - {t: 8, rot: -144}
+        - {t: 8.25, rot: -144}
+        - {t: 8.5, rot: -144}
+        - {t: 8.75, rot: -144}
+        - {t: 8.98, rot: -144}
+        - {t: 9.06, rot: -90, ease: Out}
+        - {t: 9.25, rot: -90}
+        - {t: 9.6, rot: -90}
+        - {t: 9.78, rot: -90}
+        - {t: 9.95, rot: -90}
+        - {t: 10.22, rot: -30, ease: In}
+        - {t: 10.3, rot: -50, ease: Out}
+        - {t: 10.42, rot: -10}
+        - {t: 12.3, rot: -10}
+      LegFar:
+        pivot: 0, -8
+        keys:
+        - {t: 0, rot: 6}
+        - {t: 0.3, rot: 8}
+        - {t: 0.38, rot: 8, ease: Out}
+        - {t: 0.435, rot: 10}
+        - {t: 0.44, rot: -6}
+        - {t: 0.555, rot: 8}
+        - {t: 0.56, rot: -12}
+        - {t: 0.72, rot: 18, ease: Out}
+        - {t: 0.88, rot: 4}
+        - {t: 1.02, rot: 0}
+        - {t: 1.08, rot: -16, ease: Out}
+        - {t: 1.2, rot: -6}
+        - {t: 1.32, rot: 6, ease: Out}
+        - {t: 1.44, rot: 2}
+        - {t: 1.7, rot: 10}
+        - {t: 2.3, rot: 14}
+        - {t: 2.55, rot: 16}
+        - {t: 2.85, rot: 58, ease: Out}
+        - {t: 2.95, rot: 54}
+        - {t: 3, rot: 56}
+        - {t: 3.15, rot: 58}
+        - {t: 3.55, rot: 62}
+        - {t: 3.82, rot: 64}
+        - {t: 3.87, rot: 54, ease: Out}
+        - {t: 4, rot: 56}
+        - {t: 4.45, rot: 56}
+        - {t: 4.6, rot: 56}
+        - {t: 4.75, rot: 58}
+        - {t: 5.15, rot: 62}
+        - {t: 5.42, rot: 64}
+        - {t: 5.47, rot: 54, ease: Out}
+        - {t: 5.6, rot: 56}
+        - {t: 6.05, rot: 56}
+        - {t: 6.35, rot: 12, ease: InOut}
+        - {t: 6.7, rot: 2}
+        - {t: 6.92, rot: 15}
+        - {t: 7.05, rot: 38, ease: Out}
+        - {t: 7.1, rot: 41}
+        - {t: 7.25, rot: 48, ease: In}
+        - {t: 7.34, rot: 46, ease: Out}
+        - {t: 7.42, rot: 48, ease: In}
+        - {t: 7.6, rot: 50}
+        - {t: 7.8, rot: 46}
+        - {t: 8, rot: 52}
+        - {t: 8.25, rot: 48}
+        - {t: 8.5, rot: 50}
+        - {t: 8.75, rot: 47}
+        - {t: 8.98, rot: 49}
+        - {t: 9.06, rot: 24, ease: Out}
+        - {t: 9.25, rot: 10}
+        - {t: 9.6, rot: 14}
+        - {t: 9.78, rot: 22}
+        - {t: 9.95, rot: 30}
+        - {t: 10.22, rot: 14, ease: In}
+        - {t: 10.3, rot: 20, ease: Out}
+        - {t: 10.42, rot: 8}
+        - {t: 12.3, rot: 8}
+      LegFarLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0, rot: 4}
+        - {t: 0.3, rot: 8}
+        - {t: 0.38, rot: 10, ease: Out}
+        - {t: 0.435, rot: 10}
+        - {t: 0.44, rot: 0}
+        - {t: 0.555, rot: 0}
+        - {t: 0.56, rot: -10}
+        - {t: 0.72, rot: -24, ease: Out}
+        - {t: 0.88, rot: -8}
+        - {t: 1.02, rot: -4}
+        - {t: 1.08, rot: -44, ease: Out}
+        - {t: 1.2, rot: -76}
+        - {t: 1.32, rot: -90, ease: Out}
+        - {t: 1.44, rot: -90}
+        - {t: 1.7, rot: -90}
+        - {t: 2.3, rot: -90}
+        - {t: 2.55, rot: -90}
+        - {t: 2.85, rot: -90, ease: Out}
+        - {t: 2.95, rot: -90}
+        - {t: 3, rot: -90}
+        - {t: 3.15, rot: -90}
+        - {t: 3.55, rot: -90}
+        - {t: 3.82, rot: -90}
+        - {t: 3.87, rot: -90, ease: Out}
+        - {t: 4, rot: -90}
+        - {t: 4.45, rot: -90}
+        - {t: 4.6, rot: -90}
+        - {t: 4.75, rot: -90}
+        - {t: 5.15, rot: -90}
+        - {t: 5.42, rot: -90}
+        - {t: 5.47, rot: -90, ease: Out}
+        - {t: 5.6, rot: -90}
+        - {t: 6.05, rot: -90}
+        - {t: 6.35, rot: -90, ease: InOut}
+        - {t: 6.7, rot: -90}
+        - {t: 6.92, rot: -111}
+        - {t: 7.05, rot: -138, ease: Out}
+        - {t: 7.1, rot: -141}
+        - {t: 7.25, rot: -150, ease: In}
+        - {t: 7.34, rot: -144, ease: Out}
+        - {t: 7.42, rot: -150, ease: In}
+        - {t: 7.6, rot: -144}
+        - {t: 7.8, rot: -144}
+        - {t: 8, rot: -144}
+        - {t: 8.25, rot: -144}
+        - {t: 8.5, rot: -144}
+        - {t: 8.75, rot: -144}
+        - {t: 8.98, rot: -144}
+        - {t: 9.06, rot: -90, ease: Out}
+        - {t: 9.25, rot: -90}
+        - {t: 9.6, rot: -90}
+        - {t: 9.78, rot: -90}
+        - {t: 9.95, rot: -90}
+        - {t: 10.22, rot: -24, ease: In}
+        - {t: 10.3, rot: -40, ease: Out}
+        - {t: 10.42, rot: -6}
+        - {t: 12.3, rot: -6}
+  events:
+  - {t: 0, target: Attacker, beat: winds up the buttstroke, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 0.36, target: Victim, beat: 'buttstroke into the jaw, right to left', sheet: true, sheetDelay: 0.02, hitStop: 0.08, shake: 1.2,
+     flash: true, sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '-3, 5', count: 14, speed: '40, 130', angle: '120, 220',
+     gravity: 340, floor: -16, life: 1.6}}
+  - {t: 0.37, target: Victim, sound: {collection: Punch}}
+  - {t: 0.44, target: Victim, beat: 'spun round, back to him', sheet: true}
+  - {t: 1.05, target: Attacker, beat: shoots the legs, sheet: true, sound: {path: /Audio/Weapons/Guns/Gunshots/shotgun.ogg},
+     blood: {from: HeldNear, at: '11.5, -14.0', count: 10, speed: '90, 190', angle: '-75, -15', gravity: 60, floor: -30, life: 0.22,
+     bigChance: 0.6, color: '#ffd84a'}, shake: 1.3}
+  - {t: 1.05, target: Victim, hitStop: 0.06, flash: true, damage: [{part: LeftLeg, damage: {types: {Piercing: 30}}, ignoreArmor: true},
+     {part: RightLeg, damage: {types: {Piercing: 30}}, ignoreArmor: true}], blood: {from: LegNearLow, at: '0, -12', count: 18, speed: '30, 120',
+     angle: '100, 220', gravity: 340, floor: -16, life: 1.8}, decal: {id: splatter, from: LegNearLow, at: '0, -13', color: '#80000088'}}
+  - {t: 1.06, target: Victim, blood: {from: LegFarLow, at: '0, -12', count: 10, speed: '30, 110', angle: '100, 220', gravity: 340, floor: -16,
+     life: 1.6}}
+  - {t: 1.32, target: Victim, beat: drops onto its knees, sheet: true, shake: 0.8, sound: {collection: BodyFall}}
+  - {t: 1.58, target: Attacker, beat: slings the shotgun, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 1.82, target: Attacker, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 2.85, target: Victim, beat: foot on its back, sheet: true, hitStop: 0.05, shake: 0.9, sound: {path: /Audio/Effects/hit_kick.ogg}}
+  - {t: 3.15, target: Attacker, beat: grabs the right arm, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 3.55, target: Victim, sound: {collection: Punch}, blood: {from: Body, at: '-2, 4', count: 4, speed: '10, 40', angle: '90, 180',
+     gravity: 340, floor: -16, life: 1}}
+  - {t: 3.87, target: Victim, beat: rips the right arm off, sheet: true, sheetDelay: 0.05, hitStop: 0.1, shake: 1.6, flash: true,
+     sound: {collection: BoneGone}, blood: {from: Body, at: '-1, 4', count: 32, speed: '50, 170', angle: '60, 200', gravity: 360, floor: -16,
+     life: 2.2, bigChance: 0.5}, decal: {id: splatter, from: Body, at: '0, 3', color: '#80000099'}}
+  - {t: 3.88, target: Victim, sound: {path: /Audio/Weapons/bladeslice.ogg}}
+  - {t: 4.1, target: Attacker, beat: throws it away, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 4.45, target: Victim, beat: the arm lands, sound: {collection: BodyFall}}
+  - {t: 4.61, target: Victim, amputate: [RightArm], blood: {from: Body, at: '-1, 4', count: 8, speed: '10, 40', angle: '60, 140', gravity: 340,
+     floor: -16, life: 1.4}}
+  - {t: 4.75, target: Attacker, beat: grabs the left arm, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 5.15, target: Victim, sound: {collection: Punch}, blood: {from: Body, at: '-2, 4', count: 4, speed: '10, 40', angle: '90, 180',
+     gravity: 340, floor: -16, life: 1}}
+  - {t: 5.47, target: Victim, beat: rips the left arm off, sheet: true, sheetDelay: 0.05, hitStop: 0.1, shake: 1.6, flash: true,
+     sound: {collection: BoneGone}, blood: {from: Body, at: '-1, 4', count: 32, speed: '50, 170', angle: '60, 200', gravity: 360, floor: -16,
+     life: 2.2, bigChance: 0.5}, decal: {id: splatter, from: Body, at: '0, 3', color: '#80000099'}}
+  - {t: 5.48, target: Victim, sound: {path: /Audio/Weapons/bladeslice.ogg}}
+  - {t: 5.7, target: Attacker, beat: throws it away, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 6.05, target: Victim, beat: the arm lands, sound: {collection: BodyFall}}
+  - {t: 6.21, target: Victim, amputate: [LeftArm], blood: {from: Body, at: '-1, 4', count: 8, speed: '10, 40', angle: '60, 140', gravity: 340,
+     floor: -16, life: 1.4}}
+  - {t: 6.3, target: Attacker, beat: foot down, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 6.5, target: Attacker, beat: draws the baton, sheet: true, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 6.92, target: Victim, beat: grabs the hair, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 7.05, target: Victim, beat: head wrenched back, sheet: true, sound: {collection: Punch}}
+  - {t: 7.25, target: Victim, beat: baton rammed into the mouth, sheet: true, sheetDelay: 0.03, hitStop: 0.1, shake: 1.4, flash: true,
+     sound: {collection: BoneGone}, blood: {from: Head, at: '2.6, 5.6', count: 20, speed: '30, 120', angle: '20, 160', gravity: 340, floor: -16,
+     life: 1.8, bigChance: 0.3}, decal: {id: splatter, from: Head, at: '2.6, 5.6', color: '#80000088'}}
+  - {t: 7.42, target: Victim, sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '2.6, 5.6', count: 8, speed: '20, 70',
+     angle: '30, 150', gravity: 340, floor: -16, life: 1.4}}
+  - {t: 7.8, target: Attacker, beat: takes the shotgun back, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 7.92, target: Attacker, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 8.6, target: Attacker, beat: muzzle to the back of the head, sheet: true}
+  - {t: 9, target: Attacker, beat: blows the head off, sheet: true, sheetDelay: 0.03, sound: {path: /Audio/Weapons/Guns/Gunshots/shotgun.ogg},
+     blood: {from: HeldNear, at: '11.5, -14.0', count: 10, speed: '90, 190', angle: '-40, 10', gravity: 60, floor: -30, life: 0.22, bigChance: 0.6,
+     color: '#ffd84a'}, shake: 2.5}
+  - {t: 9, target: Victim, hitStop: 0.16, flash: true, kill: true, damage: [{part: Head, damage: {types: {Blunt: 60}}, ignoreArmor: true},
+     {part: Chest, damage: {types: {Blunt: 40}}, ignoreArmor: true}], amputate: [Head], blood: {from: Body, at: '0.6, 9.4', count: 60, speed: '60,
+     240', angle: '-40, 140', gravity: 360, floor: -16, life: 2.4, bigChance: 0.6}, decal: {id: splatter, from: Body, at: '8.6, 6.4',
+     color: '#80000099'}}
+  - {t: 9.01, target: Victim, sound: {collection: BoneGone}, blood: {from: Body, at: '0.6, 6.4', count: 24, speed: '40, 140', angle: '40, 140',
+     gravity: 340, floor: -16, life: 2}}
+  - {t: 9.2, target: Victim, blood: {from: Body, at: '0.6, 6.4', count: 10, speed: '20, 70', angle: '60, 120', gravity: 340, floor: -16, life: 1.5}}
+  - {t: 9.55, target: Attacker, beat: pulls the baton out, sheet: true, sound: {path: /Audio/Weapons/bladeslice.ogg}, blood: {from: ArmFarHand,
+     at: '3, -4', count: 10, speed: '20, 80', angle: '30, 150', gravity: 340, floor: -16, life: 1.5}}
+  - {t: 9.56, target: Victim, blood: {from: Body, at: '0.6, 6.4', count: 12, speed: '30, 100', angle: '50, 130', gravity: 340, floor: -16, life: 1.6}}
+  - {t: 9.95, target: Attacker, beat: flicks it clean, blood: {from: ArmFarHand, at: '9, -4', count: 6, speed: '40, 110', angle: '-60, 20',
+     gravity: 340, floor: -16, life: 1}}
+  - {t: 10.22, target: Victim, beat: the corpse topples forward, sheet: true, shake: 0.9, sound: {collection: BodyFall}}
+  - {t: 10.42, target: Attacker, beat: stows the baton, sound: {path: /Audio/Items/belt_equip.ogg}}
+  - {t: 11.15, target: Attacker, beat: walks off, sheet: true}

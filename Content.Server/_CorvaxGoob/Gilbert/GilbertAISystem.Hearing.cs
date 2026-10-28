@@ -65,9 +65,12 @@ public sealed partial class GilbertAISystem
 
     private void OnGunShot(Entity<GunComponent> gun, ref GunShotEvent args)
     {
-        // His own shotgun is not news to him.
-        if (HasComp<GilbertAIComponent>(args.User))
+        // His own shotgun is not news to him (v10: but a point-blank hit may lead to a finisher).
+        if (TryComp<GilbertAIComponent>(args.User, out var own))
+        {
+            NoteOwnShot((args.User, own));
             return;
+        }
 
         var source = args.User.IsValid() && !TerminatingOrDeleted(args.User) ? args.User : gun.Owner;
         var query = EntityQueryEnumerator<GilbertAIComponent>();

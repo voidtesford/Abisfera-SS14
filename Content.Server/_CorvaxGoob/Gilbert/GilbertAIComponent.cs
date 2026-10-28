@@ -764,4 +764,84 @@ public sealed partial class GilbertAIComponent : Component
     [ViewVariables] public EntityCoordinates? RouteLeg;
     /// <summary>Diagnostics / tests: patrol trips planned over the mental map.</summary>
     [ViewVariables] public int RoutesPlanned;
+
+    // ---- v10 (t277u): finisher after a point-blank shotgun hit (phase 1 only) ----
+
+    /// <summary>Master switch for the AI finisher.</summary>
+    [DataField]
+    public bool FinisherEnabled = true;
+
+    /// <summary>Shots at a target further than this (tiles) never lead to a finisher.</summary>
+    [DataField]
+    public float FinisherShotRange = 4f;
+
+    /// <summary>After the shot the victim must be alive (not crit) with at most this much damage left before crit.</summary>
+    [DataField]
+    public FixedPoint2 FinisherCritMargin = 20;
+
+    /// <summary>The pellets need a moment to land: the margin is checked this long after the shot...</summary>
+    [DataField]
+    public TimeSpan FinisherShotSettle = TimeSpan.FromSeconds(0.2);
+
+    /// <summary>...and the shot is forgotten after this long.</summary>
+    [DataField]
+    public TimeSpan FinisherShotWindow = TimeSpan.FromSeconds(1.2);
+
+    /// <summary>Distance (tiles) from the victim at which the cutscene starts.</summary>
+    [DataField]
+    public float FinisherStartRange = 1.3f;
+
+    /// <summary>The run-up is dropped when the victim gets further than this (tiles) or it takes longer than <see cref="FinisherApproachTimeout"/>.</summary>
+    [DataField]
+    public float FinisherAbortRange = 5f;
+
+    [DataField]
+    public TimeSpan FinisherApproachTimeout = TimeSpan.FromSeconds(4);
+
+    /// <summary>The same victim can't get another finisher attempt for this long (after a start or an abort).</summary>
+    [DataField]
+    public TimeSpan FinisherVictimCooldown = TimeSpan.FromSeconds(30);
+
+    /// <summary>No finisher while another hostile is this close (tiles) to him or the victim; 0 disables the check.</summary>
+    [DataField]
+    public float FinisherClearRadius = 6f;
+
+    /// <summary>Weighted random pick of the variant (finisher prototype id -> weight). Shotgun variants need the shotgun in hand.</summary>
+    [DataField]
+    public Dictionary<string, float> FinisherWeights = new()
+    {
+        { "GilbertFinisherPhase1", 1f },
+        { "GilbertFinisherBarrel", 1f },
+        { "GilbertFinisherGroundPound", 1f },
+    };
+
+    /// <summary>Variants played with the shotgun in his hands (skipped when he holds none).</summary>
+    [DataField]
+    public HashSet<string> FinisherNeedsShotgun = new() { "GilbertFinisherBarrel", "GilbertFinisherGroundPound" };
+
+    /// <summary>Last own shot at a combat target (victim, time), checked once the pellets landed.</summary>
+    [ViewVariables] public (EntityUid Target, TimeSpan At)? FinisherShot;
+    /// <summary>Run-up in progress: the victim and when it started.</summary>
+    [ViewVariables] public EntityUid? FinisherVictim;
+    [ViewVariables] public TimeSpan FinisherApproachStart;
+    [ViewVariables] public Dictionary<EntityUid, TimeSpan> FinisherCooldowns = new();
+    /// <summary>Diagnostics / tests: last finisher variant started by the AI.</summary>
+    [ViewVariables] public string? LastFinisher;
+
+    // ---- v10 (t278u): admin orders ----
+
+    /// <summary><c>gilbertgoto</c>: where he goes (normal navigation) and then holds / patrols.</summary>
+    [ViewVariables] public EntityCoordinates? GotoOrder;
+    [ViewVariables] public bool GotoArrived;
+
+    /// <summary>Patrol radius (tiles) around the ordered point once there.</summary>
+    [DataField]
+    public float GotoHoldRadius = 2.5f;
+
+    /// <summary>Further than this (tiles) from the point (e.g. after a fight) he walks back to it.</summary>
+    [DataField]
+    public float GotoReturnDistance = 4f;
+
+    /// <summary><c>gilberttarget</c>: hunted to death (always knows where it is, no warning / arrest).</summary>
+    [ViewVariables] public EntityUid? HuntTarget;
 }

@@ -232,6 +232,10 @@ public sealed partial class GilbertAISystem : EntitySystem
             if (!_sequence.IsActive(uid))
                 continue;
 
+            // v10: the finisher cutscene drives him (position, facing, locks) until it ends.
+            if (_finisher.IsPlaying(uid))
+                continue;
+
             // Every tick, not just on think: keep facing the enemy he's fighting (berserk: he faces his victim himself).
             var berserk = InBerserk(uid);
             if (!berserk)
@@ -273,6 +277,8 @@ public sealed partial class GilbertAISystem : EntitySystem
         UpdateMentalMap(ent, xform, now);
         RecordOwnGear(ent);
         var seen = FindVisibleEnemy(ent, xform);
+        // v10: an admin-ordered hunt (always hostile, always located, no warning).
+        seen = UpdateHunt(ent, xform, now, seen);
         if (seen != null)
         {
             comp.LastSeenEnemy = now;
@@ -330,9 +336,12 @@ public sealed partial class GilbertAISystem : EntitySystem
                 // v9: his own lost weapon in sight comes first.
                 if (TryStartRecover(ent, xform, now))
                     return;
-                if (TryPendingInvestigate(ent, now))
+                // v10: an admin goto order replaces the sound checks, loot runs and the patrol.
+                if (comp.GotoOrder == null && TryPendingInvestigate(ent, now))
                     return;
-                if (TryStartHealing(ent, now) || TryStartScavenge(ent, xform, now))
+                if (TryStartHealing(ent, now) || comp.GotoOrder == null && TryStartScavenge(ent, xform, now))
+                    return;
+                if (UpdateGoto(ent, xform, now))
                     return;
                 UpdateIdle(ent, xform, now);
                 break;
@@ -342,6 +351,9 @@ public sealed partial class GilbertAISystem : EntitySystem
                 break;
 
             case GilbertAIState.Combat:
+                // v10: point-blank shot left the target nearly down: run up and finish it.
+                if (UpdateFinisher(ent, now))
+                    return;
                 // v9: badly hurt and the enemy out of sight for a moment: a quick injection.
                 if (seen == null && TryStartCriticalHeal(ent, now))
                     return;
