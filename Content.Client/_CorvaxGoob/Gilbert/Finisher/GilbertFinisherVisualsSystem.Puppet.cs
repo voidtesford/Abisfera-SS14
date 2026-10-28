@@ -305,11 +305,14 @@ public sealed partial class GilbertFinisherVisualsSystem
         if (fx + w > png.Width || fy + h > png.Height)
             return null;
 
+        // The sandbox forbids Image<T>'s pixel getter (only the setter is whitelisted): read the backing span.
+        var span = png.GetPixelSpan();
+        var stride = png.Width;
         var pixels = new byte[w * h * 4];
         for (var y = 0; y < h; y++)
         for (var x = 0; x < w; x++)
         {
-            var p = png[fx + x, fy + y];
+            var p = span[(fy + y) * stride + fx + x];
             var i = (y * w + x) * 4;
             pixels[i] = p.R; pixels[i + 1] = p.G; pixels[i + 2] = p.B; pixels[i + 3] = p.A;
         }
