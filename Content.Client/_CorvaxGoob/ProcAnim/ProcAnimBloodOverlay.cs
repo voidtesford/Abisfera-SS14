@@ -26,7 +26,7 @@ public sealed class ProcAnimBloodOverlay : Overlay
 
     protected override bool BeforeDraw(in OverlayDrawArgs args)
     {
-        return _system.Bursts.Count > 0 || _system.Stars.Count > 0;
+        return _system.Bursts.Count > 0 || _system.Stars.Count > 0 || _system.FxBursts.Count > 0 || _system.FxDots.Count > 0;
     }
 
     protected override void Draw(in OverlayDrawArgs args)
@@ -60,6 +60,37 @@ public sealed class ProcAnimBloodOverlay : Overlay
                     drop.Alpha);
                 handle.DrawRect(new Box2(center - new Vector2(half), center + new Vector2(half)), color);
             }
+        }
+
+        // v12 world-anchored hit effects: spatter (stains stay), pools, dust.
+        var fxBursts = _system.FxBursts;
+        for (var b = fxBursts.Count - 1; b >= 0; b--)
+        {
+            var burst = fxBursts[b];
+            var age = (float) (now - burst.Start).TotalSeconds;
+            if (age > ProcAnimFx.Life(burst.Effect))
+            {
+                fxBursts.RemoveAt(b);
+                continue;
+            }
+
+            if (burst.Map != args.MapId)
+                continue;
+
+            foreach (var dot in ProcAnimFx.Particles(burst.Effect, burst.Seed, burst.Origin, age, burst.Blood))
+            {
+                var center = burst.Anchor + burst.AxisX * MathF.Round(dot.Position.X) + burst.AxisY * MathF.Round(dot.Position.Y);
+                var half = ProcAnimVisualsSystem.HalfExtents(burst.AxisX, burst.AxisY, dot.Size);
+                handle.DrawRect(new Box2(center - half, center + half), dot.Color);
+            }
+        }
+
+        // v12 body-attached effects (bruises, drips) and face layers.
+        foreach (var dot in _system.FxDots)
+        {
+            if (dot.Map != args.MapId)
+                continue;
+            handle.DrawRect(new Box2(dot.Position - dot.Half, dot.Position + dot.Half), dot.Color);
         }
 
         // Dizzy stars: a 1 px dot, or a 1 px-armed plus when big.

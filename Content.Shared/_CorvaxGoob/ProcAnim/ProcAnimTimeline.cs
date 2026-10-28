@@ -376,6 +376,9 @@ public static class ProcAnimTimeline
             armFH.Z += f * sw * 0.5f;
         }
 
+        // v12 hit effects: impact recoil of the hit part and the concussion stagger.
+        ProcAnimFx.ApplyPose(proto, actor, t, pose, f);
+
         var sideView = ViewAt(tr, t) == null;
         var limits = tr.Joints ?? ProcAnimJointLimits.Default;
         ApplyJointLimits(pose, f, sideView, limits);
@@ -439,6 +442,28 @@ public static class ProcAnimTimeline
     /// Clamps the keyed + procedural (walk, drag, daze, idle) rotations to the joint limits. Arms and legs have two
     /// segments (upper arm, forearm + hand; thigh, shin + shoe), so the hand and foot parts stay at 0.
     /// </summary>
+    /// <summary>v12 soft joint limit zone, degrees: the last few degrees before a limit ease into it (C1).</summary>
+    public const float SoftLimit = 4f;
+
+    /// <summary>
+    /// Clamp with a soft knee: identity inside <c>[lo + k, hi - k]</c>, a quadratic ease that reaches the limit at
+    /// <c>k</c> past it with zero slope, so limbs slow into a limit instead of stopping dead (no popping), and exact
+    /// limits further out.
+    /// </summary>
+    public static float SoftClamp(float x, float lo, float hi, float k = SoftLimit)
+    {
+        if (lo > hi)
+            (lo, hi) = (hi, lo);
+        k = MathF.Min(k, (hi - lo) * 0.5f);
+        if (k <= 0f)
+            return Math.Clamp(x, lo, hi);
+        if (x > hi - k)
+            return x >= hi + k ? hi : hi - (hi + k - x) * (hi + k - x) / (4f * k);
+        if (x < lo + k)
+            return x <= lo - k ? lo : lo + (x - lo + k) * (x - lo + k) / (4f * k);
+        return x;
+    }
+
     public static void ApplyJointLimits(Vector3[] pose, float f, bool sideView, ProcAnimJointLimits? limits = null)
     {
         var l = limits ?? ProcAnimJointLimits.Default;
@@ -448,20 +473,20 @@ public static class ProcAnimTimeline
             var range = leg ? l.Knee : l.Elbow;
             ref var v = ref pose[(int) p];
             v.Z = sideView
-                ? f * Math.Clamp(f * v.Z, range.X, range.Y)
-                : Math.Clamp(v.Z, -l.BackViewBend, l.BackViewBend);
+                ? f * SoftClamp(f * v.Z, range.X, range.Y)
+                : SoftClamp(v.Z, -l.BackViewBend, l.BackViewBend);
         }
 
         if (sideView)
         {
-            pose[(int) ProcAnimBone.LegNear].Z = f * Math.Clamp(f * pose[(int) ProcAnimBone.LegNear].Z, l.Hip.X, l.Hip.Y);
-            pose[(int) ProcAnimBone.LegFar].Z = f * Math.Clamp(f * pose[(int) ProcAnimBone.LegFar].Z, l.Hip.X, l.Hip.Y);
+            pose[(int) ProcAnimBone.LegNear].Z = f * SoftClamp(f * pose[(int) ProcAnimBone.LegNear].Z, l.Hip.X, l.Hip.Y);
+            pose[(int) ProcAnimBone.LegFar].Z = f * SoftClamp(f * pose[(int) ProcAnimBone.LegFar].Z, l.Hip.X, l.Hip.Y);
         }
 
         if (sideView)
         {
-            pose[(int) ProcAnimBone.ArmNear].Z = f * Math.Clamp(f * pose[(int) ProcAnimBone.ArmNear].Z, l.Shoulder.X, l.Shoulder.Y);
-            pose[(int) ProcAnimBone.ArmFar].Z = f * Math.Clamp(f * pose[(int) ProcAnimBone.ArmFar].Z, l.Shoulder.X, l.Shoulder.Y);
+            pose[(int) ProcAnimBone.ArmNear].Z = f * SoftClamp(f * pose[(int) ProcAnimBone.ArmNear].Z, l.Shoulder.X, l.Shoulder.Y);
+            pose[(int) ProcAnimBone.ArmFar].Z = f * SoftClamp(f * pose[(int) ProcAnimBone.ArmFar].Z, l.Shoulder.X, l.Shoulder.Y);
         }
 
         // Rigid forearm + hand: no wrist rotation or offset, whatever the keys / secondary motion say.
@@ -484,8 +509,9 @@ public static class ProcAnimTimeline
     /// <summary>IK blend weight of <paramref name="track"/> at <paramref name="t"/> (0..1).</summary>
     public static float IkWeight(ProcAnimIkTrack track, float t)
     {
-        var w = track.Weights.Count > 0 ? Evaluate(track.Weights, t).X : track.Weight;
-        return Math.Clamp(w, 0f, 1f);
+        var w = Math.Clamp(track.Weights.Count > 0 ? Evaluate(track.Weights, t).X : track.Weight, 0f, 1f);
+        // v12: smoothstep, so blending the IK in / out starts and ends with zero speed (no limb pop).
+        return w * w * (3f - 2f * w);
     }
 
     /// <summary>

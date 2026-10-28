@@ -254,6 +254,10 @@ def solve(proto, actor, t, piv=None, look=True, pivs_all=None, ik=True):
         pose['ArmNearLow'][2] += f * sw * 0.8; pose['ArmFarLow'][2] += f * sw * 0.8
         pose['ArmNearHand'][2] += f * sw * 0.5; pose['ArmFarHand'][2] += f * sw * 0.5
 
+    # v12 hit effects: impact recoil of the hit part and the concussion stagger
+    import fx as FX
+    FX.apply_pose(proto, actor, t, pose, f)
+
     side = view_at(tr, t) is None
     limits = tr.get('joints')
     apply_joint_limits(pose, f, side, limits)
@@ -301,6 +305,15 @@ HIP = (-60.0, 125.0)
 SHOULDER = (-80.0, 190.0)  # v10: arm swung slightly behind the body .. overhead (forward)
 BACK_VIEW_BEND = 100.0    # back-to-camera views: no facing in the screen plane, only a range
 def _cl(v, lo, hi): return max(lo, min(hi, v))
+SOFT_LIMIT = 4.0
+def soft_clamp(x, lo, hi, k=SOFT_LIMIT):
+    """ProcAnimTimeline.SoftClamp: quadratic ease into the limit over k degrees each side (C1, no popping)."""
+    if lo > hi: lo, hi = hi, lo
+    k = min(k, (hi - lo) * 0.5)
+    if k <= 0: return _cl(x, lo, hi)
+    if x > hi - k: return hi if x >= hi + k else hi - (hi + k - x) ** 2 / (4 * k)
+    if x < lo + k: return lo if x <= lo - k else lo + (x - lo + k) ** 2 / (4 * k)
+    return x
 def apply_joint_limits(pose, f, side, limits=None):
     """limits: the actor's `joints` override (knee / elbow / hip / shoulder 'min, max', backViewBend)."""
     l = limits or {}
@@ -309,10 +322,10 @@ def apply_joint_limits(pose, f, side, limits=None):
     bvb = _get(l, 'backViewBend', BACK_VIEW_BEND)
     for n in ('LegNearLow', 'LegFarLow', 'ArmNearLow', 'ArmFarLow'):
         lo, hi = knee if n.startswith('Leg') else elbow
-        pose[n][2] = f * _cl(f * pose[n][2], lo, hi) if side else _cl(pose[n][2], -bvb, bvb)
+        pose[n][2] = f * soft_clamp(f * pose[n][2], lo, hi) if side else soft_clamp(pose[n][2], -bvb, bvb)
     if side:
-        for n in ('LegNear', 'LegFar'): pose[n][2] = f * _cl(f * pose[n][2], *hip)
-        for n in ('ArmNear', 'ArmFar'): pose[n][2] = f * _cl(f * pose[n][2], *shoulder)
+        for n in ('LegNear', 'LegFar'): pose[n][2] = f * soft_clamp(f * pose[n][2], *hip)
+        for n in ('ArmNear', 'ArmFar'): pose[n][2] = f * soft_clamp(f * pose[n][2], *shoulder)
     for n in ('ArmNearHand', 'ArmFarHand'): pose[n][:] = [0.0, 0.0, 0.0]   # the hand is rigid with the forearm (no wrist)
     for n in ('LegNearFoot', 'LegFarFoot'): pose[n][2] = 0.0   # legs have no foot segment (shoe rides on the shin)
 
@@ -321,7 +334,8 @@ IK_CHAIN = {'ArmNear': ('ArmNearLow', 'ArmNearHand'), 'ArmFar': ('ArmFarLow', 'A
             'LegNear': ('LegNearLow', 'LegNearFoot'), 'LegFar': ('LegFarLow', 'LegFarFoot')}
 def ik_weight(track, t):
     w = evaluate(track['weights'], t)[0] if track.get('weights') else _get(track, 'weight', 1.0)
-    return min(max(w, 0.0), 1.0)
+    w = min(max(w, 0.0), 1.0)
+    return w * w * (3 - 2 * w)   # smoothstep (ProcAnimTimeline.IkWeight)
 def ik_target(proto, actor, track, t, own, pivs_all=None):
     k = evaluate(track.get('keys'), t); off = (k[0], k[1])
     at = vec(track.get('at'))

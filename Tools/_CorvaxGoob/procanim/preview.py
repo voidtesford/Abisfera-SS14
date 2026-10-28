@@ -16,6 +16,7 @@ import numpy as np, yaml
 from PIL import Image, ImageDraw, ImageFont
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import solve as SV
+import fx as FX
 import puppet
 
 ap = argparse.ArgumentParser(description='Offline preview of a procAnimScene (mp4 / gif / contact sheet).')
@@ -198,7 +199,8 @@ def draw_actor(frame, role, t, shake, real):
         return trans(snap(o[0]), snap(o[1])) @ rotm(o[2])   # whole-pixel offsets, as the client snaps them
     body = xf('Body')
     flash = any(e.get('flash') and e['_target'] == role and SV.real_time(proto, e['t']) <= real < SV.real_time(proto, e['t']) + 0.12 for e in EVENTS)
-    scr = np.array([[S, 0, round(ex - X0 * 32 + shake[0]) * S], [0, -S, round(Y1 * 32 - ey + shake[1]) * S], [0, 0, 1.0]])
+    ash = FX.shake(proto, role, real); fl = FX.view_flip_scale(tr, t)   # v12 per-actor impact shake, view-flip squash
+    scr = np.array([[S * fl, 0, (round(ex - X0 * 32 + shake[0]) + ash[0]) * S], [0, -S, (round(Y1 * 32 - ey + shake[1]) - ash[1]) * S], [0, 0, 1.0]])
     for g, im in layers:
         if g in ('HeldNear', 'HeldFar') and not inh: continue
         if g == 'Slung' and inh: continue
@@ -210,8 +212,13 @@ def draw_actor(frame, role, t, shake, real):
         inv = np.linalg.inv(F)
         src = tint(im, tuple(int(c * 255) for c in FLASH)) if flash else im
         out = src.transform((W, H), Image.AFFINE, tuple(inv[:2].flatten()), resample=Image.NEAREST)
+        draw_props(frame, tr, role, g, t, pose, scr, body, under=True)   # v12 under: below the part's layers
         frame.alpha_composite(out)
+        draw_props(frame, tr, role, g, t, pose, scr, body, under=False)
+
+def draw_props(frame, tr, role, g, t, pose, scr, body, under):
         for pr in tr.get('props') or []:
+            if bool(pr.get('under', False)) != under: continue
             if pr.get('part', 'Body') != g and not (g == 'Torso' and pr.get('part', 'Body') == 'Body'): continue
             if not SV.prop_visible(tr, pr, t): continue
             base = (0, 0, 0) if pr.get('part', 'Body') == 'Body' else pose.get(g, (0, 0, 0))
@@ -275,6 +282,59 @@ def draw_blood(frame, real, shake):
             layer = Image.new('RGBA', (size * S, size * S), c)
             frame.alpha_composite(layer, (int((px - size / 2) * S), int((py - size / 2) * S)))
 
+def _dot(frame, m, x, y, w, h, c, shake, snap, ash=(0, 0), fl=1.0):
+    x = x * fl + ash[0]; y = y + ash[1]
+    if snap: x, y = round(x), round(y)
+    px = m[0] * 32 + x - X0 * 32 + shake[0]; py = Y1 * 32 - (m[1] * 32 + y) + shake[1]
+    x0, y0 = int(round((px - w / 2) * S)), int(round((py - h / 2) * S))
+    x1, y1 = int(round((px + w / 2) * S)), int(round((py + h / 2) * S))
+    if x1 <= x0 or y1 <= y0: return
+    col = tuple(int(255 * max(0, min(1, ch))) for ch in c)
+    if col[3] <= 0: return
+    frame.alpha_composite(Image.new('RGBA', (x1 - x0, y1 - y0), col), (x0, y0)) if 0 <= x0 and 0 <= y0 and x1 <= frame.width and y1 <= frame.height else None
+
+BLOOD_F = tuple(c / 255 for c in BLOOD_DEFAULT) + (1.0,)
+def draw_fx(frame, real, at, shake):
+    """v12 hit effects (ProcAnimBloodOverlay mirror): anchored spatter / pools / dust, attached bruises / drips, faces."""
+    for i, e in enumerate(EVENTS):
+        role = e['_target']
+        if not e.get('effects') or not 0 <= role < N: continue
+        t0 = SV.real_time(proto, e['t'])
+        anchored = [(j, fx) for j, fx in enumerate(e['effects']) if fx['type'] in FX.ANCHORED]
+        if real < t0 or not anchored: continue
+        m = SV.evaluate(ACT[role]['move'], e['t'])
+        pose = SV.solve(proto, role, e['t'], PIVS[role], pivs_all=PIVS)
+        for j, fx in anchored:
+            if real - t0 > FX.life(fx): continue
+            o = FX.origin(fx, pose)
+            for x, y, w, h, c in FX.particles(fx, i * 16 + j, o, real - t0, BLOOD_F):
+                _dot(frame, m, x, y, w, h, c, shake, True)
+    for role in range(N):
+        tr = ACT[role]; m = SV.evaluate(tr['move'], at)
+        pose = None; ash = FX.shake(proto, role, real); fl = FX.view_flip_scale(tr, at)
+        for i, e in enumerate(EVENTS):
+            if e['t'] > at: break
+            if e['_target'] != role or not e.get('effects'): continue
+            for j, fx in enumerate(e['effects']):
+                if fx['type'] not in ('Bruise', 'Drips'): continue
+                if SV.is_hidden(tr, fx.get('part', 'Head'), at): continue
+                if fx['type'] == 'Drips' and at - e['t'] > FX.life(fx) + 2: continue
+                pose = pose or SV.solve(proto, role, at, PIVS[role], pivs_all=PIVS)
+                for x, y, w, h, c in FX.particles(fx, i * 16 + j, FX.origin(fx, pose), at - e['t'], BLOOD_F):
+                    _dot(frame, m, x, y, w, h, c, shake, True, ash, fl)
+        face, eyes = SV.expression_at(tr, at)
+        cfg = FX.face_cfg(tr)
+        if cfg['disabled'] or ((face in (None, 'neutral')) and (eyes in (None, 'open'))) or SV.is_hidden(tr, 'Head', at): continue
+        fs = 1.0 if tr['facing'] >= 0 else -1.0; front = False
+        v = FX._view(tr, at)
+        if v and v[0]: fs = -fs
+        elif v:
+            if v[1] != 'South': continue
+            front = True
+        pose = pose or SV.solve(proto, role, at, PIVS[role], pivs_all=PIVS)
+        for x, y, w, h, c in FX.face_dots(cfg, (face, eyes), pose, fs, front):
+            _dot(frame, m, x, y, w, h, c, shake, False, ash, fl)
+
 def draw_stars(frame, at, shake):
     """Dizzy stars (ProcAnimBloodOverlay mirror): pixel crosses orbiting over a dazed actor's head."""
     for role in reversed(range(N)):
@@ -325,6 +385,7 @@ def render(t, label=True):
     for role in sorted(range(N), key=functools.cmp_to_key(cmp)):
         draw_actor(fr, role, at, sh, t)
     draw_blood(fr, t, sh)
+    draw_fx(fr, t, at, sh)
     draw_stars(fr, at, sh)
     if label:
         d = ImageDraw.Draw(fr)

@@ -22,6 +22,14 @@ ProcAnim — переиспользуемая библиотека процед�
   предмет: на спину / пояс / в сумку, в крайнем случае на пол) и после сцены возвращает всё в те же руки.
 * Сцена строится в экранной системе координат: на повёрнутом гриде / с повёрнутой камерой «вперёд» — это экранное
   «вправо», так что катсцена всегда выглядит как задумано.
+* Эффекты ударов (v12): у события `effects:` — направленные брызги крови с каплями и пятнами на полу (`Spatter`),
+  отдача/сжатие ударенной части (`Recoil`), синяки и следы крови на жертве (`Bruise`), стекающие капли (`Drips`),
+  лужа (`Pool`), пыль при падении (`Dust`), локальная тряска (`Shake`) и сотрясение — шатание, подгибающиеся колени
+  (`Stagger`). Всё детерминировано (`ProcAnimFx`), рисуется клиентом и превью одинаково; звёздочки (`daze.stars`)
+  остались как были. Мимика (v12): ключи `expressions` (`pain`, `dazed`, `angry`, `dead`; глаза `open`/`closed`/`narrowed`)
+  теперь рисуются поверх головы, `face:` настраивает точки лица (`glow: true` — светящийся визор Гилберта).
+  Реквизит `under: true` рисуется под слоями кости (дубинка во рту). Суставы упираются в пределы мягко,
+  IK-вес сглажен (smoothstep), смена вида (`views`) — с коротким «поворотом» (сжатие по ширине) вместо скачка.
 * Пример сцены — `example_punch.yml` (удар в лицо), добивания Гилберта — `../Gilbert/finisher.yml`.
 
 ## Architecture
@@ -122,14 +130,16 @@ in-hand items.
 | `ik` | 2-bone IK effectors: `limb` (ArmNear/ArmFar/LegNear/LegFar), `relativeTo` (`role.Bone`, `role` or omitted = own sprite frame), `at` (rest-pose point on that bone), `keys` (extra px offset), `weight` / `weights` (0..1 blend over keyed pose), `tip` (end-effector point, default the hand/foot pivot), `bend` (`Auto`/`Positive`/`Negative`) |
 | `look` | head look-at: `actor` (default: the other actor), `target` bone, `at` / `targetAt`, `max`, `neck`, `weight` or `keys` (x = weight) |
 | `props` | sprites attached to a bone: `sprite` (rsi), `state`, `start`, `end`, `part`, `keys` (px/deg relative to the bone), `scale` |
+| `props[].under` | v12: draw the prop below the bone's sprite layers instead of on top (e.g. a baton inside the mouth / head) |
 | `props[].item` | v11 `propFromItem`: `id` of an own `items` entry or `role.id` of another actor's; drawn with the real item's RSI (`itemState`, default `icon`, else its first layer state), `itemRotation` (deg, added) and `itemScale` (replaces `scale`); `sprite` / `state` stay as the fallback (item gone, or no sprite) |
 | `items` | real items: `{id, match: {prototypes, tags, components}, from: [hands, belt, back...] (default anywhere: hands, worn slots, storages 3 deep), required (true), draw: t, return: t, wield, previewSprite}`. Bound at start. Without `draw` the item is taken into the hand during the pre-beat (if not held); `draw` takes it into the prop's hand at `t`, `return` puts it back in its source slot / container (re-wielding what had to be unwielded); any not returned go back at the end. `ProcAnimSystem.HasRequiredItems(scene, role, uid)` checks without playing |
 | `stowHands` | empty the hands before the scene: `keep` (matches left in hand), `rules` (`{match, slots}` first match wins), `slots` (default `back, belt, pocket1, pocket2`; a worn storage takes the item, an empty slot is equipped), `duration` (0.32 s per item), `grab` (0.15 s: when in the reach the item moves), `keys` (the reach pose: `Bone: [keys]` over `0..duration`, mirrored onto the hand used), `sound`, `restore` (true: put back into the same hands afterwards, toggles such as a raised shield re-activated). Items nothing takes are dropped at the feet as the last resort; bound items without `draw` and `keep` matches stay in hand |
-| `views` | `{start, end, facing: North/South/East/West}` or `turned: true` — draw another direction for a while |
+| `views` | `{start, end, facing: North/South/East/West}` or `turned: true` — draw another direction for a while. v12: around every edge where the drawn view changes the sprite squeezes horizontally (`ProcAnimFx.ViewFlipScale`, 0.3..1 over ±0.07 s) so the turn reads instead of a one-frame flip |
 | `hide` | `{t, parts: [...]}` hide bones (and everything they carry) from `t` |
 | `walk`, `idle`, `drag`, `daze` | procedural layers (walk cycle from the `move` speed, breathing, secondary lag, concussion sway; `daze.stars` draws dizzy stars) |
 | `smooth` | spline the default-eased part keys |
-| `expressions` | STUB face / eye layer: `{t, face, eyes}` step keys → `ProcAnimExpressionChangedEvent` on the client (nothing draws them yet) |
+| `expressions` | v12 face layer: `{t, face, eyes}` step keys (a null field keeps the previous value). `face`: `neutral`, `pain` (squint + brow + open mouth), `dazed` (slack lid + mouth), `angry` (brow; with `face.glow` the eyes flare), `dead` (X eyes); `eyes`: `open`, `closed`, `narrowed`. Drawn as pixels on the Head bone (side view mirrored with the facing, South view = front eyes, North = none), still raised as `ProcAnimExpressionChangedEvent` |
+| `face` | v12 face pixels (rest-pose px on the Head, facing +x): `eye` (`'2.5, 9.5'`), `mouth`, `frontEyes`, `frontMouth`, colours `lid`, `brow`, `mouthColor`, `deadColor`, `glow` + `glowColor` (visor eyes), `disabled` |
 | `holsterHeldItems`, `holsterStates`, `holsterAt`, `unholsterAt` | holster held items onto the back during the scene (the `holster` / `unholster` events set the times) |
 | `flight` | `{start, end}` — the root flies through the air: the landing spot is checked for walls |
 | `standUp` | stand the actor up at the start |
@@ -156,6 +166,29 @@ gameplay), plus any combination of:
 | `popup` | `{text: <locale id>, type}` popup over the target |
 | `holster` / `unholster` | move held items to the back / back to the hands |
 | `sheet`, `sheetDelay` | include this beat in the preview contact sheet |
+| `effects` | v12 hit effects on the target, see below |
+
+#### Hit effects (`effects`, v12)
+
+`- {t: 0.9, target: victim, hitStop: 0.06, effects: [{type: Spatter, part: Head, at: '-4, 7', dir: 70, spread: 60}, {type: Recoil, part: Head, dir: 100}, {type: Stagger, duration: 1.6}]}`
+
+| Type | What it does |
+|---|---|
+| `Spatter` | directional blood spray: a short mist plus droplets flying along `dir` with gravity, leaving elongated stains on the floor (world-anchored, fade after `duration`, default 8 s) |
+| `Recoil` | impact squash / recoil of `part`: fast push along `dir`, damped return with a slight overshoot (pose layer, default 0.35 s; `Body` also squashes down, `Head` pulls the body) |
+| `Bruise` | bruise / blood mark that fades in on `part` and stays on the victim until the scene ends (follows the bone) |
+| `Drips` | blood drips falling from the point to the floor for `duration` (default 3 s, follows the bone) |
+| `Pool` | blood pool spreading on the floor under the point for `duration` (default 4 s), then stays 60 s |
+| `Dust` | dust puffs and grit from the floor (falls, landings; default 0.8 s) |
+| `Shake` | small local shake of the target (real time, also during the hit-stop; default 0.3 s) |
+| `Stagger` | concussion sway: decaying body / head wobble and buckling knees (pose layer, default 2.5 s) |
+
+Fields: `type` (required), `part` (bone, default `Head`), `at` (rest-pose px on the bone, forward frame), `dir`
+(degrees in the forward frame: 0 = away from the first actor, 90 = up), `spread` (cone width 0..360), `count`
+(-1 = the type's default), `strength`, `duration` (-1 = default), `size` (Bruise / Pool), `floor` (px relative to the
+target origin), `color` (blood types default to the target's blood colour). Recoil / Stagger change the solved pose
+(so the server, client and preview agree); the drawn ones are client-only (`ProcAnimBloodOverlay`), seeded per event so
+every viewer sees the same particles.
 
 Final damage is not an event: set `finalDamage` on the actor.
 
@@ -163,7 +196,8 @@ Final damage is not an event: set `finalDamage` on the actor.
 
 `ProcAnimValidation.Validate(scene)` checks lengths, roles (unique, non-empty), facing, ascending key times in every
 track, prop / view intervals, look / IK references (`role.Bone`, limbs), event targets and order, event times inside
-`-intro..length`. `procanim play` prints the problems as warnings; `ProcAnimLibraryTest.ValidationOfAllScenes`
+`-intro..length`, expression face / eyes ids and every effect (count, duration, strength, spread, size, a pose
+effect needs a duration). `procanim play` prints the problems as warnings; `ProcAnimLibraryTest.ValidationOfAllScenes`
 fails on any problem in a shipped scene.
 
 ## Preview
@@ -188,6 +222,8 @@ in game; the only approximations are the clothing presets and the floor.
 
 * Humanoid rig only (head, torso, two-segment limbs split from the humanoid sprite layers); side view with
   optional forced N/S/E/W views. Non-humanoids are refused (`procanim-error-not-humanoid`).
-* The expression / eye layer is a stub (keys and event only).
+* Faces are a few overlay pixels on the head (no face sprites); a `Bruise` stays at its rest-pose spot when a view
+  turns the head, and bruises / drips vanish with the scene (pools and floor stains outlive it, decals stay).
+* Effects are client visuals only: no reagent puddles or real decals are spawned by them (use `blood` / `decal`).
 * Actors are placed relative to the first actor's start position; scenes don't path-find, they only pick the
   direction with enough free floor and clamp the motion to it.

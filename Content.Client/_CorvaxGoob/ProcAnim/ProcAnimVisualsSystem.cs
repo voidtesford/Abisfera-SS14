@@ -69,6 +69,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
         /// <summary>Hands (bit 1 left, 2 right) holding an item a prop draws: their in-hand layers are hidden.</summary>
         public int PropHands;
         public ProcAnimExpression Expression;
+        public Vector2 SpriteScale = Vector2.One;
     }
 
     /// <summary>A running blood burst (drawn by <see cref="ProcAnimBloodOverlay"/>).</summary>
@@ -94,6 +95,26 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
 
     /// <summary>Rebuilt every frame from the dazed actors.</summary>
     internal readonly List<DizzyStar> Stars = new();
+
+    /// <summary>v12: a running world-anchored hit effect (spatter, pool, dust; drawn by <see cref="ProcAnimBloodOverlay"/>).</summary>
+    internal sealed class FxBurst
+    {
+        public required ProcAnimEffect Effect;
+        public int Seed;
+        public MapId Map;
+        public Vector2 Anchor;
+        public Vector2 Origin;
+        public Vector2 AxisX, AxisY;
+        public Color Blood;
+        public TimeSpan Start;
+    }
+
+    internal readonly List<FxBurst> FxBursts = new();
+
+    /// <summary>v12: body-attached effect pixels (bruises, drips) and face layers, rebuilt every frame.</summary>
+    internal readonly record struct FxDot(MapId Map, Vector2 Position, Vector2 Half, Color Color);
+
+    internal readonly List<FxDot> FxDots = new();
     private ProcAnimBloodOverlay? _bloodOverlay;
 
     public override void Initialize()
@@ -117,6 +138,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
         if (_bloodOverlay != null)
             _overlays.RemoveOverlay(_bloodOverlay);
         Bursts.Clear();
+        FxBursts.Clear();
         foreach (var (uid, state) in _states)
             Restore(uid, state, null);
         _states.Clear();
@@ -139,6 +161,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
 
         var now = _timing.CurTime;
         Stars.Clear();
+        FxDots.Clear();
         var query = EntityQueryEnumerator<ProcAnimComponent, SpriteComponent>();
         while (query.MoveNext(out var uid, out var comp, out var sprite))
         {
@@ -152,6 +175,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
                     SpriteOffset = sprite.Offset,
                     SpriteRotation = sprite.Rotation,
                     SpriteColor = sprite.Color,
+                    SpriteScale = sprite.Scale,
                 };
                 // Late joiners / mid-cutscene PVS entries must not replay old impacts.
                 // Intro (holster) events are skipped when the server skipped the intro.
@@ -169,7 +193,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
             var real = MathF.Max(raw, -comp.Intro);
             var pre = raw < -comp.Intro ? raw + comp.Intro + comp.PreBeat : -1f;
             var t = ProcAnimTimeline.AnimTime(proto, real);
-            Animate((uid, sprite), comp, proto, state, t, pre);
+            Animate((uid, sprite), comp, proto, state, t, pre, real);
             Effects((uid, sprite), comp, proto, state, t, real);
         }
     }
@@ -185,7 +209,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
     }
 
     private void Animate(Entity<SpriteComponent> ent, ProcAnimComponent comp, ProcAnimScenePrototype proto,
-        PlayState state, float t, float pre = -1f)
+        PlayState state, float t, float pre = -1f, float real = 0f)
     {
         var tracks = ProcAnimTimeline.Tracks(proto, comp.Actor);
         var sx = ScreenSign(comp);
@@ -225,7 +249,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
         var overlay = pre >= 0f ? ProcAnimTimeline.StowOverlay(tracks, comp.StowRight, pre, facingRight) : null;
         var poses = ProcAnimTimeline.Solve(proto, comp.Actor, t, pivots, true, OtherPivots, overlay: overlay);
 
-        // Stub layer: facial expression / eye state keys (nothing draws them yet).
+        // Facial expression / eye state keys: raised as an event and drawn as pixel face layers (AddFace).
         var expression = ProcAnimTimeline.ExpressionAt(tracks, t);
         if (expression != state.Expression)
         {
@@ -235,10 +259,16 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
         }
 
         AddStars(ent, tracks, poses, t, sx);
+        // v12: small per-actor impact shake (real time, so it plays through the hit-stop) and the view-flip squash.
+        var shake = ProcAnimFx.Shake(proto, comp.Actor, real);
+        var flip = ProcAnimFx.ViewFlipScale(tracks, t);
+        AddAttachedFx(ent, comp, proto, tracks, poses, t, sx, shake, flip);
+        AddFace(ent, tracks, poses, t, sx, shake, flip);
 
         var body = poses[(int) ProcAnimBone.Body];
         state.LastBodyRot = sx * body.Rot;
-        _sprite.SetOffset(ent.AsNullable(), state.SpriteOffset + new Vector2(sx * body.X, body.Y) / PixelsPerMeter);
+        _sprite.SetOffset(ent.AsNullable(), state.SpriteOffset + new Vector2(sx * (body.X + shake.X), body.Y + shake.Y) / PixelsPerMeter);
+        _sprite.SetScale(ent.AsNullable(), new Vector2(state.SpriteScale.X * flip, state.SpriteScale.Y));
         _sprite.SetRotation(ent.AsNullable(), state.SpriteRotation + Angle.FromDegrees(sx * body.Rot));
 
         UpdateProps(ent, comp, state, tracks, puppet, poses, t, sx);
@@ -302,8 +332,17 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
                 {
                     var group = GroupOf(prop.Part);
                     foreach (var (g, _, layer, _) in puppet.Layers)
-                        if (g == group)
-                            index = IndexOfLayer(ent, layer) + 1;
+                    {
+                        if (g != group)
+                            continue;
+                        // under: below the part's first layer (e.g. a baton rammed into the mouth); else above its last
+                        if (prop.Under)
+                        {
+                            index = IndexOfLayer(ent, layer);
+                            break;
+                        }
+                        index = IndexOfLayer(ent, layer) + 1;
+                    }
                 }
 
                 var key = $"{PuppetKeyPrefix}prop-{i}";
@@ -480,6 +519,9 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
 
             if (ev.Blood != null)
                 StartBlood(ent, comp, proto, ev, index);
+
+            if (ev.Effects.Count > 0)
+                StartFx(ent, comp, proto, ev, index);
         }
 
         _sprite.SetColor(ent.AsNullable(), real < state.FlashUntil ? state.SpriteColor * FlashColor : state.SpriteColor);
@@ -539,6 +581,122 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
             Color = color,
             Start = _timing.CurTime,
         });
+    }
+
+    /// <summary>v12: world-anchored hit effects (spatter, pool, dust) of an event, frozen where they started.</summary>
+    private void StartFx(EntityUid uid, ProcAnimComponent comp, ProcAnimScenePrototype proto, ProcAnimEvent ev, int index)
+    {
+        var map = _transform.GetMapCoordinates(uid);
+        if (map.MapId == MapId.Nullspace)
+            return;
+
+        ProcAnimPose[]? pose = null;
+        var inv = -_eye.CurrentEye.Rotation;
+        var sx = ScreenSign(comp);
+        for (var j = 0; j < ev.Effects.Count; j++)
+        {
+            var fx = ev.Effects[j];
+            if (!ProcAnimFx.Anchored(fx.Type))
+                continue;
+            if (pose == null)
+            {
+                var pivots = _states.TryGetValue(uid, out var state) && state.Puppet != null ? ForwardPivots(state.Puppet, sx) : null;
+                pose = ProcAnimTimeline.Solve(proto, comp.Actor, ev.Time, pivots);
+            }
+
+            FxBursts.Add(new FxBurst
+            {
+                Effect = fx,
+                Seed = index * 16 + j,
+                Map = map.MapId,
+                Anchor = map.Position,
+                Origin = ProcAnimFx.Origin(fx, pose),
+                AxisX = inv.RotateVec(new Vector2(sx, 0)) / PixelsPerMeter,
+                AxisY = inv.RotateVec(new Vector2(0, 1)) / PixelsPerMeter,
+                Blood = BloodColor(uid),
+                Start = _timing.CurTime,
+            });
+        }
+    }
+
+    /// <summary>v12: bruises and blood drips that follow the hit body part (age in animation time).</summary>
+    private void AddAttachedFx(EntityUid uid, ProcAnimComponent comp, ProcAnimScenePrototype proto, ProcAnimActor tracks,
+        ProcAnimPose[] poses, float t, float sx, Vector2 shake, float flip)
+    {
+        MapCoordinates? map = null;
+        Color? blood = null;
+        for (var i = 0; i < proto.Events.Count; i++)
+        {
+            var ev = proto.Events[i];
+            if (ev.Time > t)
+                break;
+            if (ev.TargetIndex != comp.Actor || ev.Effects.Count == 0)
+                continue;
+            for (var j = 0; j < ev.Effects.Count; j++)
+            {
+                var fx = ev.Effects[j];
+                if (fx.Type is not (ProcAnimEffectType.Bruise or ProcAnimEffectType.Drips))
+                    continue;
+                if (ProcAnimTimeline.IsHidden(tracks, fx.Part, t))
+                    continue;
+                if (fx.Type == ProcAnimEffectType.Drips && t - ev.Time > ProcAnimFx.Life(fx) + 2f)
+                    continue;
+                map ??= _transform.GetMapCoordinates(uid);
+                if (map.Value.MapId == MapId.Nullspace)
+                    return;
+                blood ??= BloodColor(uid);
+                var origin = ProcAnimFx.Origin(fx, poses);
+                foreach (var dot in ProcAnimFx.Particles(fx, i * 16 + j, origin, t - ev.Time, blood.Value))
+                    AddDot(map.Value, dot, sx, true, shake, flip);
+            }
+        }
+    }
+
+    /// <summary>v12: pixel face layers (pain / dazed / angry / dead, eyes closed / narrowed) over the head.</summary>
+    private void AddFace(EntityUid uid, ProcAnimActor tracks, ProcAnimPose[] poses, float t, float sx, Vector2 shake, float flip)
+    {
+        var expr = ProcAnimTimeline.ExpressionAt(tracks, t);
+        if (tracks.Face.Disabled || (expr.Face is null or "neutral" && expr.Eyes is null or "open"))
+            return;
+        if (ProcAnimTimeline.IsHidden(tracks, ProcAnimBone.Head, t))
+            return;
+        var info = ProcAnimTimeline.ViewInfoAt(tracks, t);
+        var front = false;
+        var faceSign = tracks.Facing >= 0f ? 1f : -1f;
+        if (info is { Turned: true })
+            faceSign = -faceSign;
+        else if (info != null)
+        {
+            if (info.Facing == Direction.North)
+                return;
+            if (info.Facing != Direction.South)
+                return; // east / west forced views: no reliable side-face anchor
+            front = true;
+        }
+
+        var map = _transform.GetMapCoordinates(uid);
+        if (map.MapId == MapId.Nullspace)
+            return;
+        foreach (var dot in ProcAnimFx.FaceDots(tracks.Face, expr, poses, faceSign, front))
+            AddDot(map, dot, sx, false, shake, flip);
+    }
+
+    private void AddDot(MapCoordinates map, ProcAnimFx.Dot dot, float sx, bool snap, Vector2 shake, float flip)
+    {
+        dot = dot with { Position = new Vector2(dot.Position.X * flip, dot.Position.Y) + shake };
+        var inv = -_eye.CurrentEye.Rotation;
+        var axisX = inv.RotateVec(new Vector2(sx, 0)) / PixelsPerMeter;
+        var axisY = inv.RotateVec(new Vector2(0, 1)) / PixelsPerMeter;
+        var x = snap ? MathF.Round(dot.Position.X) : dot.Position.X;
+        var y = snap ? MathF.Round(dot.Position.Y) : dot.Position.Y;
+        FxDots.Add(new FxDot(map.MapId, map.Position + axisX * x + axisY * y, HalfExtents(axisX, axisY, dot.Size), dot.Color));
+    }
+
+    internal static Vector2 HalfExtents(Vector2 axisX, Vector2 axisY, Vector2 size)
+    {
+        var a = axisX * (size.X / 2f);
+        var b = axisY * (size.Y / 2f);
+        return new Vector2(MathF.Abs(a.X) + MathF.Abs(b.X), MathF.Abs(a.Y) + MathF.Abs(b.Y));
     }
 
     private Color BloodColor(EntityUid uid)
@@ -670,6 +828,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
 
         _sprite.SetOffset(ent, state.SpriteOffset);
         _sprite.SetColor(ent, state.SpriteColor);
+        _sprite.SetScale(ent, state.SpriteScale);
 
         // A victim left lying keeps the on-back angle of the cutscene instead of snapping to the default face-down
         // lying rotation (the server knocks it down right after the component is removed).

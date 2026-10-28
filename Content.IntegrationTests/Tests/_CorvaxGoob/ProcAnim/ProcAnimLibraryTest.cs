@@ -240,7 +240,7 @@ public sealed class ProcAnimLibraryTest
         {
             foreach (var scene in protoMan.EnumeratePrototypes<ProcAnimScenePrototype>())
             {
-                if (scene.ID == Bad)
+                if (scene.ID == Bad || scene.ID.EndsWith("BadScene"))
                     continue;
                 Assert.That(ProcAnimValidation.Validate(scene), Is.Empty, scene.ID);
             }

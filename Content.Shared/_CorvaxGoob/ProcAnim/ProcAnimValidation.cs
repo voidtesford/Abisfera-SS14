@@ -86,6 +86,13 @@ public static class ProcAnimValidation
                     Err($"{who}.ik[{i}]: limb must be ArmNear/ArmFar/LegNear/LegFar and relativeTo 'role' or 'role.Bone' (got {ik.Limb}, '{ik.RelativeTo}')");
             }
             Sorted(actor.Expressions.Select(k => k.Time), $"{who}.expressions", Err);
+            foreach (var ex in actor.Expressions)
+            {
+                if (ex.Face != null && !ProcAnimFx.Faces.Contains(ex.Face))
+                    Err($"{who}.expressions (t {ex.Time}): unknown face '{ex.Face}' (expected {string.Join("/", ProcAnimFx.Faces)})");
+                if (ex.Eyes != null && !ProcAnimFx.Eyes.Contains(ex.Eyes))
+                    Err($"{who}.expressions (t {ex.Time}): unknown eyes '{ex.Eyes}' (expected {string.Join("/", ProcAnimFx.Eyes)})");
+            }
         }
 
         Sorted(scene.Events.Select(e => e.Time), "events", Err);
@@ -98,6 +105,23 @@ public static class ProcAnimValidation
                 Err($"events[{i}] (t {ev.Time}): outside -intro..length");
             if (ev.Holster && ev.Unholster)
                 Err($"events[{i}]: holster and unholster at once");
+            for (var j = 0; j < ev.Effects.Count; j++)
+            {
+                var fx = ev.Effects[j];
+                var where = $"events[{i}].effects[{j}] ({fx.Type}, t {ev.Time})";
+                if (fx.Count < -1)
+                    Err($"{where}: count must be >= 0 (or -1 = default)");
+                if (fx.Duration < -1f || fx.Duration is > -1f and < 0f)
+                    Err($"{where}: duration must be >= 0 (or -1 = default)");
+                if (fx.Strength < 0f)
+                    Err($"{where}: strength must be >= 0");
+                if (fx.Spread < 0f || fx.Spread > 360f)
+                    Err($"{where}: spread must be within 0..360");
+                if (fx.Size <= 0f)
+                    Err($"{where}: size must be > 0");
+                if (fx.Type is ProcAnimEffectType.Recoil or ProcAnimEffectType.Stagger && ProcAnimFx.DurationOf(fx) <= 0f)
+                    Err($"{where}: a pose effect needs a duration > 0");
+            }
         }
 
         return errors;

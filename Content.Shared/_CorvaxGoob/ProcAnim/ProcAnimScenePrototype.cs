@@ -231,11 +231,16 @@ public sealed partial class ProcAnimActor
     public List<ProcAnimIkTrack> Ik = new();
 
     /// <summary>
-    /// Facial expression / eye state keys (stub API: evaluated and raised as <c>ProcAnimExpressionChangedEvent</c> on
-    /// the client; nothing draws them yet).
+    /// Facial expression / eye state keys (step keys; raised as <c>ProcAnimExpressionChangedEvent</c> on the client and
+    /// drawn as pixel face layers over the head, see <see cref="Face"/>). Faces: neutral, pain, dazed, angry, dead;
+    /// eyes: open, closed, narrowed.
     /// </summary>
     [DataField]
     public List<ProcAnimExpressionKey> Expressions = new();
+
+    /// <summary>v12 face layer anchors / colours (rest-pose px on the Head bone).</summary>
+    [DataField]
+    public ProcAnimFace Face = new();
 
     /// <summary>Index in <see cref="ProcAnimScenePrototype.Actors"/> (resolved on load).</summary>
     [ViewVariables]
@@ -655,6 +660,10 @@ public sealed partial class ProcAnimEvent
     [DataField]
     public ProcAnimBlood? Blood;
 
+    /// <summary>v12 hit effects / aftermath on the target (spatter, recoil, bruise, drips, pool, dust, shake, stagger).</summary>
+    [DataField]
+    public List<ProcAnimEffect> Effects = new();
+
     /// <summary>Server-side floor decal left at the event (e.g. a blood splatter).</summary>
     [DataField]
     public ProcAnimDecal? Decal;
@@ -753,6 +762,13 @@ public sealed partial class ProcAnimProp
 
     [DataField]
     public float Scale = 1f;
+
+    /// <summary>
+    /// v12: draw below the part's layers instead of above them, so whatever the part covers is hidden (a baton
+    /// rammed into the mouth shows only the handle sticking out of the face).
+    /// </summary>
+    [DataField]
+    public bool Under;
 }
 
 /// <summary>From <see cref="Time"/> on, these parts are no longer drawn (e.g. torn-off arms).</summary>
