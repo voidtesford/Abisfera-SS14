@@ -38,12 +38,12 @@ public readonly record struct GilbertBerserkPhaseChangedEvent(GilbertBerserkPhas
 /// <list type="bullet">
 /// <item>Trigger: the hit that would take him to 50 HP or lower (450 of 500 damage) is cut down so he lands at
 /// most at 450, and the phase starts. From then on nothing hurts or heals him.</item>
-/// <item>Transition (10 s): «Садист впадает в бешенство»; he drops everything, stops, shakes and screams while
+/// <item>Transition (6.9 s, the length of the growl-into-roar clip): «Садист впадает в бешенство»; he drops everything, stops, shakes and screams while
 /// discharges build up over his body; at 8 s they burst out 10 tiles (streams along the floor, crackles in the
 /// air) and every living mob in range takes 20 Shock.</item>
 /// <item>Rage (5 min): the AI hunts everything alive with his fists only (+15 Shock, +100 Structural per punch,
 /// run speed ×1.5, smashing through whatever is in the way).</item>
-/// <item>Dying (4 s): stops, screams, shakes, discharges intensify; falls, explodes in energy (20 Shock in 10
+/// <item>Dying (4 s): stops, says «Прости! Прости!», shakes, discharges intensify; falls, explodes in energy (20 Shock in 10
 /// tiles again) and dies. He can't be revived (<see cref="UnrevivableComponent"/>, damage stays locked).</item>
 /// </list>
 /// </summary>
@@ -158,7 +158,6 @@ public sealed class GilbertBerserkSystem : SharedGilbertBerserkSystem
         SetPhase(ent, GilbertBerserkPhase.Transition, now);
         comp.BurstDone = false;
         comp.Fallen = false;
-        comp.NextScream = now;
         comp.NextArc = now;
         comp.NextCrackle = TimeSpan.MaxValue;
         comp.StreamStep = 0;
@@ -386,7 +385,7 @@ public sealed class GilbertBerserkSystem : SharedGilbertBerserkSystem
         var now = _timing.CurTime;
         StopRageMusic(comp);
         RemComp<JitteringComponent>(ent);
-        comp.NextScream = now;
+        comp.DeathLineSaid = false;
         comp.NextArc = now;
         comp.Fallen = false;
         SetPhase(ent, GilbertBerserkPhase.Dying, now);
@@ -401,7 +400,14 @@ public sealed class GilbertBerserkSystem : SharedGilbertBerserkSystem
         var t = now - comp.PhaseStart;
         var k = (float) Math.Clamp(t.TotalSeconds / Math.Max(comp.DyingDuration.TotalSeconds, 0.01), 0, 1);
 
-        Scream(ent, now, comp.FallAt);
+        // v9: no zombie wails any more, just his own «Прости! Прости!», once.
+        if (!comp.DeathLineSaid && t >= comp.DeathLineDelay)
+        {
+            comp.DeathLineSaid = true;
+            TrackLoud(comp, _audio.PlayPvs(comp.DeathLineSound, ent));
+            _chat.TrySendInGameICMessage(ent, Loc.GetString("gilbert-berserk-death-line"), InGameICChatType.Speak,
+                ChatTransmitRange.Normal, checkRadioPrefix: false, ignoreActionBlocker: true);
+        }
 
         if (now >= comp.NextArc)
         {
@@ -537,16 +543,6 @@ public sealed class GilbertBerserkSystem : SharedGilbertBerserkSystem
     #endregion
 
     #region Effects
-
-    private void Scream(Entity<GilbertBerserkComponent> ent, TimeSpan now, TimeSpan until)
-    {
-        var comp = ent.Comp;
-        if (now < comp.NextScream || now - comp.PhaseStart >= until)
-            return;
-
-        comp.NextScream = now + TimeSpan.FromSeconds(_random.NextFloat(comp.ScreamIntervalMin, comp.ScreamIntervalMax));
-        TrackLoud(comp, _audio.PlayPvs(comp.ScreamSound, ent));
-    }
 
     private void SpawnBodyArcs(Entity<GilbertBerserkComponent> ent, int count)
     {

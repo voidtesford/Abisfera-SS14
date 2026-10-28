@@ -2,7 +2,11 @@ using System.Numerics;
 using Content.Server.NPC.Components;
 using Content.Server.NPC.Pathfinding;
 using Content.Shared._CorvaxGoob.Gilbert;
+using Content.Shared.Climbing.Components;
 using Content.Shared.Damage;
+using Content.Shared.Doors.Components;
+using Content.Shared.Prying.Components;
+using Content.Shared._Shitmed.DoAfter;
 using Content.Goobstation.Maths.FixedPoint;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Physics;
@@ -38,6 +42,80 @@ public sealed partial class GilbertAISystem
     private void InitializeBerserk()
     {
         SubscribeLocalEvent<GilbertAIComponent, GilbertBerserkPhaseChangedEvent>(OnBerserkPhaseChanged);
+        SubscribeLocalEvent<GilbertAIComponent, GetPryTimeModifierEvent>(OnGetPryTime);
+        SubscribeLocalEvent<GilbertAIComponent, GetDoAfterDelayMultiplierEvent>(OnGetDoAfterDelay);
+    }
+
+    /// <summary>
+    /// v9 (t258u): how long he takes to force an airlock. Phase 1: with his bare hands, a flat
+    /// <see cref="GilbertAIComponent.HandPryTime"/> (5 s) whatever the airlock (powered or not); bolts still stop
+    /// him (the door cancels the pry). The rage: instantly, like a crowbar, bolts or not.
+    /// </summary>
+    private void OnGetPryTime(Entity<GilbertAIComponent> ent, ref GetPryTimeModifierEvent args)
+    {
+        if (args.User != ent.Owner)
+            return;
+
+        if (InBerserk(ent))
+        {
+            args.PryTimeModifier = 0f;
+            return;
+        }
+
+        var tool = CompOrNull<PryingComponent>(ent)?.SpeedModifier ?? 1f;
+        // His (human) hands speed every do-after up (0.9 × 0.9); the pry itself must still take the full 5 s.
+        var hands = new GetDoAfterDelayMultiplierEvent();
+        RaiseLocalEvent(ent, hands);
+        var mult = hands.Multiplier > 0.01f ? hands.Multiplier : 1f;
+        args.BaseTime = ent.Comp.HandPryTime * tool / mult;
+        args.PryTimeModifier = 1f;
+    }
+
+    /// <summary>v9 (t259u): in the rage he vaults over tables (his only do-afters then) about three times faster.</summary>
+    private void OnGetDoAfterDelay(Entity<GilbertAIComponent> ent, ref GetDoAfterDelayMultiplierEvent args)
+    {
+        if (InBerserk(ent))
+            args.Multiplier *= ent.Comp.BerserkDoAfterMultiplier;
+    }
+
+    /// <summary>v9 (t258u): the rage rips airlocks open through bolts (PryingComponent.Force); phase 1 doesn't.</summary>
+    private void UpdateBerserkPrying(EntityUid uid)
+    {
+        var prying = EnsureComp<PryingComponent>(uid);
+        var berserk = InBerserk(uid);
+        prying.Force = berserk;
+        prying.PryPowered = true;
+        prying.Enabled = true;
+        Dirty(uid, prying);
+    }
+
+    /// <summary>
+    /// v9 (t258u/t259u): a pry / climb do-after started by his steering (or him standing on a table mid-vault):
+    /// waiting for it is not being stuck.
+    /// </summary>
+    private bool IsBusyWithObstacle(EntityUid uid)
+    {
+        if (TryComp<ClimbingComponent>(uid, out var climbing) && climbing.NextTransition != null)
+            return true;
+
+        return TryComp<NPCSteeringComponent>(uid, out var steering) && steering.DoAfterId is { } id
+               && _doAfter.GetStatus(id) == Content.Shared.DoAfter.DoAfterStatus.Running;
+    }
+
+    /// <summary>v9 (t258u): an airlock right in front of him in the rage is ripped open, not beaten down.</summary>
+    private bool TryRipDoor(EntityUid uid, EntityUid door)
+    {
+        if (!TryComp<DoorComponent>(door, out var doorComp) || doorComp.State is DoorState.Open or DoorState.Opening)
+            return false;
+
+        // Already at it (the pry do-after, 0 s in the rage, finishes next tick).
+        if (HasActiveDoAfter(uid))
+            return true;
+
+        if (!HasComp<PryingComponent>(uid))
+            UpdateBerserkPrying(uid);
+
+        return _prying.TryPry(door, uid, out var id, uid) && id != null;
     }
 
     public bool InBerserk(EntityUid uid)
@@ -58,6 +136,7 @@ public sealed partial class GilbertAISystem
         ent.Comp.BerserkTarget = null;
         ent.Comp.BerserkObstacle = null;
         ent.Comp.NextBerserkPick = TimeSpan.Zero;
+        UpdateBerserkPrying(ent);
         ent.Comp.BerserkLastProgress = _timing.CurTime;
         ent.Comp.State = GilbertAIState.Combat;
         _speed.RefreshMovementSpeedModifiers(ent);
@@ -92,6 +171,9 @@ public sealed partial class GilbertAISystem
         {
             comp.BerserkTarget = null;
             comp.NextBerserkPick = TimeSpan.Zero;
+            // v9: still alive, just out of sight: guess where it ran.
+            if (IsBerserkVictim(ent, current) && comp.BerserkLastKnown is { } lost)
+                BuildPursuitPlan(ent, lost, comp.LastSeenVelocity);
         }
 
         // v8: he only goes for what he can see (360°, 10 tiles, line of sight, windows see-through); re-checked
@@ -100,8 +182,13 @@ public sealed partial class GilbertAISystem
         {
             comp.NextBerserkPick = now + BerserkRepick;
             var picked = FindBerserkVictim(ent, xform, berserk.Comp);
-            if (picked != comp.BerserkTarget)
+            // v9: only a genuinely new victim restarts the stuck clock; the same one flickering in and out of
+            // sight (round a window frame) used to keep him "making progress" forever in front of the glass.
+            if (picked != null && picked != comp.BerserkLastPicked)
+            {
                 comp.BerserkLastProgress = now;
+                comp.BerserkLastPicked = picked;
+            }
             comp.BerserkTarget = picked;
         }
 
@@ -118,6 +205,8 @@ public sealed partial class GilbertAISystem
         comp.BerserkLastKnown = Transform(target).Coordinates;
         comp.BerserkLastSeen = now;
         comp.BerserkSearchUntil = TimeSpan.Zero;
+        comp.BerserkRoamGoal = null;
+        RecordEnemyMotion(comp, target);
 
         var distance = (_transform.GetWorldPosition(target) - myPos).Length();
         if (distance <= reach + 0.1f && _interaction.InRangeUnobstructed(ent.Owner, target, reach + 0.1f))
@@ -131,12 +220,26 @@ public sealed partial class GilbertAISystem
             return;
         }
 
+        // v9: right there but something (a window, a door, a grille) is in between: break it now instead of
+        // shuffling about in front of it.
+        if (comp.BerserkObstacle == null && distance <= reach + 1.2f
+            && !_interaction.InRangeUnobstructed(ent.Owner, target, distance + 0.1f)
+            && TryPickObstacle(ent, xform, Transform(target).Coordinates, myPos, _transform.GetWorldPosition(target),
+                distance, reach, out var between))
+        {
+            comp.BerserkObstacle = between;
+            comp.BerserkObstacleSince = now;
+            SmashObstacle(ent, xform, between, myPos, reach, now);
+            return;
+        }
+
         // Follow the victim itself so a moving target doesn't restart the path every tick.
         BerserkApproach(ent, xform, new EntityCoordinates(target, Vector2.Zero), myPos, reach, now);
     }
 
     /// <summary>
-    /// v8: nobody in sight. Go to where he last saw / heard someone, search around there, then prowl.
+    /// v8/v9: nobody in sight. Go to where he last saw / heard someone, then along the guessed escape route and
+    /// through the rooms around it, then roam towards wherever living things are. Never stands still.
     /// </summary>
     private void BerserkHunt(Entity<GilbertAIComponent> ent, TransformComponent xform, Vector2 myPos, float reach,
         TimeSpan now)
@@ -150,7 +253,8 @@ public sealed partial class GilbertAISystem
             {
                 comp.BerserkLastKnown = null;
             }
-            else if (comp.BerserkSearchUntil == TimeSpan.Zero && toSpot > 1.2f)
+            else if (comp.BerserkSearchUntil == TimeSpan.Zero && toSpot > 1.2f
+                     && now - comp.BerserkLastSeen < comp.BerserkRoamTimeout)
             {
                 BerserkApproach(ent, xform, spot, myPos, reach, now);
                 return;
@@ -161,6 +265,8 @@ public sealed partial class GilbertAISystem
                 {
                     comp.BerserkSearchUntil = now + BerserkSearchTime;
                     comp.NextBerserkSearchStep = now;
+                    comp.SearchRoomsChecked = 0;
+                    comp.BerserkRoamGoal = null;
                 }
 
                 if (now < comp.BerserkSearchUntil)
@@ -170,27 +276,57 @@ public sealed partial class GilbertAISystem
                         && SmashObstacle(ent, xform, wall, myPos, reach, now))
                         return;
 
-                    if (now >= comp.NextBerserkSearchStep)
+                    // v9: the guessed route first, then two rooms around it; each step the moment the last one is
+                    // reached (or he gets stuck on it).
+                    var step = comp.BerserkRoamGoal;
+                    var next = step is not { } cur || !cur.IsValid(EntityManager)
+                               || _transform.InRange(xform.Coordinates, cur, 1.5f) || now >= comp.NextBerserkSearchStep
+                               || CheckOscillation(ent, xform, now, comp.BerserkOscillationWindow, false);
+                    if (next)
                     {
-                        comp.NextBerserkSearchStep = now + TimeSpan.FromSeconds(_random.NextFloat(1f, 2f));
-                        Wander(ent, spot, 4f);
+                        if (step is { } old && !_transform.InRange(xform.Coordinates, old, 1.5f))
+                            BlacklistSpot(comp, old);
+
+                        step = null;
+                        if (TryPopPursuit(comp, out var predicted))
+                            step = predicted;
+                        else if (comp.SearchRoomsChecked++ < 2
+                                 && TryPickSearchPoint(ent, xform, comp.SearchCenter ?? spot, 4f, 10f, out var room, comp.SearchBias))
+                            step = room;
+
+                        if (step == null)
+                        {
+                            comp.BerserkSearchUntil = now;
+                        }
+                        else
+                        {
+                            comp.BerserkRoamGoal = step;
+                            comp.BerserkRoamStarted = now;
+                            comp.NextBerserkSearchStep = now + TimeSpan.FromSeconds(6);
+                            comp.BerserkSearchUntil = MaxTime(comp.BerserkSearchUntil, now + TimeSpan.FromSeconds(6));
+                        }
                     }
 
-                    return;
+                    if (comp.BerserkRoamGoal is { } go && now < comp.BerserkSearchUntil)
+                    {
+                        BerserkApproach(ent, xform, go, myPos, reach, now);
+                        return;
+                    }
                 }
 
                 comp.BerserkLastKnown = null;
                 comp.BerserkSearchUntil = TimeSpan.Zero;
+                comp.BerserkRoamGoal = null;
+                comp.PursuitPlan.Clear();
+                comp.SearchCenter = null;
             }
         }
 
-        // Nothing alive around: prowl.
-        if (now >= comp.NextWander)
-        {
-            comp.NextWander = now + TimeSpan.FromSeconds(_random.NextFloat(2f, 4f));
-            Wander(ent, xform.Coordinates, 6f);
-        }
+        // v9: nothing to go on: roam (memory + scent), smashing through anything.
+        BerserkRoam(ent, xform, myPos, reach, now);
     }
+
+    private static TimeSpan MaxTime(TimeSpan a, TimeSpan b) => a > b ? a : b;
 
     /// <summary>
     /// v8: walk to <paramref name="goal"/> through anything: fresh paths whenever he stops gaining ground, and when
@@ -218,10 +354,32 @@ public sealed partial class GilbertAISystem
         steering.Range = MathF.Max(0.6f, reach - 0.4f);
         steering.DirectMove = false;
         steering.RepathRange = 0.75f;
-        steering.Flags |= PathFlags.Interact | PathFlags.Prying | PathFlags.Smashing;
+        steering.Flags = BerserkPathFlags;
 
-        if ((myPos - comp.BerserkLastPos).LengthSquared() > 0.25f)
+        // v9 (t258u/t259u): ripping an airlock open / vaulting a table: that is progress, not being stuck.
+        if (IsBusyWithObstacle(ent))
         {
+            comp.BerserkLastPos = myPos;
+            comp.BerserkLastProgress = now;
+            return;
+        }
+
+        // v9: progress = actually getting closer to the goal, or really going somewhere (2 tiles from where he last
+        // made progress, e.g. round a detour). Shuffling back and forth in front of an obstacle is neither.
+        var goalNow = _transform.ToMapCoordinates(goal).Position;
+        var goalDist = (goalNow - myPos).Length();
+        if ((goalNow - comp.BerserkProgressGoal).LengthSquared() > 1f)
+        {
+            comp.BerserkProgressGoal = goalNow;
+            comp.BerserkBestGoalDist = goalDist;
+            comp.BerserkLastPos = myPos;
+            comp.BerserkLastProgress = now;
+            return;
+        }
+
+        if (goalDist < comp.BerserkBestGoalDist - 0.3f || (myPos - comp.BerserkLastPos).LengthSquared() > 4f)
+        {
+            comp.BerserkBestGoalDist = MathF.Min(comp.BerserkBestGoalDist, goalDist);
             comp.BerserkLastPos = myPos;
             comp.BerserkLastProgress = now;
             return;
@@ -287,12 +445,25 @@ public sealed partial class GilbertAISystem
         if (obstacleXform.MapID != xform.MapID)
             return false;
 
+        // v9: an airlock that is (being) opened is no obstacle any more.
+        if (TryComp<DoorComponent>(obstacle, out var obstacleDoor) && obstacleDoor.State is DoorState.Open or DoorState.Opening)
+            return false;
+
         var obstaclePos = _transform.GetWorldPosition(obstacleXform);
         var toObstacle = obstaclePos - myPos;
         var length = toObstacle.Length();
         // In reach and nothing else in between (a wall corner would eat the punch).
         if (length <= reach + 0.5f && _interaction.InRangeUnobstructed(ent.Owner, obstacle, reach + 0.5f))
         {
+            // v9 (t258u): an airlock is ripped open (instantly, bolts or not) instead of beaten down.
+            if (TryRipDoor(ent, obstacle))
+            {
+                ent.Comp.BerserkDoorsRipped++;
+                ent.Comp.BerserkObstacleSince = now;
+                ent.Comp.BerserkLastProgress = now;
+                return false;
+            }
+
             _steering.Unregister(ent);
             FaceTowards(ent, obstacle);
             if (Punch(ent, obstacle))
@@ -356,8 +527,6 @@ public sealed partial class GilbertAISystem
             var walk = BerserkSteer(ent, spotCoords);
             walk.Range = 0.3f;
             walk.DirectMove = clear;
-            if (!clear)
-                walk.Flags |= PathFlags.Interact | PathFlags.Prying;
         }
 
         return true;
@@ -519,14 +688,7 @@ public sealed partial class GilbertAISystem
     /// </summary>
     private NPCSteeringComponent BerserkSteer(EntityUid uid, EntityCoordinates coordinates)
     {
-        if (TryComp<NPCSteeringComponent>(uid, out var existing) && existing.Status == SteeringStatus.NoPath
-            && !existing.Coordinates.Equals(coordinates))
-        {
-            existing.Status = SteeringStatus.Moving;
-            existing.FailedPathCount = 0;
-        }
-
-        return _steering.Register(uid, coordinates, existing);
+        return SteerTo(uid, coordinates, exact: true);
     }
 
     private bool IsBerserkVictim(EntityUid uid, EntityUid target)
@@ -617,6 +779,8 @@ public sealed partial class GilbertAISystem
         if (ent.Comp.BerserkTarget == null)
         {
             ent.Comp.BerserkLastKnown = Transform(attacker).Coordinates;
+            ent.Comp.BerserkLastSeen = _timing.CurTime; // v9
+            ent.Comp.BerserkRoamGoal = null;
             ent.Comp.BerserkSearchUntil = TimeSpan.Zero;
             ent.Comp.BerserkLastProgress = _timing.CurTime;
         }
@@ -643,6 +807,12 @@ public sealed partial class GilbertAISystem
         ent.Comp.BerserkLastKnown = coords;
         ent.Comp.BerserkSearchUntil = TimeSpan.Zero;
         ent.Comp.BerserkLastProgress = _timing.CurTime;
+        // v9: a sound has no heading: search the rooms around it.
+        ent.Comp.BerserkLastSeen = _timing.CurTime;
+        ent.Comp.BerserkRoamGoal = null;
+        ent.Comp.PursuitPlan.Clear();
+        ent.Comp.SearchCenter = coords;
+        ent.Comp.SearchBias = Vector2.Zero;
     }
 
     /// <summary>

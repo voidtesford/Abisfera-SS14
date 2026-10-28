@@ -87,6 +87,7 @@ public sealed partial class GilbertAISystem : EntitySystem
     [Dependency] private readonly TagSystem _tag = default!;
     [Dependency] private readonly TransformSystem _transform = default!;
     [Dependency] private readonly GilbertSpawnSequenceSystem _sequence = default!;
+    [Dependency] private readonly Content.Shared.Prying.Systems.PryingSystem _prying = default!; // v9 (t258u)
     [Dependency] private readonly Content.Server.Destructible.DestructibleSystem _destructible = default!; // v8: pick the weakest thing to smash
 
     private static readonly ProtoId<TagPrototype> WallTag = "Wall";
@@ -97,6 +98,7 @@ public sealed partial class GilbertAISystem : EntitySystem
     {
         base.Initialize();
         SubscribeLocalEvent<GilbertAIComponent, MapInitEvent>(OnMapInit);
+        SubscribeLocalEvent<PrototypesReloadedEventArgs>(OnPrototypesReloadedMedicine);
         SubscribeLocalEvent<GilbertAIComponent, MobStateChangedEvent>(OnMobStateChanged);
         SubscribeLocalEvent<GilbertAIComponent, DamageChangedEvent>(OnDamageChanged);
         SubscribeLocalEvent<GilbertAIComponent, RefreshMovementSpeedModifiersEvent>(OnRefreshSpeed);
@@ -257,6 +259,7 @@ public sealed partial class GilbertAISystem : EntitySystem
             Think((uid, comp), xform, now);
             OpenDoorsAhead((uid, comp), xform);
             UpdateWatchdog((uid, comp), xform, now);
+            UpdateOscillation((uid, comp), xform, now);
         }
     }
 
@@ -267,10 +270,15 @@ public sealed partial class GilbertAISystem : EntitySystem
             : TimeSpan.FromTicks(Math.Min((now - comp.LastThink).Ticks, TimeSpan.FromSeconds(1).Ticks));
         comp.LastThink = now;
         MarkVisited(ent, xform, now);
+        UpdateMentalMap(ent, xform, now);
+        RecordOwnGear(ent);
         var seen = FindVisibleEnemy(ent, xform);
         if (seen != null)
         {
             comp.LastSeenEnemy = now;
+            // v9: memory of who he saw when, read only when he (re-)enters a fight - so update it before that.
+            if (comp.State is GilbertAIState.Combat or GilbertAIState.Surrender or GilbertAIState.Expel)
+                NoteEnemySeen(comp, seen.Value, now);
             // Whoever he noticed (even right behind him) gets faced, unless his hands are busy aiming a throw.
             if (comp.Task != GilbertTask.Grenade)
                 FaceTowards(ent, seen.Value);
@@ -319,6 +327,9 @@ public sealed partial class GilbertAISystem : EntitySystem
                     UpdateTask(ent, now);
                     return;
                 }
+                // v9: his own lost weapon in sight comes first.
+                if (TryStartRecover(ent, xform, now))
+                    return;
                 if (TryPendingInvestigate(ent, now))
                     return;
                 if (TryStartHealing(ent, now) || TryStartScavenge(ent, xform, now))
@@ -331,6 +342,9 @@ public sealed partial class GilbertAISystem : EntitySystem
                 break;
 
             case GilbertAIState.Combat:
+                // v9: badly hurt and the enemy out of sight for a moment: a quick injection.
+                if (seen == null && TryStartCriticalHeal(ent, now))
+                    return;
                 UpdateCombat(ent, xform, now, seen);
                 break;
 
@@ -340,7 +354,7 @@ public sealed partial class GilbertAISystem : EntitySystem
                     EnterCombat(ent, seen.Value, "found");
                     return;
                 }
-                if (TryStartHealing(ent, now) || TryStartScavenge(ent, xform, now))
+                if (TryStartHealing(ent, now) || TryStartRecover(ent, xform, now) || TryStartScavenge(ent, xform, now))
                     return;
                 UpdateSearch(ent, xform, now);
                 break;
@@ -352,7 +366,8 @@ public sealed partial class GilbertAISystem : EntitySystem
                     return;
                 }
                 // v8: no detours for loot on the way to a sound; only once he is looking around the spot.
-                if (TryStartHealing(ent, now) || comp.InvestigateArrived && TryStartScavenge(ent, xform, now))
+                if (TryStartHealing(ent, now) || TryStartRecover(ent, xform, now)
+                    || comp.InvestigateArrived && TryStartScavenge(ent, xform, now))
                     return;
                 UpdateInvestigate(ent, xform, now);
                 break;
@@ -454,6 +469,8 @@ public sealed partial class GilbertAISystem : EntitySystem
             return;
 
         ent.Comp.State = state;
+        ent.Comp.Route.Clear();
+        ent.Comp.RouteLeg = null;
         _speed.RefreshMovementSpeedModifiers(ent);
     }
 
@@ -492,8 +509,19 @@ public sealed partial class GilbertAISystem : EntitySystem
         comp.LastKnownPosition = Transform(target).Coordinates;
         comp.LastTargetDistance = DistanceTo(ent, target);
 
-        if (!wasFighting && line != null)
+        var now = _timing.CurTime;
+        if (!wasFighting && line == "found")
+        {
+            // v9: re-spotting someone he lost sight of a moment ago is not a new contact.
+            if (ContactLine(comp, target, now) is { } index && LineOffCooldown(comp, line, now))
+                Say(ent, line, Math.Min(index, comp.LineCounts.GetValueOrDefault(line, 1)));
+        }
+        else if (!wasFighting && line != null)
+        {
             SayRandom(ent, line);
+        }
+
+        NoteEnemySeen(comp, target, now);
     }
 
     private void EnterSearch(Entity<GilbertAIComponent> ent)
@@ -506,9 +534,16 @@ public sealed partial class GilbertAISystem : EntitySystem
         comp.SearchRoomsChecked = 0;
         comp.SearchLookUntil = TimeSpan.Zero;
         comp.NextWander = _timing.CurTime;
+        comp.PursuitPlan.Clear();
+        comp.SearchCenter = null;
+        comp.SearchBias = Vector2.Zero;
 
         if (comp.LastKnownPosition is { } last)
+        {
+            // v9: guess where they went from how they were moving.
+            BuildPursuitPlan(ent, last, comp.LastSeenVelocity);
             RegisterMove(ent, last, 0.8f);
+        }
     }
 
     private void EnterIdle(Entity<GilbertAIComponent> ent)
@@ -519,6 +554,9 @@ public sealed partial class GilbertAISystem : EntitySystem
         SetState(ent, GilbertAIState.Idle);
         comp.Target = null;
         comp.LastKnownPosition = null;
+        comp.LastSeenVelocity = Vector2.Zero;
+        comp.PursuitPlan.Clear();
+        comp.SearchCenter = null;
         comp.ExpelTarget = null;
         comp.ExpelPunched = false;
         // Fight over: cuffed people are captives again (the loitering rules start from scratch).
@@ -550,8 +588,12 @@ public sealed partial class GilbertAISystem : EntitySystem
         {
             if (steering.Status == SteeringStatus.InRange)
             {
+                var reached = steering.Coordinates;
                 _steering.Unregister(ent);
                 comp.MoveTarget = null;
+                if (NextRouteWaypoint(ent, reached))
+                    return;
+
                 comp.NextWander = now + TimeSpan.FromSeconds(_random.NextFloat(
                     (float) comp.ExplorePauseMin.TotalSeconds, (float) comp.ExplorePauseMax.TotalSeconds));
             }
@@ -578,17 +620,18 @@ public sealed partial class GilbertAISystem : EntitySystem
             return;
         }
 
-        var steering = _steering.Register(uid, coords);
+        var steering = SteerTo(uid, coords);
         steering.Range = range;
-        // He isn't an HTN NPC, so the pathfinder would treat every closed door as a wall. He opens doors
-        // (all-access ID, see OpenDoorsAhead) and plans through access airlocks.
-        steering.Flags |= PathFlags.Interact | PathFlags.Prying;
+        // He isn't an HTN NPC, so the pathfinder would treat every closed door as a wall. v9: he plans through
+        // airlocks: opened with his all-access ID (Access), forced open when the ID doesn't work (Prying).
+        steering.Flags |= GilbertPathFlags;
 
         if (TryComp<GilbertAIComponent>(uid, out var comp)
             && (comp.MoveTarget is not { } old || !_transform.InRange(old, coords, 2f)))
         {
             comp.MoveTarget = coords;
             comp.MoveStarted = _timing.CurTime;
+            comp.DoorwayRepaths = 0;
         }
     }
 
@@ -864,6 +907,8 @@ public sealed partial class GilbertAISystem : EntitySystem
         {
             comp.LastSeenTarget = now;
             comp.LastKnownPosition = Transform(tgt).Coordinates;
+            RecordEnemyMotion(comp, tgt);
+            NoteEnemySeen(comp, tgt, now);
         }
         // v8: reloading behind cover takes him out of sight on purpose; losing the target must not cancel the
         // reload (that aborted the fill, stuffed the box into his bag and restarted the whole thing: the loop).
@@ -874,6 +919,10 @@ public sealed partial class GilbertAISystem : EntitySystem
             EnterSearch(ent);
             return;
         }
+
+        // v9: his own weapon lying right next to him (or the enemy is out of sight): grab it back first.
+        if (comp.Task == GilbertTask.None && TryStartRecover(ent, xform, now, combat: true))
+            StopCombatComponents(ent);
 
         // A manual job in progress (reload / grenade) takes priority.
         if (comp.Task != GilbertTask.None)
@@ -955,8 +1004,13 @@ public sealed partial class GilbertAISystem : EntitySystem
 
         var ranged = EnsureComp<NPCRangedCombatComponent>(ent);
         ranged.Target = tgt;
-        if (visible && dist <= comp.RangedKeepDistance)
+        // v9 (t257u): seen through a glass airlock / window is not a shot: no standing there aiming at the glass,
+        // he goes through the airlock (ID, forcing it) to them.
+        var clearShot = visible && _interaction.InRangeUnobstructed(ent.Owner, tgt, dist + 0.5f);
+        if (visible && clearShot && dist <= comp.RangedKeepDistance)
             _steering.Unregister(ent);
+        else if (visible && !clearShot)
+            RegisterMove(ent, Transform(tgt).Coordinates, 1.2f);
         else
             RegisterMove(ent, comp.LastKnownPosition ?? Transform(tgt).Coordinates, comp.RangedKeepDistance - 0.5f);
     }
@@ -1010,20 +1064,29 @@ public sealed partial class GilbertAISystem : EntitySystem
                 case SteeringStatus.InRange:
                     _steering.Unregister(ent);
                     comp.MoveTarget = null;
-                    comp.ArrivedAtLastKnown = true;
-                    StartSearchLook(ent, now);
+                    // v9: a quick look around only where they were last seen; the guessed route and the rooms
+                    // are walked through without stopping.
+                    if (!comp.ArrivedAtLastKnown)
+                    {
+                        comp.ArrivedAtLastKnown = true;
+                        StartSearchLook(ent, now);
+                    }
                     break;
 
                 case SteeringStatus.NoPath:
                     _steering.Unregister(ent);
-                    comp.MoveTarget = null;
                     // A wall or an airlock he can't open between him and where they were? Blow it open.
                     if (!comp.ArrivedAtLastKnown && comp.LastKnownPosition is { } last
                         && TryStartBreach(ent, xform, last, now))
+                    {
+                        comp.MoveTarget = null;
                         return;
+                    }
 
+                    if (comp.MoveTarget is { } unreachable)
+                        BlacklistSpot(comp, unreachable);
+                    comp.MoveTarget = null;
                     comp.ArrivedAtLastKnown = true;
-                    StartSearchLook(ent, now);
                     break;
             }
 
@@ -1036,11 +1099,18 @@ public sealed partial class GilbertAISystem : EntitySystem
             return;
         }
 
-        // Next: an adjacent room, then wider sweeps.
-        var center = comp.LastKnownPosition ?? xform.Coordinates;
+        // v9: then along the guessed escape route (the door they were heading for and a bit past it).
+        if (TryPopPursuit(comp, out var predicted))
+        {
+            RegisterMove(ent, predicted, 1f);
+            return;
+        }
+
+        // Next: an adjacent room (around the predicted spot, leaning their way), then wider sweeps.
+        var center = comp.SearchCenter ?? comp.LastKnownPosition ?? xform.Coordinates;
         var rooms = comp.SearchRoomsChecked < comp.SearchRooms;
         comp.SearchRoomsChecked++;
-        if (TryPickSearchPoint(ent, xform, center, rooms ? 4f : 8f, rooms ? 10f : 20f, out var point))
+        if (TryPickSearchPoint(ent, xform, center, rooms ? 4f : 8f, rooms ? 10f : 20f, out var point, comp.SearchBias))
             RegisterMove(ent, point, 1f);
         else
             Wander(ent, center, 5f);
@@ -1057,7 +1127,7 @@ public sealed partial class GilbertAISystem : EntitySystem
     /// and areas he hasn't checked yet.
     /// </summary>
     private bool TryPickSearchPoint(Entity<GilbertAIComponent> ent, TransformComponent xform, EntityCoordinates center,
-        float minDist, float maxDist, out EntityCoordinates point)
+        float minDist, float maxDist, out EntityCoordinates point, Vector2 bias = default)
     {
         point = default;
         var gridUid = _transform.GetGrid(center);
@@ -1078,6 +1148,9 @@ public sealed partial class GilbertAISystem : EntitySystem
                 continue;
 
             var candidate = _map.GridTileToLocal(g, grid, tile);
+            if (IsBlacklisted(ent.Comp, (g, CellOfTile(tile, ent.Comp)), _timing.CurTime))
+                continue;
+
             var score = _random.NextFloat(0f, 5f);
             if (!IsVisited(ent, candidate))
                 score += 20f;
@@ -1090,6 +1163,10 @@ public sealed partial class GilbertAISystem : EntitySystem
                 var ray = new CollisionRay(centerMap.Position, Vector2.Normalize(delta), (int) CollisionGroup.Impassable);
                 if (_physics.IntersectRay(centerMap.MapId, ray, delta.Length(), ent.Owner).Any())
                     score += 30f;
+
+                // v9: the way they were running.
+                if (bias != Vector2.Zero)
+                    score += Vector2.Dot(bias, Vector2.Normalize(delta)) * 25f;
             }
 
             if (score > bestScore)
@@ -1170,14 +1247,43 @@ public sealed partial class GilbertAISystem : EntitySystem
         if (comp.Task != GilbertTask.None || now < comp.NextHealAttempt || now - comp.LastDamaged < comp.HealSafeDelay)
             return false;
 
-        if (!TryComp<DamageableComponent>(ent, out var damageable) || damageable.TotalDamage < comp.HealStartDamage)
+        if (!TryComp<DamageableComponent>(ent, out var damageable) || !NeedsTreatment(comp, ent, damageable, true))
             return false;
 
+        comp.HealCritical = false;
         comp.HealBlacklist.RemoveWhere(e => TerminatingOrDeleted(e));
         if (!TryPickHealingItem(ent, damageable, out _))
         {
             // Out of medicine: he just can't heal. Check again later in case he picks some up.
             comp.NextHealAttempt = now + TimeSpan.FromSeconds(30);
+            return false;
+        }
+
+        StopCombatComponents(ent);
+        _steering.Unregister(ent);
+        SetState(ent, GilbertAIState.Heal);
+        return true;
+    }
+
+    /// <summary>
+    /// v9: mid-fight only when it's critical (<see cref="GilbertAIComponent.HealCriticalDamage"/>), the enemy has been
+    /// out of sight for <see cref="GilbertAIComponent.HealCriticalDelay"/>, and with an instant injector.
+    /// </summary>
+    private bool TryStartCriticalHeal(Entity<GilbertAIComponent> ent, TimeSpan now)
+    {
+        var comp = ent.Comp;
+        if (comp.Task != GilbertTask.None || now < comp.NextHealAttempt || now - comp.LastSeenTarget < comp.HealCriticalDelay)
+            return false;
+
+        if (!TryComp<DamageableComponent>(ent, out var damageable) || damageable.TotalDamage < comp.HealCriticalDamage)
+            return false;
+
+        comp.HealCritical = true;
+        comp.HealBlacklist.RemoveWhere(e => TerminatingOrDeleted(e));
+        if (!TryPickHealingItem(ent, damageable, out _))
+        {
+            comp.HealCritical = false;
+            comp.NextHealAttempt = now + TimeSpan.FromSeconds(10);
             return false;
         }
 
@@ -1202,7 +1308,10 @@ public sealed partial class GilbertAISystem : EntitySystem
             return;
         }
 
-        if (damageable.TotalDamage <= comp.HealStopDamage || !TryPickHealingItem(ent, damageable, out var item))
+        var enough = comp.HealCritical
+            ? damageable.TotalDamage < comp.HealCriticalDamage - 60
+            : !NeedsTreatment(comp, ent, damageable, false);
+        if (enough || !TryPickHealingItem(ent, damageable, out var item))
         {
             comp.NextHealAttempt = now + TimeSpan.FromSeconds(30);
             FinishHealing(ent);
@@ -1217,6 +1326,8 @@ public sealed partial class GilbertAISystem : EntitySystem
         var comp = ent.Comp;
         if (comp.Task == GilbertTask.HealItem)
             FinishTask(ent);
+
+        comp.HealCritical = false;
 
         // Back to whatever he was doing: searching if the fight was recent, otherwise passive.
         if (_timing.CurTime - comp.LastSeenEnemy < comp.SearchTimeout)
@@ -1244,16 +1355,17 @@ public sealed partial class GilbertAISystem : EntitySystem
     }
 
     /// <summary>
-    /// Picks the stored medical item that treats the damage he has the most of.
+    /// v9: picks the stored medicine that does him the most good right now (<see cref="ScoreTreatment"/>): damage
+    /// of the kinds he has, bleeding, blood loss; never one that would overdose him; topicals preferred.
     /// </summary>
     public bool TryPickHealingItem(Entity<GilbertAIComponent> ent, DamageableComponent damageable, out EntityUid item)
     {
         item = default;
-        var bestScore = FixedPoint2.Zero;
+        var bestScore = 0f;
 
         foreach (var candidate in EnumerateStored(ent))
         {
-            var score = ScoreHealingItem(ent.Comp, candidate, damageable);
+            var score = ScoreTreatment(ent.Comp, ent, candidate, damageable, ent.Comp.HealCritical);
             if (score > bestScore)
             {
                 bestScore = score;
@@ -1279,6 +1391,10 @@ public sealed partial class GilbertAISystem : EntitySystem
         if (TryComp<HyposprayComponent>(item, out var hypo))
             return _solutions.TryGetSolution(item, hypo.SolutionName, out _, out var sol) ? sol.Volume.Float() : 0f;
 
+        // v9: prefilled syringes, one shot at a time.
+        if (TryComp<InjectorComponent>(item, out var injector))
+            return _solutions.TryGetSolution(item, injector.SolutionName, out _, out var injSol) ? injSol.Volume.Float() : 0f;
+
         // A HealingComponent without a stack is deleted on use; surgical stitches & co. are not.
         if (HasComp<HealingComponent>(item) && !HasComp<StitchesComponent>(item) && !HasComp<SurgeryToolComponent>(item))
             return 1f;
@@ -1290,53 +1406,6 @@ public sealed partial class GilbertAISystem : EntitySystem
     public bool IsConsumableHealItem(GilbertAIComponent comp, EntityUid item)
     {
         return !comp.HealBlacklist.Contains(item) && HealCharges(item) is > 0f;
-    }
-
-    private FixedPoint2 ScoreHealingItem(GilbertAIComponent comp, EntityUid item, DamageableComponent damageable)
-    {
-        if (!IsConsumableHealItem(comp, item))
-            return FixedPoint2.Zero;
-
-        // Topicals: bruise packs, sutures, ointment, mesh...
-        if (TryComp<HealingComponent>(item, out var healing))
-        {
-            if (healing.DamageContainers is not null
-                && damageable.DamageContainerID is { } container
-                && !healing.DamageContainers.Contains(container))
-                return FixedPoint2.Zero;
-
-            var score = FixedPoint2.Zero;
-            foreach (var (type, amount) in healing.Damage.DamageDict)
-            {
-                if (amount >= 0 || !damageable.Damage.DamageDict.TryGetValue(type, out var have) || have <= 0)
-                    continue;
-                score += FixedPoint2.Min(have, -amount);
-            }
-
-            return score;
-        }
-
-        // Autoinjectors: matched by the damage group they treat; only if they still hold something.
-        if (HasComp<HyposprayComponent>(item)
-            && MetaData(item).EntityPrototype?.ID is { } protoId
-            && comp.InjectorGroups.TryGetValue(protoId, out var group)
-            && _proto.TryIndex<DamageGroupPrototype>(group, out var groupProto)
-            && TryComp<HyposprayComponent>(item, out var hypo)
-            && _solutions.TryGetSolution(item, hypo.SolutionName, out _, out var solution)
-            && solution.Volume > 0)
-        {
-            var score = FixedPoint2.Zero;
-            foreach (var type in groupProto.DamageTypes)
-            {
-                if (damageable.Damage.DamageDict.TryGetValue(type, out var have))
-                    score += have;
-            }
-
-            // A pen is a big single dose: worth it only for serious damage of its kind.
-            return score >= 40 ? score : FixedPoint2.Zero;
-        }
-
-        return FixedPoint2.Zero;
     }
 
     #endregion
@@ -1375,6 +1444,14 @@ public sealed partial class GilbertAISystem : EntitySystem
     {
         if (ent.Comp.Task is GilbertTask.Pickup && ent.Comp.TaskItem is { } loot)
             IgnoreForScavenge(ent.Comp, loot);
+
+        // v9: his own weapon in hand when the recovery is cut short: it still goes back where it belongs.
+        if (ent.Comp.Task is GilbertTask.Recover && ent.Comp.TaskItem is { } own)
+        {
+            if (!TerminatingOrDeleted(own) && _hands.IsHolding(ent.Owner, own))
+                ReturnGear(ent, own);
+            ent.Comp.TaskItem = null;
+        }
 
         if (ent.Comp.Task is GilbertTask.Loot)
         {
@@ -1428,6 +1505,9 @@ public sealed partial class GilbertAISystem : EntitySystem
                 break;
             case GilbertTask.Loot:
                 UpdateLoot(ent, item, now);
+                break;
+            case GilbertTask.Recover:
+                UpdateRecover(ent, item, now);
                 break;
         }
     }
@@ -1778,7 +1858,15 @@ public sealed partial class GilbertAISystem : EntitySystem
                 // Use it on himself like a player would (normal do-after / injection).
                 comp.HealChargesBefore = HealCharges(item) ?? 0f;
                 comp.HealDamageBefore = CompOrNull<DamageableComponent>(ent)?.TotalDamage ?? FixedPoint2.Zero;
-                _interaction.UseInHandInteraction(ent, item, checkCanInteract: false, checkUseDelay: false);
+                if (HasComp<InjectorComponent>(item))
+                {
+                    // v9: a syringe is stuck into himself (in-hand use would only toggle draw / inject).
+                    _interaction.InteractUsing(ent, item, ent, Transform(ent).Coordinates, checkCanInteract: false, checkCanUse: false);
+                }
+                else
+                {
+                    _interaction.UseInHandInteraction(ent, item, checkCanInteract: false, checkUseDelay: false);
+                }
                 comp.TaskStep = 1;
                 comp.TaskNextStep = now + TimeSpan.FromSeconds(0.5);
                 return;
@@ -1792,8 +1880,7 @@ public sealed partial class GilbertAISystem : EntitySystem
                 if (!TerminatingOrDeleted(item))
                 {
                     // Spent pens are thrown away; the rest of a stack goes back in the bag.
-                    if (TryComp<HyposprayComponent>(item, out var hypo)
-                        && _solutions.TryGetSolution(item, hypo.SolutionName, out _, out var sol) && sol.Volume <= 0)
+                    if (HealCharges(item) is <= 0f && (HasComp<HyposprayComponent>(item) || HasComp<InjectorComponent>(item)))
                         _hands.TryDrop(ent.Owner, item);
                     else
                         StowOrDrop(ent, item);
@@ -2149,12 +2236,54 @@ public sealed partial class GilbertAISystem : EntitySystem
         if (!ent.Comp.LineCounts.TryGetValue(category, out var count) || count <= 0)
             return;
 
+        if (!LineOffCooldown(ent.Comp, category, _timing.CurTime))
+            return;
+
         var index = _random.Next(1, count + 1);
         // Avoid repeating the exact same line twice in a row.
         if (count > 1 && ent.Comp.LastLine == $"{category}-{index}")
             index = index % count + 1;
 
         Say(ent, category, index);
+    }
+
+    /// <summary>v9: the global and per-kind line cooldowns (orders are exempt).</summary>
+    public bool LineOffCooldown(GilbertAIComponent comp, string category, TimeSpan now)
+    {
+        if (comp.EssentialLines.Contains(category))
+            return true;
+
+        if (comp.LastLineAt != TimeSpan.MinValue && now - comp.LastLineAt < comp.GlobalLineCooldown)
+            return false;
+
+        return !comp.LineCooldowns.TryGetValue(category, out var cooldown)
+               || !comp.LineSaidAt.TryGetValue(category, out var said)
+               || now - said >= cooldown;
+    }
+
+    /// <summary>
+    /// v9: the contact line for <paramref name="target"/>: nothing if he saw them within
+    /// <see cref="GilbertAIComponent.ReencounterMemory"/> (lost sight for a moment), «Я же говорил...» (found-2) for
+    /// someone back after a long absence, the plain contact call (found-1) for someone new.
+    /// </summary>
+    public int? ContactLine(GilbertAIComponent comp, EntityUid target, TimeSpan now)
+    {
+        if (!comp.EnemyLastSeen.TryGetValue(target, out var last))
+            return 1;
+
+        return now - last >= comp.ReencounterMemory ? 2 : null;
+    }
+
+    /// <summary>v9: remembers that this enemy is in sight right now.</summary>
+    public void NoteEnemySeen(GilbertAIComponent comp, EntityUid target, TimeSpan now)
+    {
+        comp.EnemyLastSeen[target] = now;
+        if (comp.EnemyLastSeen.Count > 64)
+        {
+            foreach (var key in comp.EnemyLastSeen.Where(kv => now - kv.Value > TimeSpan.FromMinutes(10) || TerminatingOrDeleted(kv.Key))
+                         .Select(kv => kv.Key).ToList())
+                comp.EnemyLastSeen.Remove(key);
+        }
     }
 
     /// <summary>
@@ -2167,6 +2296,8 @@ public sealed partial class GilbertAISystem : EntitySystem
             return;
 
         ent.Comp.LastLine = $"{category}-{index}";
+        ent.Comp.LineSaidAt[category] = _timing.CurTime;
+        ent.Comp.LastLineAt = _timing.CurTime;
         ent.Comp.SaidCounts[category] = ent.Comp.SaidCounts.GetValueOrDefault(category) + 1;
         _audio.PlayPvs(new SoundPathSpecifier($"{ent.Comp.AudioPath}/gilbert_{category}_{index}.ogg"), ent,
             AudioParams.Default.WithMaxDistance(14f));

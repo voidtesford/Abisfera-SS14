@@ -80,6 +80,14 @@
         damage: 5000
       behaviors:
       - !type:GibBehavior { }
+  # v9 (t258u): bare-handed prying: phase 1 forces (powered) airlocks he has no access to in 5 s (the time is set
+  # by GilbertAISystem, bolts still stop him); the rage rips them open instantly, bolts or not (force on rage start).
+  - type: Prying
+    pryPowered: true
+    instaPry: false
+    speedModifier: 1
+  # v9 (t258u): never slips on soap / spills, in both phases.
+  - type: NoSlip
   # NPC: no combat-mode UI toggle sounds (the default paths are missing in this repo and would add linter errors).
   - type: CombatMode
     combatActivationSound: null

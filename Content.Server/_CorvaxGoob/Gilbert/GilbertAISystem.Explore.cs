@@ -33,8 +33,25 @@ public sealed partial class GilbertAISystem
     /// <summary>Remembers the area he's in right now.</summary>
     private void MarkVisited(Entity<GilbertAIComponent> ent, TransformComponent xform, TimeSpan now)
     {
-        if (CellOf(xform, ent.Comp) is { } cell)
-            ent.Comp.Visited[cell] = now;
+        if (CellOf(xform, ent.Comp) is not { } cell)
+            return;
+
+        ent.Comp.Visited[cell] = now;
+
+        // v9: loose memory of the surroundings too (he saw the neighbouring cells), as if half a minute ago.
+        var loose = now - TimeSpan.FromSeconds(30);
+        for (var dx = -1; dx <= 1; dx++)
+        {
+            for (var dy = -1; dy <= 1; dy++)
+            {
+                if (dx == 0 && dy == 0)
+                    continue;
+
+                var near = (cell.Grid, cell.Cell + new Vector2i(dx, dy));
+                if (!ent.Comp.Visited.TryGetValue(near, out var at) || at < loose)
+                    ent.Comp.Visited[near] = loose;
+            }
+        }
     }
 
     /// <summary>Has he been in the area around these coordinates recently?</summary>
@@ -55,6 +72,8 @@ public sealed partial class GilbertAISystem
     private void PickIdleDestination(Entity<GilbertAIComponent> ent, TransformComponent xform, TimeSpan now, EntityCoordinates? failed = null)
     {
         var comp = ent.Comp;
+        comp.Route.Clear();
+        comp.RouteLeg = null;
 
         if (xform.GridUid is not { } gridUid || !TryComp<MapGridComponent>(gridUid, out var grid))
         {
@@ -63,7 +82,10 @@ public sealed partial class GilbertAISystem
         }
 
         if (failed is { } bad && _transform.GetGrid(bad) == gridUid)
+        {
             comp.Visited[(gridUid, CellOfTile(_map.TileIndicesFor(gridUid, grid, bad), comp))] = now;
+            BlacklistSpot(comp, bad);
+        }
 
         // Forget very old visits so the memory doesn't grow without bound.
         if (comp.Visited.Count > 512)
@@ -89,13 +111,15 @@ public sealed partial class GilbertAISystem
                 continue;
 
             var cell = (gridUid, CellOfTile(tile, comp));
-            float score;
-            if (!comp.Visited.TryGetValue(cell, out var at) || now - at >= comp.ExploreMemory)
-                score = 100000f;                         // never / long ago: best
-            else
-                score = (float) (now - at).TotalSeconds; // the longer ago, the better
+            // v9: places he got stuck going to are skipped for a while.
+            if (IsBlacklisted(comp, cell, now))
+                continue;
 
-            score += dist + _random.NextFloat(0f, 5f);
+            // v9: fading memory: never seen / long forgotten areas first, the ones he just left last.
+            // v9 (t256u): ...and chunks he walked through within the last 5 minutes (trail) are worth less.
+            var unknown = KnownTile(comp, gridUid, tile) == null ? 10f : 0f;
+            var score = Novelty(comp, cell, now) * TrailNovelty(comp, gridUid, ChunkOf(tile, comp), now) * 100f
+                        + unknown + dist * 0.5f + _random.NextFloat(0f, 8f);
 
             if (score > bestScore)
             {
@@ -104,6 +128,11 @@ public sealed partial class GilbertAISystem
             }
         }
 
+        // v9 (t256u): the remembered map offers places further along known corridors / behind doors.
+        var myTile = _map.TileIndicesFor(gridUid, grid, xform.Coordinates);
+        if (TryPickFromMentalMap(ent, gridUid, grid, myTile, now, out var remembered, out var memScore) && memScore > bestScore)
+            best = remembered;
+
         if (best is not { } dest)
         {
             // Cramped spot (small room, shuttle): a short local walk instead.
@@ -111,6 +140,35 @@ public sealed partial class GilbertAISystem
             return;
         }
 
+        // v9 (t256u): far trips follow the shortest route he knows (waypoints through the doors on the way).
+        if (PlanRoute(comp, xform.Coordinates, dest, InBerserk(ent), out var waypoints, out var length)
+            && length >= comp.RouteMinDistance && waypoints.Count > 1)
+        {
+            comp.RoutesPlanned++;
+            comp.Route.AddRange(waypoints.Skip(1));
+            RegisterMove(ent, waypoints[0], 1.5f);
+            comp.RouteLeg = waypoints[0];
+            return;
+        }
+
         RegisterMove(ent, dest, 1f);
+    }
+
+    /// <summary>v9 (t256u): reached a patrol waypoint: on to the next one. False when the route is done.</summary>
+    private bool NextRouteWaypoint(Entity<GilbertAIComponent> ent, EntityCoordinates reached)
+    {
+        var comp = ent.Comp;
+        if (comp.Route.Count == 0 || comp.RouteLeg is not { } leg || !leg.Equals(reached))
+        {
+            comp.Route.Clear();
+            comp.RouteLeg = null;
+            return false;
+        }
+
+        var next = comp.Route[0];
+        comp.Route.RemoveAt(0);
+        RegisterMove(ent, next, comp.Route.Count == 0 ? 1f : 1.5f);
+        comp.RouteLeg = comp.Route.Count == 0 ? null : next;
+        return true;
     }
 }

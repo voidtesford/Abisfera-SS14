@@ -478,7 +478,8 @@ namespace Content.Server.NPC.Pathfinding
         {
             if (!_npc.TryGetNpc(uid, out var npc))
             {
-                return PathFlags.None;
+                // CorvaxGoob-Gilbert: steering-only AIs (no HTN) keep their nav flags on the steering component.
+                return TryComp<Content.Server.NPC.Components.NPCSteeringComponent>(uid, out var steering) ? steering.Flags : PathFlags.None;
             }
 
             return GetFlags(npc.Blackboard);

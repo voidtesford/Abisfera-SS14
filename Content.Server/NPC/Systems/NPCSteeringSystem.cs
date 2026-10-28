@@ -57,6 +57,7 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+using Content.Shared.Doors.Systems; // CorvaxGoob-Gilbert
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -119,6 +120,7 @@ public sealed partial class NPCSteeringSystem : SharedNPCSteeringSystem
     [Dependency] private readonly NpcFactionSystem _npcFaction = default!;
     [Dependency] private readonly PathfindingSystem _pathfindingSystem = default!;
     [Dependency] private readonly PryingSystem _pryingSystem = default!;
+    [Dependency] private readonly SharedDoorSystem _doors = default!; // CorvaxGoob-Gilbert
     [Dependency] private readonly SharedMapSystem _mapSystem = default!;
     [Dependency] private readonly SharedInteractionSystem _interaction = default!;
     [Dependency] private readonly SharedMeleeWeaponSystem _melee = default!;

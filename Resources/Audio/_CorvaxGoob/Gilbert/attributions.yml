@@ -67,3 +67,9 @@
   license: "Custom"
   copyright: "Soundtrack for Gilbert's berserk phase, provided by the server owner for Abisfera-SS14. Silence trimmed, converted to mono Vorbis (~73 kbps), loudness-normalised to about -16 LUFS (limited). All rights belong to their respective authors."
   source: "https://github.com/CorvaxGoob"
+
+- files:
+  - gilbert_death_sorry_1.ogg
+  license: "Custom"
+  copyright: "Voice line «Прости! Прости!» of Gilbert from the Roblox game EXAMINATION, Russian fan dub by BDTE (2:35.30-2:36.93: the first «Прости!» and the «Прости» of «Прости меня!», cut before «меня»). Converted to mono and loudness-normalised (about -16 LUFS) for Abisfera-SS14; provided by the server owner. All rights belong to their respective authors."
+  source: "https://www.youtube.com/watch?v=elgYziSQ-Q8"

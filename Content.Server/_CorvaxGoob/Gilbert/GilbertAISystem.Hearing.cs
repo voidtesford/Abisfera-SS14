@@ -320,11 +320,11 @@ public sealed partial class GilbertAISystem
             return;
         }
 
-        // Look around the spot, a quarter turn at a time.
-        if (now >= comp.NextLookTurn)
+        // v9: look around the spot by walking about it (short steps in random directions), not standing still.
+        if (!TryComp<NPCSteeringComponent>(ent, out var around) || around.Status != SteeringStatus.Moving)
         {
-            comp.NextLookTurn = now + TimeSpan.FromSeconds(0.4);
-            _transform.SetWorldRotation(ent, _transform.GetWorldRotation(xform) + Angle.FromDegrees(90));
+            _steering.Unregister(ent);
+            Wander(ent, spot, 3f);
         }
 
         if (now >= comp.InvestigateLookUntil)
