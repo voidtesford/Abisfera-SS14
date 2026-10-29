@@ -62,23 +62,28 @@ public sealed partial class GilbertV13Test
         await server.WaitPost(() => victim = SpawnVictim(entMan, map, new Vector2(2.5f, 0.5f)));
         var gilbert = await SpawnRagingQuiet(pair, map, new Vector2(-3.5f, 0.5f));
 
-        FixedPoint2 shockBase = default, bluntBase = default;
+        FixedPoint2 shockBase = default, bluntBase = default, asphyxBase = default;
         var started = TimeSpan.Zero;
         await server.WaitPost(() =>
         {
             shockBase = Dmg(entMan, victim, "Shock");
             bluntBase = Dmg(entMan, victim, "Blunt");
+            asphyxBase = Dmg(entMan, victim, "Asphyxiation");
             started = timing.CurTime;
             Assert.That(rage.TryLeap(gilbert, victim, ignoreCooldowns: true), "leap started");
             Quiet(entMan, gilbert);
         });
 
         var played = false;
+        var startX = 0f;
         for (var i = 0; i < 30 && !played; i++)
         {
             await RunSeconds(pair, 0.1);
-            await server.WaitPost(() => played = entMan.TryGetComponent<ProcAnimComponent>(victim, out var anim)
-                                                 && anim.Scene.Id == "GilbertLeapPounce");
+            await server.WaitPost(() =>
+            {
+                played = entMan.TryGetComponent<ProcAnimComponent>(victim, out var anim) && anim.Scene.Id == "GilbertLeapPounce";
+                startX = server.System<SharedTransformSystem>().GetWorldPosition(victim).X;
+            });
         }
 
         await server.WaitAssertion(() =>
@@ -112,6 +117,40 @@ public sealed partial class GilbertV13Test
             Assert.That(Dmg(entMan, victim, "Blunt") - bluntBase, Is.GreaterThanOrEqualTo(FixedPoint2.New(10)), "the throw");
             Assert.That(comp.LeapThrows, Is.EqualTo(1), "thrown for real");
             Assert.That(entMan.HasComponent<GilbertLeapThrowComponent>(victim), Is.False);
+            // v13.1: the ability is not a finisher - no 200 Asphyxiation from the leap. The test map has no air, so the
+            // victim's own lungs add ~1/s of background suffocation; anything the scene dealt would be far above that.
+            Assert.That(Dmg(entMan, victim, "Asphyxiation") - asphyxBase, Is.LessThan(FixedPoint2.New(5)), "no asphyxiation from the leap");
+        });
+
+        // v13.1: thrown ~5 tiles forward from where he let go (the scene's flight plus the real throw).
+        await RunSeconds(pair, 1.5);
+        await server.WaitAssertion(() =>
+        {
+            var x = server.System<SharedTransformSystem>().GetWorldPosition(victim).X;
+            TestContext.Out.WriteLine($"[v13.1] leap: victim x {startX:0.00} -> {x:0.00}");
+            Assert.That(x - startX, Is.GreaterThan(4.3f), "thrown about 5 tiles forward");
+            Assert.That(x, Is.LessThan(10.6f), "still on the floor");
+        });
+        await pair.CleanReturnAsync();
+    }
+
+    /// <summary>v13.1: the leap scene itself carries no Asphyxiation (only the rage finisher's final 200 does).</summary>
+    [Test]
+    public async Task LeapSceneDealsNoAsphyxiation()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var protos = pair.Server.ResolveDependency<IPrototypeManager>();
+        await pair.Server.WaitAssertion(() =>
+        {
+            var leap = protos.Index<ProcAnimScenePrototype>("GilbertLeapPounce");
+            foreach (var actor in leap.Actors)
+                Assert.That(actor.FinalDamage?.DamageDict.ContainsKey("Asphyxiation") ?? false, Is.False, "final damage");
+            foreach (var ev in leap.Events)
+            foreach (var hit in ev.Damage)
+                Assert.That(hit.Damage.DamageDict.ContainsKey("Asphyxiation"), Is.False, $"event {ev.Beat} at {ev.Time}");
+            var rage = protos.Index<ProcAnimScenePrototype>(GilbertFinisherSystem.RageFinisher);
+            Assert.That(rage.Actors.Any(a => a.FinalDamage != null && a.FinalDamage.DamageDict.TryGetValue("Asphyxiation", out var asphyx) && asphyx == FixedPoint2.New(200)),
+                "the rage finisher keeps its 200");
         });
         await pair.CleanReturnAsync();
     }

@@ -3,12 +3,16 @@
 # for the victim it is the other way round). Played by GilbertRageAbilitiesSystem / GilbertFinisherSystem.
 
 # Leap (GilbertRageAbilitiesSystem.TryLeap): the dash knocked the victim down, Gilbert lands crouched at its feet.
-# 0.95 stomp on the chest (10 Shock) - 1.92 stomp on the head (10 Shock) - 2.55..2.75 bends, grabs both arms -
-# 2.75..3.05 hauls the victim up by the arms - 3.12 swings and lets go ("release": the server throws the victim
-# for real at the end of the scene, 10 Blunt) - the victim tumbles off.
+# v13.1: the shotgun is slung on his back for the whole scene (holsterHeldItems), the stomps are foot-IK'd onto the
+# chest / face with a wind-up (lean back, knee high, arms counter-swinging) and the stance knee absorbing the blow:
+# 1.02 stomp on the chest (10 Shock) - 2.0 stomp on the head (10 Shock) - 2.7..2.95 bends at the knees and hips, both
+# hands on the torso - 2.95..3.3 deadlifts it to his chest - 3.3..3.48 dips and pulls it back (loads the hips) -
+# 3.62 drives forward and lets go ("release") - 3.62..4.25 the victim flies 5 tiles forward in an arc, tumbling once,
+# lands (10 Blunt), bounces and slides (the flight is shortened by the server at walls; the server completes the
+# 5 tiles with a real throw if anything is left).
 - type: procAnimScene
   id: GilbertLeapPounce
-  length: 3.6
+  length: 5.0
   requiredRoom: 2.6
   actors:
   - role: attacker
@@ -16,310 +20,413 @@
     expressions:
     - {t: 0, face: angry}
     facing: 1
+    holsterHeldItems: true
     smooth: true
     walk: {stride: 0.4, fullSpeed: 0.8, legSwing: 24, knee: 34, armSwing: 12, elbow: 8, shoulder: 0.6, bob: 1, lean: 4,
-      sway: 1, nod: 1.5, weight: [{t: 0, x: 0}, {t: 0.3, x: 0}, {t: 0.36, x: 1}, {t: 0.58, x: 1}, {t: 0.62, x: 0},
-      {t: 1.28, x: 0}, {t: 1.32, x: 1}, {t: 1.55, x: 1}, {t: 1.6, x: 0}, {t: 2.2, x: 0}, {t: 2.24, x: 1}, {t: 2.5, x: 1},
-      {t: 2.54, x: 0}]}
+      sway: 1, nod: 1.5, weight: [{t: 0, x: 0}, {t: 0.38, x: 0}, {t: 0.44, x: 1}, {t: 0.66, x: 1}, {t: 0.72, x: 0},
+      {t: 1.36, x: 0}, {t: 1.42, x: 1}, {t: 1.58, x: 1}, {t: 1.64, x: 0}, {t: 2.38, x: 0}, {t: 2.44, x: 1}, {t: 2.64, x: 1},
+      {t: 2.7, x: 0}]}
     idle: {period: 2.2, breath: 0.6, weightShift: 0.5, headNod: 1, armSway: 0}
-    look: {at: '2, 9', targetAt: '0, 9', max: 50, neck: 40, keys: [{t: 0, x: 1}, {t: 3.6, x: 1}]}
+    look: {at: '2, 9', targetAt: '0, 9', max: 50, neck: 40, keys: [{t: 0, x: 1}, {t: 5.0, x: 1}]}
     move:
     - {t: 0, x: 0}
-    - {t: 0.32, x: 0}
-    - {t: 0.6, x: 0.95, ease: InOut}
-    - {t: 1.3, x: 0.95}
-    - {t: 1.56, x: 1.37, ease: InOut}
-    - {t: 2.22, x: 1.37}
-    - {t: 2.52, x: 0.62, ease: InOut}
-    - {t: 3.6, x: 0.62}
+    - {t: 0.4, x: 0}
+    - {t: 0.7, x: 0.9, ease: InOut}
+    - {t: 1.38, x: 0.9}
+    - {t: 1.62, x: 1.22, ease: InOut}
+    - {t: 2.4, x: 1.22}
+    - {t: 2.7, x: 0.8, ease: InOut}
+    - {t: 3.48, x: 0.8}
+    - {t: 3.66, x: 0.98, ease: Out}
+    - {t: 5.0, x: 0.98}
     parts:
       Body:
         pivot: 0, -14
         keys:
         - {t: 0, y: -5, rot: -16}
-        - {t: 0.06, y: -6, rot: -18, ease: Out}
-        - {t: 0.32, y: 0, rot: -2}
-        - {t: 0.62, rot: 0}
-        - {t: 0.8, x: -1, y: 1, rot: 8}
-        - {t: 0.95, x: 2, y: -2, rot: -12, ease: In}
-        - {t: 1.08, x: 1, y: -1, rot: -8}
-        - {t: 1.3, rot: 0}
-        - {t: 1.6, rot: 0}
-        - {t: 1.78, x: -1, y: 1, rot: 8}
-        - {t: 1.92, x: 2, y: -2, rot: -12, ease: In}
-        - {t: 2.05, x: 1, y: -1, rot: -8}
-        - {t: 2.22, rot: 0}
-        - {t: 2.52, rot: -6}
-        - {t: 2.72, x: 2, y: -6, rot: -38, ease: InOut}
-        - {t: 2.8, x: 2, y: -6, rot: -36}
-        - {t: 3.02, x: -1, y: -1, rot: 6, ease: InOut}
-        - {t: 3.12, x: 2, y: -2, rot: -16, ease: In}
-        - {t: 3.3, x: 1, y: -1, rot: -8, ease: Out}
-        - {t: 3.6, rot: 0}
+        - {t: 0.08, y: -6, rot: -18, ease: Out}
+        - {t: 0.4, y: -1, rot: -3}
+        - {t: 0.7, rot: -2}
+        - {t: 0.92, x: -1, y: 1, rot: 7, ease: Out}
+        - {t: 1.02, x: 2, y: -3, rot: -12, ease: In}
+        - {t: 1.18, x: 1, y: -2, rot: -9}
+        - {t: 1.38, rot: -1}
+        - {t: 1.62, rot: -1}
+        - {t: 1.9, x: -1, y: 1, rot: 9, ease: Out}
+        - {t: 2.0, x: 2, y: -4, rot: -14, ease: In}
+        - {t: 2.16, x: 1, y: -2, rot: -10}
+        - {t: 2.4, rot: -1}
+        - {t: 2.7, rot: -4}
+        - {t: 2.95, x: -2, y: -2, rot: -38}
+        - {t: 3.3, x: 0, y: 0, rot: 6}
+        - {t: 3.48, x: -1, y: -2, rot: 12, ease: Out}
+        - {t: 3.62, x: 3, y: -1, rot: -24, ease: In}
+        - {t: 3.85, x: 3, y: -2, rot: -28, ease: Out}
+        - {t: 4.5, rot: -2}
+        - {t: 5.0, rot: 0}
       Head:
         pivot: 0, 6
         keys:
         - {t: 0, rot: 8}
-        - {t: 0.32, rot: 0}
-        - {t: 0.8, rot: -8}
-        - {t: 0.95, rot: 0}
-        - {t: 1.78, rot: -8}
-        - {t: 1.92, rot: 0}
-        - {t: 2.72, rot: 18}
-        - {t: 3.02, rot: -6}
-        - {t: 3.12, rot: 4}
-        - {t: 3.6, rot: 0}
+        - {t: 0.4, rot: 0}
+        - {t: 0.92, rot: -10}
+        - {t: 1.02, rot: 4, ease: In}
+        - {t: 1.3, rot: 0}
+        - {t: 1.9, rot: -12}
+        - {t: 2.0, rot: 4, ease: In}
+        - {t: 2.3, rot: 0}
+        - {t: 2.95, rot: 16}
+        - {t: 3.3, rot: -4}
+        - {t: 3.48, rot: -8}
+        - {t: 3.62, rot: 8, ease: In}
+        - {t: 4.5, rot: 0}
+        - {t: 5.0, rot: 0}
       ArmNear:
         pivot: 0, 5
         keys:
         - {t: 0, rot: -40}
-        - {t: 0.32, rot: 0}
-        - {t: 0.62, rot: 0}
-        - {t: 0.8, rot: 50}
-        - {t: 0.95, rot: -10, ease: In}
-        - {t: 1.3, rot: 0}
-        - {t: 1.6, rot: 0}
-        - {t: 1.78, rot: 50}
-        - {t: 1.92, rot: -10, ease: In}
-        - {t: 2.22, rot: 0}
-        - {t: 2.52, rot: 20}
-        - {t: 2.72, rot: 70}
-        - {t: 3.02, rot: 40}
-        - {t: 3.12, rot: 120, ease: In}
-        - {t: 3.3, rot: 100, ease: Out}
-        - {t: 3.6, rot: 0}
+        - {t: 0.4, rot: 0}
+        - {t: 0.7, rot: 0}
+        - {t: 0.92, rot: -30, ease: Out}
+        - {t: 1.02, rot: 28, ease: In}
+        - {t: 1.38, rot: 0}
+        - {t: 1.62, rot: 0}
+        - {t: 1.9, rot: -40, ease: Out}
+        - {t: 2.0, rot: 30, ease: In}
+        - {t: 2.4, rot: 0}
+        - {t: 2.7, rot: 20}
+        - {t: 2.95, rot: 70}
+        - {t: 3.3, rot: 40}
+        - {t: 3.48, rot: 30}
+        - {t: 3.62, rot: 100, ease: In}
+        - {t: 3.85, rot: 95, ease: Out}
+        - {t: 4.5, rot: 0}
+        - {t: 5.0, rot: 0}
       ArmNearLow:
         pivot: 0, 0
         keys:
         - {t: 0, rot: 0}
-        - {t: 2.52, rot: 0}
-        - {t: 2.72, rot: 20}
-        - {t: 3.12, rot: 0}
-        - {t: 3.6, rot: 0}
+        - {t: 0.92, rot: 20}
+        - {t: 1.02, rot: 5}
+        - {t: 1.9, rot: 24}
+        - {t: 2.0, rot: 5}
+        - {t: 2.7, rot: 0}
+        - {t: 2.95, rot: 20}
+        - {t: 3.3, rot: 60}
+        - {t: 3.48, rot: 70}
+        - {t: 3.62, rot: 5, ease: In}
+        - {t: 4.5, rot: 0}
+        - {t: 5.0, rot: 0}
       ArmFar:
         pivot: 0, 5
         keys:
         - {t: 0, rot: 30}
-        - {t: 0.32, rot: 0}
-        - {t: 0.62, rot: 0}
-        - {t: 0.8, rot: -56}
-        - {t: 0.95, rot: 11, ease: In}
-        - {t: 1.3, rot: 0}
-        - {t: 1.6, rot: 0}
-        - {t: 1.78, rot: -56}
-        - {t: 1.92, rot: 11, ease: In}
-        - {t: 2.22, rot: 0}
-        - {t: 2.52, rot: 20}
-        - {t: 2.72, rot: 70}
-        - {t: 3.02, rot: 40}
-        - {t: 3.12, rot: 120, ease: In}
-        - {t: 3.3, rot: 100, ease: Out}
-        - {t: 3.6, rot: 0}
+        - {t: 0.4, rot: 0}
+        - {t: 0.7, rot: 0}
+        - {t: 0.92, rot: 34, ease: Out}
+        - {t: 1.02, rot: -24, ease: In}
+        - {t: 1.38, rot: 0}
+        - {t: 1.62, rot: 0}
+        - {t: 1.9, rot: 40, ease: Out}
+        - {t: 2.0, rot: -26, ease: In}
+        - {t: 2.4, rot: 0}
+        - {t: 2.7, rot: 20}
+        - {t: 2.95, rot: 70}
+        - {t: 3.3, rot: 40}
+        - {t: 3.48, rot: 30}
+        - {t: 3.62, rot: 100, ease: In}
+        - {t: 3.85, rot: 85, ease: Out}
+        - {t: 4.5, rot: 0}
+        - {t: 5.0, rot: 0}
       ArmFarLow:
         pivot: 0, 0
         keys:
         - {t: 0, rot: 0}
-        - {t: 2.52, rot: 0}
-        - {t: 2.72, rot: 20}
-        - {t: 3.12, rot: 0}
-        - {t: 3.6, rot: 0}
+        - {t: 2.7, rot: 0}
+        - {t: 2.95, rot: 20}
+        - {t: 3.3, rot: 60}
+        - {t: 3.48, rot: 70}
+        - {t: 3.62, rot: 5, ease: In}
+        - {t: 4.5, rot: 0}
+        - {t: 5.0, rot: 0}
       LegNear:
         pivot: 0, -8
         keys:
         - {t: 0, rot: 70}
-        - {t: 0.06, rot: 76}
-        - {t: 0.32, rot: 0}
-        - {t: 0.62, rot: 0}
-        - {t: 0.8, y: 1, rot: 112}
-        - {t: 0.95, y: 4, rot: 62, ease: In}
-        - {t: 1.08, y: 3, rot: 58}
-        - {t: 1.3, rot: 0}
-        - {t: 1.6, rot: 0}
-        - {t: 1.78, y: 1, rot: 112}
-        - {t: 1.92, y: 4, rot: 62, ease: In}
-        - {t: 2.05, y: 3, rot: 58}
-        - {t: 2.22, rot: 0}
-        - {t: 2.52, rot: 0}
-        - {t: 2.72, rot: 30}
-        - {t: 3.02, rot: 4}
-        - {t: 3.12, rot: 14}
-        - {t: 3.6, rot: 0}
+        - {t: 0.08, rot: 76}
+        - {t: 0.4, rot: 0}
+        - {t: 0.7, rot: 0}
+        - {t: 0.92, y: 1, rot: 108, ease: Out}
+        - {t: 1.02, y: 2, rot: 60, ease: In}
+        - {t: 1.18, y: 2, rot: 56}
+        - {t: 1.28, y: 1, rot: 70}
+        - {t: 1.38, rot: 0}
+        - {t: 1.62, rot: 0}
+        - {t: 1.9, y: 1, rot: 115, ease: Out}
+        - {t: 2.0, y: 2, rot: 62, ease: In}
+        - {t: 2.16, y: 2, rot: 58}
+        - {t: 2.26, y: 1, rot: 70}
+        - {t: 2.4, rot: 0}
+        - {t: 2.7, rot: 0}
+        - {t: 2.95, rot: 40}
+        - {t: 3.3, rot: 4}
+        - {t: 3.48, rot: 20, ease: Out}
+        - {t: 3.62, rot: 34, ease: In}
+        - {t: 3.85, rot: 26}
+        - {t: 4.5, rot: 0}
+        - {t: 5.0, rot: 0}
       LegNearLow:
         pivot: 0, -12
         keys:
         - {t: 0, rot: -100}
-        - {t: 0.06, rot: -106}
-        - {t: 0.32, rot: 0}
-        - {t: 0.62, rot: 0}
-        - {t: 0.8, rot: -120}
-        - {t: 0.95, rot: -50, ease: In}
-        - {t: 1.08, rot: -46}
-        - {t: 1.3, rot: 0}
-        - {t: 1.6, rot: 0}
-        - {t: 1.78, rot: -120}
-        - {t: 1.92, rot: -50, ease: In}
-        - {t: 2.05, rot: -46}
-        - {t: 2.22, rot: 0}
-        - {t: 2.52, rot: 0}
-        - {t: 2.72, rot: -44}
-        - {t: 3.02, rot: -8}
-        - {t: 3.12, rot: -20}
-        - {t: 3.6, rot: 0}
+        - {t: 0.08, rot: -106}
+        - {t: 0.4, rot: 0}
+        - {t: 0.7, rot: 0}
+        - {t: 0.92, rot: -118, ease: Out}
+        - {t: 1.02, rot: -48, ease: In}
+        - {t: 1.18, rot: -44}
+        - {t: 1.28, rot: -80}
+        - {t: 1.38, rot: 0}
+        - {t: 1.62, rot: 0}
+        - {t: 1.9, rot: -124, ease: Out}
+        - {t: 2.0, rot: -50, ease: In}
+        - {t: 2.16, rot: -46}
+        - {t: 2.26, rot: -80}
+        - {t: 2.4, rot: 0}
+        - {t: 2.7, rot: 0}
+        - {t: 2.95, rot: -62}
+        - {t: 3.3, rot: -8}
+        - {t: 3.48, rot: -34, ease: Out}
+        - {t: 3.62, rot: -10, ease: In}
+        - {t: 3.85, rot: -16}
+        - {t: 4.5, rot: 0}
+        - {t: 5.0, rot: 0}
       LegFar:
         pivot: 0, -8
         keys:
         - {t: 0, rot: 40}
-        - {t: 0.32, rot: 0}
-        - {t: 0.8, rot: -6}
-        - {t: 0.95, rot: -10}
-        - {t: 1.3, rot: 0}
-        - {t: 1.78, rot: -6}
-        - {t: 1.92, rot: -10}
-        - {t: 2.22, rot: 0}
-        - {t: 2.52, rot: 0}
-        - {t: 2.72, rot: 10}
-        - {t: 3.02, rot: -4}
-        - {t: 3.12, rot: -10}
-        - {t: 3.6, rot: 0}
+        - {t: 0.4, rot: 0}
+        - {t: 0.7, rot: 0}
+        - {t: 0.92, rot: 6}
+        - {t: 1.02, rot: 14, ease: In}
+        - {t: 1.18, rot: 10}
+        - {t: 1.38, rot: 0}
+        - {t: 1.62, rot: 0}
+        - {t: 1.9, rot: 6}
+        - {t: 2.0, rot: 16, ease: In}
+        - {t: 2.16, rot: 10}
+        - {t: 2.4, rot: 0}
+        - {t: 2.7, rot: 0}
+        - {t: 2.95, rot: 34}
+        - {t: 3.3, rot: -2}
+        - {t: 3.48, rot: 18, ease: Out}
+        - {t: 3.62, rot: -18, ease: In}
+        - {t: 3.85, rot: -24}
+        - {t: 4.5, rot: 0}
+        - {t: 5.0, rot: 0}
       LegFarLow:
         pivot: 0, -12
         keys:
         - {t: 0, rot: -70}
-        - {t: 0.32, rot: 0}
-        - {t: 2.52, rot: 0}
-        - {t: 2.72, rot: -26}
-        - {t: 3.02, rot: -4}
-        - {t: 3.6, rot: 0}
+        - {t: 0.4, rot: 0}
+        - {t: 0.7, rot: 0}
+        - {t: 0.92, rot: -10}
+        - {t: 1.02, rot: -26, ease: In}
+        - {t: 1.18, rot: -18}
+        - {t: 1.38, rot: 0}
+        - {t: 1.62, rot: 0}
+        - {t: 1.9, rot: -10}
+        - {t: 2.0, rot: -30, ease: In}
+        - {t: 2.16, rot: -20}
+        - {t: 2.4, rot: 0}
+        - {t: 2.7, rot: 0}
+        - {t: 2.95, rot: -56}
+        - {t: 3.3, rot: -4}
+        - {t: 3.48, rot: -30, ease: Out}
+        - {t: 3.62, rot: -12, ease: In}
+        - {t: 3.85, rot: -20}
+        - {t: 4.5, rot: 0}
+        - {t: 5.0, rot: 0}
     ik:
-    - {limb: ArmNear, relativeTo: victim.ArmNear, at: '0, -3', weights: [{t: 0, x: 0}, {t: 2.55, x: 0}, {t: 2.72, x: 1},
-        {t: 3.08, x: 1}, {t: 3.16, x: 0}]}
-    - {limb: ArmFar, relativeTo: victim.ArmFar, at: '0, -3', weights: [{t: 0, x: 0}, {t: 2.55, x: 0}, {t: 2.72, x: 1},
-        {t: 3.08, x: 1}, {t: 3.16, x: 0}]}
+    # the stomping foot planted on the chest, then on the face
+    - {limb: LegNear, relativeTo: victim.Body, at: '0, 3', weights: [{t: 0, x: 0}, {t: 0.95, x: 0}, {t: 1.02, x: 1},
+        {t: 1.18, x: 1}, {t: 1.27, x: 0}]}
+    - {limb: LegNear, relativeTo: victim.Head, at: '0, 9', weights: [{t: 0, x: 0}, {t: 1.93, x: 0}, {t: 2.0, x: 1},
+        {t: 2.16, x: 1}, {t: 2.25, x: 0}]}
+    # both hands on the torso (chest and small of the back) from the bend to the release
+    - {limb: ArmNear, relativeTo: victim.Body, at: '1, 2', weights: [{t: 0, x: 0}, {t: 2.78, x: 0}, {t: 2.93, x: 1},
+        {t: 3.6, x: 1}, {t: 3.68, x: 0}]}
+    - {limb: ArmFar, relativeTo: victim.Body, at: '-1, -4', weights: [{t: 0, x: 0}, {t: 2.8, x: 0}, {t: 2.95, x: 1},
+        {t: 3.6, x: 1}, {t: 3.68, x: 0}]}
   - role: victim
     expressions:
     - {t: 0, face: pain, eyes: closed}
     - {t: 0.4, face: dazed}
-    - {t: 0.95, face: pain, eyes: closed}
-    - {t: 1.3, face: dazed}
-    - {t: 1.92, face: pain, eyes: closed}
-    - {t: 2.3, face: dazed, eyes: narrowed}
-    - {t: 2.75, face: pain}
-    - {t: 3.12, face: pain, eyes: closed}
+    - {t: 1.02, face: pain, eyes: closed}
+    - {t: 1.4, face: dazed}
+    - {t: 2.0, face: pain, eyes: closed}
+    - {t: 2.4, face: dazed, eyes: narrowed}
+    - {t: 2.95, face: pain}
+    - {t: 3.62, face: pain, eyes: closed}
     facing: -1
     standUp: true
     knockDown: true
     smooth: true
     idle: {period: 1.6, breath: 0.8, weightShift: 0, headNod: 1, armSway: 1}
     drag: {lag: 0.08, head: 0.55, arms: 0.3, low: 0.3, legs: 0.2, legsLow: 0.3, max: 24}
-    flight: {start: 3.12, end: 3.5}
+    flight: {start: 3.62, end: 4.7}
     move:
     - {t: 0, x: 1.0}
-    - {t: 3.12, x: 1.0}
-    - {t: 3.5, x: 2.3, ease: Out}
-    - {t: 3.6, x: 2.35}
+    - {t: 2.95, x: 1.0}
+    - {t: 3.3, x: 0.95}
+    - {t: 3.62, x: 0.98}
+    - {t: 4.25, x: 5.68, ease: Linear}
+    - {t: 4.7, x: 5.98, ease: Out}
+    - {t: 5.0, x: 5.98}
     parts:
       Body:
         pivot: 0, -10
         keys:
         - {t: 0, y: -2, rot: -90}
-        - {t: 0.95, y: -2, rot: -90}
-        - {t: 0.99, y: 1, rot: -84, ease: Out}
-        - {t: 1.07, y: -2, rot: -91, ease: In}
-        - {t: 1.2, y: -1, rot: -89}
-        - {t: 1.92, y: -2, rot: -90}
-        - {t: 1.96, y: 0, rot: -87, ease: Out}
-        - {t: 2.05, y: -2, rot: -91, ease: In}
-        - {t: 2.72, y: -2, rot: -90}
-        - {t: 3.02, x: -4, y: 10, rot: -40, ease: InOut}
-        - {t: 3.12, x: 2, y: 12, rot: -60, ease: In}
-        - {t: 3.3, x: 4, y: 14, rot: -150}
-        - {t: 3.45, x: 4, y: 4, rot: -240, ease: In}
-        - {t: 3.52, x: 4, y: -1, rot: -268, ease: Out}
-        - {t: 3.6, x: 4, y: -2, rot: -270}
+        - {t: 1.02, y: -2, rot: -90}
+        - {t: 1.05, y: -3, rot: -91, ease: Out}
+        - {t: 1.12, y: 0, rot: -86, ease: Out}
+        - {t: 1.24, y: -2, rot: -90, ease: In}
+        - {t: 2.0, y: -2, rot: -90}
+        - {t: 2.03, y: -3, rot: -92, ease: Out}
+        - {t: 2.1, y: 0, rot: -86, ease: Out}
+        - {t: 2.22, y: -2, rot: -90, ease: In}
+        - {t: 2.95, y: -2, rot: -90}
+        - {t: 3.3, x: -2, y: 12, rot: -84}
+        - {t: 3.48, x: -6, y: 10, rot: -78, ease: Out}
+        - {t: 3.62, x: 6, y: 16, rot: -96, ease: In}
+        - {t: 3.8, x: 6, y: 30, rot: -190, ease: Linear}
+        - {t: 3.95, x: 6, y: 34, rot: -270, ease: Linear}
+        - {t: 4.1, x: 6, y: 24, rot: -360, ease: Linear}
+        - {t: 4.25, x: 6, y: -2, rot: -440, ease: In}
+        - {t: 4.36, x: 6, y: 3, rot: -446, ease: Out}
+        - {t: 4.5, x: 6, y: -2, rot: -450, ease: In}
+        - {t: 5.0, x: 6, y: -2, rot: -450}
       Head:
         pivot: 0, 5
         keys:
         - {t: 0, rot: -6}
-        - {t: 1.92, rot: -6}
-        - {t: 1.96, rot: 14, ease: Out}
-        - {t: 2.1, rot: -4}
-        - {t: 2.72, rot: -4}
-        - {t: 3.02, rot: 26}
-        - {t: 3.12, rot: 10}
-        - {t: 3.6, rot: 0}
+        - {t: 1.02, rot: -6}
+        - {t: 1.08, rot: 12, ease: Out}
+        - {t: 1.3, rot: -4}
+        - {t: 2.0, rot: -6}
+        - {t: 2.04, rot: 18, ease: Out}
+        - {t: 2.2, rot: -4}
+        - {t: 2.95, rot: -4}
+        - {t: 3.3, rot: 26}
+        - {t: 3.62, rot: 10}
+        - {t: 4.25, rot: -10}
+        - {t: 4.36, rot: 16, ease: Out}
+        - {t: 4.6, rot: 0}
+        - {t: 5.0, rot: 0}
       ArmNear:
         pivot: 0, 5
         keys:
         - {t: 0, rot: -20}
-        - {t: 0.95, rot: -20}
-        - {t: 0.99, rot: -40, ease: Out}
-        - {t: 1.2, rot: -18}
-        - {t: 2.4, rot: -16}
-        - {t: 2.72, rot: -60}
-        - {t: 3.02, rot: -150}
-        - {t: 3.12, rot: -160}
-        - {t: 3.3, rot: -120}
-        - {t: 3.6, rot: -30}
+        - {t: 1.02, rot: -20}
+        - {t: 1.07, rot: -50, ease: Out}
+        - {t: 1.3, rot: -18}
+        - {t: 2.0, rot: -16}
+        - {t: 2.05, rot: -44, ease: Out}
+        - {t: 2.3, rot: -16}
+        - {t: 2.95, rot: -20}
+        - {t: 3.3, rot: -40}
+        - {t: 3.62, rot: -60}
+        - {t: 3.9, rot: -150}
+        - {t: 4.25, rot: -120}
+        - {t: 4.4, rot: -60, ease: Out}
+        - {t: 5.0, rot: -30}
       ArmFar:
         pivot: 0, 5
         keys:
         - {t: 0, rot: -10}
-        - {t: 0.95, rot: -10}
-        - {t: 0.99, rot: -30, ease: Out}
-        - {t: 1.2, rot: -10}
-        - {t: 2.4, rot: -10}
-        - {t: 2.72, rot: -56}
-        - {t: 3.02, rot: -146}
-        - {t: 3.12, rot: -156}
-        - {t: 3.3, rot: -100}
-        - {t: 3.6, rot: -20}
+        - {t: 1.02, rot: -10}
+        - {t: 1.07, rot: -36, ease: Out}
+        - {t: 1.3, rot: -10}
+        - {t: 2.0, rot: -10}
+        - {t: 2.05, rot: -34, ease: Out}
+        - {t: 2.3, rot: -10}
+        - {t: 2.95, rot: -14}
+        - {t: 3.3, rot: -36}
+        - {t: 3.62, rot: -50}
+        - {t: 3.9, rot: -140}
+        - {t: 4.25, rot: -100}
+        - {t: 4.4, rot: -40, ease: Out}
+        - {t: 5.0, rot: -20}
       LegNear:
         pivot: 0, -8
         keys:
         - {t: 0, rot: 6}
-        - {t: 0.95, rot: 6}
-        - {t: 0.99, rot: 24, ease: Out}
-        - {t: 1.3, rot: 8}
-        - {t: 3.02, rot: 10}
-        - {t: 3.3, rot: 30}
-        - {t: 3.6, rot: 4}
+        - {t: 1.02, rot: 6}
+        - {t: 1.07, rot: 26, ease: Out}
+        - {t: 1.35, rot: 8}
+        - {t: 2.0, rot: 8}
+        - {t: 2.05, rot: 22, ease: Out}
+        - {t: 2.3, rot: 8}
+        - {t: 3.3, rot: 14}
+        - {t: 3.62, rot: 4}
+        - {t: 3.95, rot: 34}
+        - {t: 4.25, rot: 10}
+        - {t: 4.36, rot: 26, ease: Out}
+        - {t: 5.0, rot: 4}
       LegFar:
         pivot: 0, -8
         keys:
         - {t: 0, rot: -4}
-        - {t: 0.95, rot: -4}
-        - {t: 0.99, rot: 14, ease: Out}
-        - {t: 1.3, rot: -2}
-        - {t: 3.3, rot: 16}
-        - {t: 3.6, rot: -2}
+        - {t: 1.02, rot: -4}
+        - {t: 1.07, rot: 14, ease: Out}
+        - {t: 1.35, rot: -2}
+        - {t: 2.0, rot: -2}
+        - {t: 2.05, rot: 12, ease: Out}
+        - {t: 2.3, rot: -2}
+        - {t: 3.3, rot: 6}
+        - {t: 3.62, rot: -6}
+        - {t: 3.95, rot: 20}
+        - {t: 4.25, rot: 0}
+        - {t: 4.36, rot: 14, ease: Out}
+        - {t: 5.0, rot: -2}
   events:
   - {effects: [{type: Dust, part: Body, at: '0, 0', count: 12, strength: 1.2, floor: -15}, {type: Shake, strength: 0.8}], t: 0, target: victim, beat: pounce, sheet: true, shake: 0.9, sound: {collection: BodyFall}}
-  - {t: 0.4, target: attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 0.8, target: attacker, beat: wind-up, sheet: true}
-  - {effects: [{type: Recoil, part: Body, dir: -90, strength: 1.2}, {type: Shake, strength: 0.9}, {type: Dust, part: Body, at: '0, 0', count: 6, strength: 0.6, floor: -15}], damage: [{part: Chest, damage: {types: {Shock: 10}}}], t: 0.95, target: victim, beat: chest stomp, sheet: true, sheetDelay: 0.04, hitStop: 0.08, shake: 1.2, flash: true,
+  - {t: 0.5, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 0.85, target: attacker, beat: wind-up, sheet: true}
+  - {effects: [{type: Recoil, part: Body, dir: -90, strength: 1.2}, {type: Shake, strength: 0.9}, {type: Dust, part: Body, at: '0, 0', count: 6, strength: 0.6, floor: -15}], damage: [{part: Chest, damage: {types: {Shock: 10}}}], t: 1.02, target: victim, beat: chest stomp, sheet: true, sheetDelay: 0.04, hitStop: 0.08, shake: 1.2, flash: true,
      sound: {path: /Audio/Effects/hit_kick.ogg}}
-  - {t: 0.96, target: victim, sound: {path: /Audio/Effects/Lightning/lightningshock.ogg}}
-  - {t: 1.4, target: attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 1.78, target: attacker, beat: wind-up 2}
-  - {effects: [{type: Spatter, part: Head, at: '0, 9', dir: 90, spread: 120, count: 8, strength: 0.8, floor: -16}, {type: Recoil, part: Head, dir: -90, strength: 1.5}, {type: Bruise, part: Head, at: '-1, 8', size: 0.9}, {type: Shake, strength: 1.0}], damage: [{part: Head, damage: {types: {Shock: 10}}}], t: 1.92, target: victim, beat: head stomp, sheet: true, sheetDelay: 0.04, hitStop: 0.08, shake: 1.3, flash: true,
+  - {t: 1.03, target: victim, sound: {path: /Audio/Effects/Lightning/lightningshock.ogg}}
+  - {t: 1.5, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 1.84, target: attacker, beat: wind-up 2, sheet: true}
+  - {effects: [{type: Spatter, part: Head, at: '0, 9', dir: 90, spread: 120, count: 8, strength: 0.8, floor: -16}, {type: Recoil, part: Head, dir: -90, strength: 1.5}, {type: Bruise, part: Head, at: '-1, 8', size: 0.9}, {type: Shake, strength: 1.0}], damage: [{part: Head, damage: {types: {Shock: 10}}}], t: 2.0, target: victim, beat: head stomp, sheet: true, sheetDelay: 0.04, hitStop: 0.08, shake: 1.3, flash: true,
      sound: {path: /Audio/Effects/hit_kick.ogg}, blood: {from: Head, at: '0, 9', count: 12, speed: '40, 120', angle: '0, 180',
      gravity: 360, floor: -16, floorJitter: 6, life: 2, bigChance: 0.3}}
-  - {t: 1.93, target: victim, sound: {path: /Audio/Effects/Lightning/lightningshock.ogg}}
-  - {t: 2.35, target: attacker, sound: {collection: FootstepHeavySuit}}
-  - {t: 2.72, target: victim, beat: grabs the arms, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {t: 2.95, target: victim, beat: hauled up, sheet: true}
-  - {t: 3.12, target: attacker, beat: release, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
-  - {effects: [{type: Recoil, part: Body, dir: 0, strength: 1.0}], damage: [{part: Chest, damage: {types: {Blunt: 10}}}], t: 3.13, target: victim, beat: thrown, shake: 0.8}
-  - {effects: [{type: Dust, part: Body, at: '0, 0', count: 10, strength: 1.0, floor: -15}], t: 3.52, target: victim, beat: lands, sheet: true, shake: 0.6, sound: {collection: BodyFall}}
+  - {t: 2.01, target: victim, sound: {path: /Audio/Effects/Lightning/lightningshock.ogg}}
+  - {t: 2.55, target: attacker, sound: {collection: FootstepHeavySuit}}
+  - {t: 2.93, target: victim, beat: grabs the body, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 3.2, target: victim, beat: lifts, sheet: true}
+  - {t: 3.46, target: attacker, beat: loads, sheet: true, sound: {collection: FootstepHeavySuit}}
+  - {t: 3.62, target: attacker, beat: release, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 3.95, target: victim, beat: flies, sheet: true}
+  - {effects: [{type: Dust, part: Body, at: '0, 0', count: 14, strength: 1.3, floor: -15}, {type: Recoil, part: Body, dir: 0, strength: 1.0}, {type: Shake, strength: 0.7}], damage: [{part: Chest, damage: {types: {Blunt: 10}}}], t: 4.25, target: victim, beat: lands, sheet: true, sheetDelay: 0.03, shake: 0.8, sound: {collection: BodyFall}}
+  - {effects: [{type: Dust, part: Body, at: '0, 0', count: 8, strength: 0.7, floor: -15, duration: 0.5}], t: 4.45, target: victim, beat: slides, sheet: true, sound: {collection: FootstepFloor}}
+  - {t: 4.95, target: attacker, beat: end}
 
-# Rage finisher (gilbertfinisher <gilbert> <victim> 4 | rage; his AI in phase 2): 0.62 palm strike to the chest -
-# 0.62..1.25 the victim slides back two tiles on its feet - 1.4 Gilbert vanishes ("vanish": a faster, paler
-# version of his spawn burst) and 1.8 reappears behind the victim ("appear"), facing its back - 2.1 / 2.3 drives one
-# hand into the back at the chest and the other at the small of the back - 2.9..3.35 pulls the victim apart: the
-# torso goes up with his hands, the pelvis and legs drop away (3.3 Groin amputated, kill) - 4.1 he drops the torso.
+# Rage finisher (gilbertfinisher <gilbert> <victim> 4 | rage; his AI in phase 2). v13.1:
+# -0.6..0 (only with something in his hands) he slings the gun like the phase 1 finishers; it comes back after -
+# 0.3 wind-up (weight back, shoulder cocked) - 0.62 palm strike to the chest, hips driving through - 0.62..1.25 the
+# victim slides back two tiles on its feet - 1.4 Gilbert vanishes ("vanish": a faster, paler version of his spawn
+# burst) and 1.8 reappears right behind the victim ("appear"), facing its back, drawn behind it - 1.92 cocks the
+# arm - 2.1 drives the hand into the back at the chest, 2.3 the other into the small of the back (both stay buried) -
+# 2.45..2.9 sinks into his legs, loading - 2.9..3.35 tears the victim apart: hips and shoulders thrown back, the
+# torso goes up with his hands, the pelvis and legs drop away (3.3 Groin amputated, kill) - 3.6..3.85 twists the torso
+# round to face him ("turns it": the victim's view flips) - 3.95..4.25 pulls it in, head drawn back - 4.32 headbutt,
+# head to head (blood, flash, sound) - 4.75 lets go, 5.05 the torso hits the floor - recovers, 6.3 end.
 - type: procAnimScene
   id: GilbertFinisherRage
-  length: 5.4
+  length: 6.4
+  intro: 0.6
   requiredRoom: 3.8
   actors:
   - role: attacker
@@ -328,125 +435,260 @@
     - {t: 0, face: angry}
     facing: 1
     smooth: true
+    holsterHeldItems: true
+    holsterAt: -0.18
     walk: {stride: 0.4, fullSpeed: 0.8, legSwing: 24, knee: 34, armSwing: 12, elbow: 8, shoulder: 0.6, bob: 1, lean: 4,
       sway: 1, nod: 1.5, weight: [{t: 0, x: 0}]}
     idle: {period: 2.2, breath: 0.6, weightShift: 0.5, headNod: 1, armSway: 0}
     views: [{start: 1.6, end: 99, turned: true}]
     hide: [{t: 1.4, until: 1.8, parts: [Body, Head]}]
+    # From the blink on he stands right behind the victim (in arm's reach) and a hair "behind" it in draw order, so
+    # his hands go under its sprite: they disappear into its back.
     move:
     - {t: 0, x: 0}
-    - {t: 0.45, x: -0.05}
-    - {t: 0.62, x: 0.2, ease: In}
-    - {t: 1.4, x: 0.2}
-    - {t: 1.6, x: 3.45, ease: Step}
-    - {t: 5.4, x: 3.45}
+    - {t: 0.3, x: -0.06}
+    - {t: 0.62, x: 0.22, ease: In}
+    - {t: 0.8, x: 0.24, ease: Out}
+    - {t: 1.4, x: 0.24}
+    - {t: 1.6, x: 3.36, y: 0.03, ease: Step}
+    - {t: 2.1, x: 3.3, y: 0.03, ease: In}
+    - {t: 2.9, x: 3.3, y: 0.03}
+    - {t: 3.35, x: 3.34, y: 0.03, ease: InOut}
+    - {t: 4.2, x: 3.26, y: 0.03}
+    - {t: 4.32, x: 3.23, y: 0.03, ease: In}
+    - {t: 4.6, x: 3.2, y: 0.03, ease: Out}
+    - {t: 5.6, x: 3.3, y: 0.03, ease: InOut}
+    - {t: 6.4, x: 3.3, y: 0.03}
     parts:
       Body:
         pivot: 0, -14
         keys:
+        - {t: -0.6, rot: 0}
+        - {t: -0.42, rot: 3}
+        - {t: -0.26, rot: 4}
+        - {t: -0.18, y: -1, rot: 2}
         - {t: 0, rot: 0}
-        - {t: 0.45, x: -2, y: 0, rot: 12}
-        - {t: 0.62, x: 3, y: -2, rot: -14, ease: In}
-        - {t: 0.8, x: 2, y: -1, rot: -10, ease: Out}
-        - {t: 1.3, rot: -2}
+        # palm strike: weight back and down, then the hips drive through
+        - {t: 0.3, x: -2, y: -1, rot: 10, ease: InOut}
+        - {t: 0.45, x: -2, y: -1, rot: 13}
+        - {t: 0.62, x: 3, y: -2, rot: -15, ease: In}
+        - {t: 0.72, x: 3, y: -2, rot: -13, ease: Out}
+        - {t: 1.0, x: 1, y: -1, rot: -6}
+        - {t: 1.35, rot: -1}
         - {t: 1.6, rot: 0}
-        - {t: 1.8, y: -1, rot: 6}
-        - {t: 2.1, x: -2, y: -1, rot: 10, ease: In}
-        - {t: 2.3, x: -2, y: -1, rot: 12, ease: In}
-        - {t: 2.9, x: -2, y: -1, rot: 12}
-        - {t: 3.35, x: 2, y: 2, rot: -12, ease: InOut}
-        - {t: 3.9, x: 1, y: 1, rot: -8}
-        - {t: 4.3, rot: 0}
-        - {t: 5.4, rot: 0}
+        # (turned from 1.6: + leans towards the victim) lands from the blink, cocks back, drives in
+        - {t: 1.8, y: -1, rot: 3, ease: Out}
+        - {t: 1.95, x: 1, y: 0, rot: -5, ease: InOut}
+        - {t: 2.1, x: -2, y: -1, rot: 8, ease: In}
+        - {t: 2.18, x: -2, y: -1, rot: 6, ease: Out}
+        - {t: 2.24, x: -1, y: -1, rot: 5}
+        - {t: 2.3, x: -2, y: -1, rot: 9, ease: In}
+        - {t: 2.4, x: -2, y: -1, rot: 8, ease: Out}
+        # sinks into his legs, loading
+        - {t: 2.9, x: -1, y: -3, rot: 11, ease: InOut}
+        # the tear: hips and shoulders thrown back
+        - {t: 3.3, x: 2, y: 1, rot: -13, ease: In}
+        - {t: 3.42, x: 2, y: 1, rot: -15, ease: Out}
+        - {t: 3.6, x: 1, y: 0, rot: -8}
+        # the twist (turning the torso round) - shoulders lead
+        - {t: 3.75, x: 0, y: 0, rot: 3, ease: InOut}
+        - {t: 3.85, x: 0, y: 0, rot: 1}
+        # headbutt: pulled back, then the whole body behind the forehead
+        - {t: 4.22, x: 2, y: 0, rot: -11, ease: InOut}
+        - {t: 4.32, x: -2, y: -1, rot: 12, ease: In}
+        - {t: 4.42, x: -1, y: -1, rot: 8, ease: Out}
+        - {t: 4.75, x: 0, y: 0, rot: 3}
+        - {t: 5.05, x: -1, y: -1, rot: 9, ease: InOut}
+        - {t: 5.6, x: 0, y: 0, rot: 1, ease: InOut}
+        - {t: 6.4, rot: 0}
       Head:
         pivot: 0, 6
         keys:
+        - {t: -0.6, rot: 0}
+        - {t: -0.3, rot: -6}
+        - {t: -0.1, rot: -2}
         - {t: 0, rot: 0}
-        - {t: 0.45, rot: -6}
-        - {t: 0.62, rot: 4}
-        - {t: 1.3, rot: 0}
-        - {t: 1.8, rot: 0}
-        - {t: 2.1, rot: 8}
-        - {t: 2.9, rot: 10}
-        - {t: 3.35, rot: -10}
-        - {t: 4.3, rot: 0}
-        - {t: 5.4, rot: 0}
+        - {t: 0.3, rot: 4}
+        - {t: 0.45, rot: 6}
+        - {t: 0.62, rot: -6, ease: In}
+        - {t: 0.9, rot: -2}
+        - {t: 1.35, rot: 0}
+        - {t: 1.8, rot: 2}
+        - {t: 1.95, rot: -2}
+        - {t: 2.1, rot: 8, ease: In}
+        - {t: 2.9, rot: 12}
+        - {t: 3.3, rot: -10, ease: In}
+        - {t: 3.6, rot: -4}
+        - {t: 3.85, rot: 2}
+        - {t: 4.22, rot: -16, ease: InOut}
+        - {t: 4.32, rot: 14, ease: In}
+        - {t: 4.42, rot: 10, ease: Out}
+        - {t: 4.75, rot: 4}
+        - {t: 5.05, rot: 12}
+        - {t: 5.6, rot: 2}
+        - {t: 6.4, rot: 0}
       ArmNear:
         pivot: 0, 5
         keys:
-        - {t: 0, rot: 0}
-        - {t: 0.45, rot: -70}
+        - {t: -0.6, rot: -3}
+        - {t: -0.42, rot: -55, ease: Out}
+        - {t: -0.26, rot: 190}
+        - {t: -0.18, rot: 190}
+        - {t: -0.05, rot: -9, ease: InOut}
+        - {t: 0, rot: 3}
+        - {t: 0.3, rot: -55, ease: InOut}
+        - {t: 0.45, rot: -72}
         - {t: 0.62, rot: 92, ease: In}
-        - {t: 0.8, rot: 86}
-        - {t: 1.3, rot: 0}
+        - {t: 0.72, rot: 88, ease: Out}
+        - {t: 1.0, rot: 40}
+        - {t: 1.35, rot: 2}
         - {t: 1.8, rot: 0}
-        - {t: 1.95, rot: 40}
+        # (turned) cocked back, then into the back (the IK takes it the last bit)
+        - {t: 1.95, rot: 40, ease: InOut}
         - {t: 2.1, rot: -80, ease: In}
-        - {t: 2.9, rot: -80}
-        - {t: 3.35, rot: -60}
-        - {t: 4.1, rot: -50}
-        - {t: 4.5, rot: 0}
-        - {t: 5.4, rot: 0}
+        - {t: 4.75, rot: -70}
+        - {t: 5.05, rot: -20, ease: InOut}
+        - {t: 5.6, rot: 0}
+        - {t: 6.4, rot: 0}
       ArmNearLow:
         pivot: 0, 0
         keys:
-        - {t: 0, rot: 0}
-        - {t: 0.45, rot: 30}
+        - {t: -0.6, rot: 5}
+        - {t: -0.42, rot: 30, ease: Out}
+        - {t: -0.26, rot: 86}
+        - {t: -0.18, rot: 84}
+        - {t: -0.05, rot: -5, ease: InOut}
+        - {t: 0, rot: -5}
+        - {t: 0.3, rot: 40, ease: InOut}
+        - {t: 0.45, rot: 55}
         - {t: 0.62, rot: 0, ease: In}
-        - {t: 1.3, rot: 0}
-        - {t: 5.4, rot: 0}
+        - {t: 1.0, rot: 10}
+        - {t: 1.35, rot: 0}
+        - {t: 1.8, rot: 0}
+        - {t: 1.95, rot: -60, ease: InOut}
+        - {t: 2.1, rot: 0, ease: In}
+        - {t: 4.75, rot: -10}
+        - {t: 5.05, rot: -20}
+        - {t: 5.6, rot: 0}
+        - {t: 6.4, rot: 0}
+      HeldNear:
+        pivot: -2, -4
+        keys:
+        - {t: -0.6, rot: -2}
+        - {t: -0.42, rot: -44.2, ease: Out}
+        - {t: -0.26, rot: -116}
+        - {t: -0.18, rot: -132}
       ArmFar:
         pivot: 0, 5
         keys:
-        - {t: 0, rot: 0}
-        - {t: 0.45, rot: 20}
-        - {t: 0.62, rot: -30}
-        - {t: 1.3, rot: 0}
+        - {t: -0.6, rot: -10}
+        - {t: -0.3, rot: -3}
+        - {t: 0, rot: -6}
+        - {t: 0.3, rot: 22, ease: InOut}
+        - {t: 0.45, rot: 26}
+        - {t: 0.62, rot: -32, ease: In}
+        - {t: 1.0, rot: -12}
+        - {t: 1.35, rot: 0}
         - {t: 1.8, rot: 0}
-        - {t: 2.15, rot: 40}
+        - {t: 2.1, rot: 10}
+        - {t: 2.2, rot: 42, ease: InOut}
         - {t: 2.3, rot: -60, ease: In}
-        - {t: 2.9, rot: -60}
-        - {t: 3.35, rot: -40}
-        - {t: 4.1, rot: -40}
-        - {t: 4.5, rot: 0}
-        - {t: 5.4, rot: 0}
+        - {t: 4.75, rot: -50}
+        - {t: 5.05, rot: -10, ease: InOut}
+        - {t: 5.6, rot: 0}
+        - {t: 6.4, rot: 0}
+      ArmFarLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 2.1, rot: 0}
+        - {t: 2.2, rot: -55, ease: InOut}
+        - {t: 2.3, rot: 0, ease: In}
+        - {t: 6.4, rot: 0}
+      # Legs: palm strike steps in; behind the victim a staggered stance (far foot forward), knees bending to load
+      # (2.45..2.9), straightening on the tear, then the hips ride the headbutt. Turned: thigh towards the victim is -.
       LegNear:
         pivot: 0, -8
         keys:
         - {t: 0, rot: 0}
-        - {t: 0.45, rot: -10}
-        - {t: 0.62, rot: 22}
-        - {t: 1.3, rot: 0}
-        - {t: 2.1, rot: 12}
-        - {t: 2.9, rot: 12}
-        - {t: 3.35, rot: -8}
-        - {t: 4.3, rot: 0}
-        - {t: 5.4, rot: 0}
+        - {t: 0.3, rot: -8}
+        - {t: 0.45, rot: -12}
+        - {t: 0.62, rot: 22, ease: In}
+        - {t: 1.0, rot: 10}
+        - {t: 1.35, rot: 0}
+        - {t: 1.6, rot: 0}
+        - {t: 1.8, rot: 6}
+        - {t: 2.1, rot: 14, ease: In}
+        - {t: 2.9, rot: 20, ease: InOut}
+        - {t: 3.3, rot: -6, ease: In}
+        - {t: 3.6, rot: 2}
+        - {t: 4.22, rot: -4}
+        - {t: 4.32, rot: 14, ease: In}
+        - {t: 4.75, rot: 8}
+        - {t: 5.6, rot: 0, ease: InOut}
+        - {t: 6.4, rot: 0}
       LegNearLow:
         pivot: 0, -12
         keys:
         - {t: 0, rot: 0}
-        - {t: 0.62, rot: -14}
-        - {t: 1.3, rot: 0}
-        - {t: 2.1, rot: -10}
-        - {t: 3.35, rot: -4}
-        - {t: 5.4, rot: 0}
+        - {t: 0.45, rot: -10}
+        - {t: 0.62, rot: -16}
+        - {t: 1.0, rot: -6}
+        - {t: 1.35, rot: 0}
+        - {t: 1.8, rot: 12}
+        - {t: 2.1, rot: 6}
+        - {t: 2.9, rot: 22, ease: InOut}
+        - {t: 3.3, rot: 2, ease: In}
+        - {t: 4.22, rot: 6}
+        - {t: 4.32, rot: 4}
+        - {t: 5.6, rot: 0, ease: InOut}
+        - {t: 6.4, rot: 0}
       LegFar:
         pivot: 0, -8
         keys:
         - {t: 0, rot: 0}
-        - {t: 0.45, rot: 8}
-        - {t: 0.62, rot: -16}
-        - {t: 1.3, rot: 0}
-        - {t: 2.1, rot: -10}
-        - {t: 3.35, rot: 8}
-        - {t: 4.3, rot: 0}
-        - {t: 5.4, rot: 0}
+        - {t: 0.3, rot: 6}
+        - {t: 0.45, rot: 10}
+        - {t: 0.62, rot: -18, ease: In}
+        - {t: 1.0, rot: -8}
+        - {t: 1.35, rot: 0}
+        - {t: 1.6, rot: 0}
+        - {t: 1.8, rot: -8}
+        - {t: 2.1, rot: -14, ease: In}
+        - {t: 2.9, rot: -28, ease: InOut}
+        - {t: 3.3, rot: 6, ease: In}
+        - {t: 3.6, rot: -2}
+        - {t: 4.22, rot: 4}
+        - {t: 4.32, rot: -16, ease: In}
+        - {t: 4.75, rot: -8}
+        - {t: 5.6, rot: 0, ease: InOut}
+        - {t: 6.4, rot: 0}
+      LegFarLow:
+        pivot: 0, -12
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.62, rot: 10}
+        - {t: 1.35, rot: 0}
+        - {t: 1.8, rot: 12}
+        - {t: 2.1, rot: 16}
+        - {t: 2.9, rot: 34, ease: InOut}
+        - {t: 3.3, rot: 0, ease: In}
+        - {t: 4.22, rot: 2}
+        - {t: 4.32, rot: 18, ease: In}
+        - {t: 4.75, rot: 10}
+        - {t: 5.6, rot: 0, ease: InOut}
+        - {t: 6.4, rot: 0}
+    # The hands go INTO the back (chest / small of the back, inside the victim's sprite, under it) and stay there through
+    # the tear and the lift; after the turn they hold the torso by its sides for the headbutt; 4.75 let go.
     ik:
-    - {limb: ArmNear, relativeTo: victim.Body, at: '3, 4', weights: [{t: 0, x: 0}, {t: 1.98, x: 0}, {t: 2.1, x: 1},
-        {t: 4.05, x: 1}, {t: 4.25, x: 0}]}
-    - {limb: ArmFar, relativeTo: victim.Body, at: '3, -6', weights: [{t: 0, x: 0}, {t: 2.18, x: 0}, {t: 2.3, x: 1},
-        {t: 3.3, x: 1}, {t: 3.4, x: 0}]}
+    - {limb: ArmNear, relativeTo: victim.Body, at: '1, 3', weights: [{t: 0, x: 0}, {t: 1.98, x: 0}, {t: 2.1, x: 1},
+        {t: 3.72, x: 1}, {t: 3.84, x: 0}]}
+    - {limb: ArmFar, relativeTo: victim.Body, at: '1, -4', weights: [{t: 0, x: 0}, {t: 2.2, x: 0}, {t: 2.3, x: 1},
+        {t: 3.72, x: 1}, {t: 3.84, x: 0}]}
+    - {limb: ArmNear, relativeTo: victim.Body, at: '0, 3', weights: [{t: 0, x: 0}, {t: 3.78, x: 0}, {t: 3.86, x: 1},
+        {t: 4.7, x: 1}, {t: 4.82, x: 0}]}
+    - {limb: ArmFar, relativeTo: victim.Body, at: '0, -3', weights: [{t: 0, x: 0}, {t: 3.78, x: 0}, {t: 3.86, x: 1},
+        {t: 4.7, x: 1}, {t: 4.82, x: 0}]}
   - role: victim
     expressions:
     - {t: 0, face: neutral}
@@ -465,6 +707,7 @@
         Asphyxiation: 200
     smooth: true
     hide: [{t: 3.3, parts: [LegNear, LegFar]}]
+    views: [{start: 3.8, end: 99, turned: true}]
     idle: {period: 1.6, breath: 0.8, weightShift: 0.4, headNod: 1, armSway: 2}
     drag: {lag: 0.08, head: 0.55, arms: 0.45, low: 0.4, legs: 0.1, legsLow: 0.2, max: 22}
     daze: {period: 1.3, sway: 5, shift: 0.8, dip: 0.6, loll: 10, arms: 8, knees: 4, weight: [{t: 0, x: 0}, {t: 1.25, x: 0},
@@ -473,7 +716,7 @@
     - {t: 0, x: 0.85}
     - {t: 0.62, x: 0.85}
     - {t: 1.25, x: 2.85, ease: Out}
-    - {t: 5.4, x: 2.85}
+    - {t: 6.4, x: 2.85}
     parts:
       Body:
         pivot: 0, -10
@@ -484,16 +727,27 @@
         - {t: 1.0, x: 1, rot: -12}
         - {t: 1.3, rot: -2}
         - {t: 2.05, rot: 0}
-        - {t: 2.1, x: -1, y: 1, rot: 10, ease: Out}
-        - {t: 2.3, x: -2, y: 1, rot: 14, ease: Out}
-        - {t: 2.9, x: -1, y: 2, rot: 12}
+        # the hands go in: it arches, chest thrown forward away from them
+        - {t: 2.1, x: -1, y: 1, rot: -8, ease: Out}
+        - {t: 2.3, x: -1, y: 1, rot: -12, ease: Out}
+        - {t: 2.9, x: 0, y: 0, rot: -9}
         - {t: 3.3, x: 1, y: 8, rot: -6, ease: In}
-        - {t: 3.9, x: 2, y: 10, rot: -10}
-        - {t: 4.1, x: 2, y: 10, rot: -12}
-        - {t: 4.45, x: 0, y: -2, rot: -90, ease: In}
-        - {t: 4.55, x: 0, y: 0, rot: -86, ease: Out}
-        - {t: 4.7, x: 0, y: -2, rot: -90, ease: In}
-        - {t: 5.4, x: 0, y: -2, rot: -90}
+        - {t: 3.42, x: 2, y: 9, rot: -10, ease: Out}
+        - {t: 3.72, x: 1, y: 8, rot: -4}
+        # turned from 3.8 (faces him): the twist overshoots, then he pulls it in for the headbutt
+        # (turned: + is towards him) the twist overshoots, it is lowered to his face and pulled in, the headbutt
+        # knocks it back against his grip
+        - {t: 3.8, x: 2, y: 5, rot: 7, ease: Step}
+        - {t: 3.92, x: 2, y: 4, rot: 2, ease: Out}
+        - {t: 4.22, x: 4, y: 2, rot: -4, ease: InOut}
+        - {t: 4.32, x: 4, y: 2, rot: -4}
+        - {t: 4.38, x: 0, y: 3, rot: 12, ease: Out}
+        - {t: 4.75, x: 1, y: 2, rot: 6}
+        # let go: drops, hits the floor on its back, bounces once
+        - {t: 5.05, x: -2, y: -2, rot: 90, ease: In}
+        - {t: 5.15, x: -2, y: 0, rot: 86, ease: Out}
+        - {t: 5.3, x: -2, y: -2, rot: 90, ease: In}
+        - {t: 6.4, x: -2, y: -2, rot: 90}
       Head:
         pivot: 0, 5
         keys:
@@ -504,8 +758,15 @@
         - {t: 2.1, rot: -26, ease: Out}
         - {t: 2.9, rot: -30}
         - {t: 3.3, rot: 24}
-        - {t: 4.1, rot: 30}
-        - {t: 5.4, rot: 10}
+        - {t: 3.72, rot: 30}
+        - {t: 3.8, rot: -10, ease: Step}
+        - {t: 4.22, rot: 6}
+        - {t: 4.32, rot: 8}
+        - {t: 4.38, rot: 42, ease: Out}
+        - {t: 4.75, rot: 26}
+        - {t: 5.05, rot: 10}
+        - {t: 5.2, rot: 24, ease: Out}
+        - {t: 6.4, rot: 12}
       ArmNear:
         pivot: 0, 5
         keys:
@@ -517,9 +778,14 @@
         - {t: 2.1, rot: -30}
         - {t: 2.9, rot: -40}
         - {t: 3.3, rot: -10}
-        - {t: 4.1, rot: 10}
-        - {t: 4.5, rot: -60}
-        - {t: 5.4, rot: -60}
+        - {t: 3.72, rot: 10}
+        - {t: 3.8, rot: -20, ease: Step}
+        - {t: 4.32, rot: -10}
+        - {t: 4.4, rot: 30, ease: Out}
+        - {t: 4.75, rot: 10}
+        - {t: 5.05, rot: -60}
+        - {t: 5.2, rot: -80, ease: Out}
+        - {t: 6.4, rot: -70}
       ArmFar:
         pivot: 0, 5
         keys:
@@ -531,9 +797,14 @@
         - {t: 2.1, rot: -20}
         - {t: 2.9, rot: -30}
         - {t: 3.3, rot: 0}
-        - {t: 4.1, rot: 20}
-        - {t: 4.5, rot: -40}
-        - {t: 5.4, rot: -40}
+        - {t: 3.72, rot: 20}
+        - {t: 3.8, rot: -10, ease: Step}
+        - {t: 4.32, rot: 0}
+        - {t: 4.4, rot: 36, ease: Out}
+        - {t: 4.75, rot: 16}
+        - {t: 5.05, rot: -40}
+        - {t: 5.2, rot: -60, ease: Out}
+        - {t: 6.4, rot: -50}
       LegNear:
         pivot: 0, -8
         keys:
@@ -557,6 +828,8 @@
         - {t: 3.25, x: -2, y: -4, rot: 8, ease: In}
         - {t: 3.3, x: -3, y: -6, rot: 10}
   events:
+  - {t: -0.6, target: attacker, beat: holsters the gun, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: -0.18, target: attacker, beat: gun slung, sound: {path: /Audio/Items/belt_equip.ogg}}
   - {t: 0.3, target: attacker, beat: wind-up, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
   - {effects: [{type: Recoil, part: Body, dir: 0, strength: 1.6}, {type: Shake, strength: 1.0}, {type: Bruise, part: Body, at: '-3, 2', size: 1.0}], damage: [{part: Chest, damage: {types: {Blunt: 15}}}], t: 0.62, target: victim, beat: palm strike, sheet: true, sheetDelay: 0.04, hitStop: 0.1, shake: 1.6, flash: true,
      sound: {collection: Punch}}
@@ -565,13 +838,19 @@
   - {effects: [{type: Dust, part: Body, at: '0, 0', count: 6, strength: 0.6, floor: -15}], t: 1.2, target: victim, sound: {collection: FootstepFloor}}
   - {t: 1.4, target: attacker, beat: vanish, sheet: true, sheetDelay: 0.05}
   - {t: 1.8, target: attacker, beat: appear, sheet: true, sheetDelay: 0.05}
-  - {effects: [{type: Spatter, part: Body, at: '3, 4', dir: 30, spread: 70, count: 14, strength: 1.0, floor: -15}, {type: Recoil, part: Body, dir: 180, strength: 1.0}, {type: Shake, strength: 0.8}], damage: [{part: Chest, damage: {types: {Piercing: 15}}, ignoreArmor: true}], t: 2.1, target: victim, beat: hand into the back, sheet: true, hitStop: 0.06, shake: 1.0, flash: true,
-     sound: {collection: BoneGone}, blood: {from: Body, at: '3, 4', count: 16, speed: '40, 110', angle: '-20, 80', gravity: 320, floor: -15, life: 1.8}}
-  - {effects: [{type: Spatter, part: Body, at: '3, -6', dir: 10, spread: 60, count: 10, strength: 0.8, floor: -15}, {type: Drips, part: Body, at: '3, -2', count: 6, duration: 2, floor: -15}], damage: [{part: Groin, damage: {types: {Piercing: 15}}, ignoreArmor: true}], t: 2.3, target: victim, beat: second hand, sheet: true, hitStop: 0.05, shake: 0.8, flash: true,
-     sound: {collection: BoneGone}, blood: {from: Body, at: '3, -6', count: 12, speed: '30, 90', angle: '-30, 60', gravity: 320, floor: -15, life: 1.8}}
+  - {effects: [{type: Spatter, part: Body, at: '2, 3', dir: 30, spread: 70, count: 14, strength: 1.0, floor: -15}, {type: Recoil, part: Body, dir: 180, strength: 1.0}, {type: Shake, strength: 0.8}], damage: [{part: Chest, damage: {types: {Piercing: 15}}, ignoreArmor: true}], t: 2.1, target: victim, beat: hand into the back, sheet: true, hitStop: 0.06, shake: 1.0, flash: true,
+     sound: {collection: BoneGone}, blood: {from: Body, at: '2, 3', count: 16, speed: '40, 110', angle: '-20, 80', gravity: 320, floor: -15, life: 1.8}}
+  - {effects: [{type: Spatter, part: Body, at: '2, -4', dir: 10, spread: 60, count: 10, strength: 0.8, floor: -15}, {type: Drips, part: Body, at: '2, -2', count: 6, duration: 2, floor: -15}], damage: [{part: Groin, damage: {types: {Piercing: 15}}, ignoreArmor: true}], t: 2.3, target: victim, beat: second hand, sheet: true, hitStop: 0.05, shake: 0.8, flash: true,
+     sound: {collection: BoneGone}, blood: {from: Body, at: '2, -4', count: 12, speed: '30, 90', angle: '-30, 60', gravity: 320, floor: -15, life: 1.8}}
   - {t: 2.9, target: victim, beat: pulls, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
   - {effects: [{type: Spatter, part: Body, at: '0, -9', dir: -90, spread: 160, count: 30, strength: 1.5, floor: -15}, {type: Pool, part: Body, at: '0, -9', size: 1.3, duration: 5, floor: -15}, {type: Drips, part: Body, at: '0, -9', count: 10, duration: 2.5, floor: -15}, {type: Shake, strength: 1.2}], amputate: [Groin], kill: true, t: 3.3, target: victim, beat: torn in half, sheet: true, sheetDelay: 0.05, hitStop: 0.12, shake: 2, flash: true,
      sound: {collection: BoneGone}, blood: {from: Body, at: '0, -9', count: 36, speed: '40, 160', angle: '-170, -10', gravity: 360, floor: -15, floorJitter: 8, life: 2.4, bigChance: 0.5}, decal: {id: splatter, from: Body, at: '0, -9', color: '#80000099'}}
   - {t: 3.31, target: victim, sound: {path: /Audio/Effects/gib1.ogg}}
-  - {effects: [{type: Dust, part: Body, at: '0, 0', count: 10, strength: 1.0, floor: -15}, {type: Pool, part: Body, at: '0, 0', size: 1.0, duration: 4, floor: -15}], t: 4.45, target: victim, beat: drops the torso, sheet: true, shake: 0.7, sound: {collection: BodyFall}}
-  - {t: 5.3, target: attacker, beat: end}
+  - {effects: [{type: Drips, part: Body, at: '0, -6', count: 8, duration: 1.5, floor: -15}], t: 3.8, target: victim, beat: turns it, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 4.12, target: attacker, beat: draws back, sheet: true}
+  - {effects: [{type: Spatter, part: Head, at: '3, 8', dir: 90, spread: 90, count: 12, strength: 1.0, floor: -15}, {type: Recoil, part: Head, dir: 0, strength: 1.4}, {type: Bruise, part: Head, at: '2, 8', size: 1.2}, {type: Shake, strength: 0.8}], t: 4.32, target: victim, beat: headbutt, sheet: true, hitStop: 0.07, shake: 0.9, flash: true, sound: {collection: Punch},
+     blood: {from: Head, at: '3, 8', count: 16, speed: '40, 105', angle: '20, 165', gravity: 300, floor: -15, life: 1.8}}
+  - {t: 4.33, target: victim, sound: {path: /Audio/Effects/gen_hit.ogg}}
+  - {t: 4.75, target: attacker, beat: lets go, sheet: true}
+  - {effects: [{type: Dust, part: Body, at: '0, 0', count: 10, strength: 1.0, floor: -15}, {type: Pool, part: Body, at: '0, 0', size: 1.0, duration: 4, floor: -15}], t: 5.05, target: victim, beat: drops the torso, sheet: true, shake: 0.7, sound: {collection: BodyFall}}
+  - {t: 6.3, target: attacker, beat: end}

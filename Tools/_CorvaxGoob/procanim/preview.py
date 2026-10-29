@@ -29,6 +29,7 @@ ap.add_argument('--actor', action='append', default=[], help='ROLE=PRESET (gilbe
 ap.add_argument('--empty-hands', action='store_true', help='no held items (no holster intro)')
 ap.add_argument('--no-video', action='store_true', help='contact sheet only')
 ap.add_argument('--res', default=os.environ.get('PROCANIM_RES', os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../Resources'))))
+ap.add_argument('--view', help='horizontal range in tiles x0,x1 (default -1.5,5.6), e.g. -1.5,7.5 for long throws')
 ap.add_argument('--list', action='store_true', help='list the procAnimScene ids')
 args = ap.parse_args()
 R = args.res
@@ -38,6 +39,7 @@ if args.list or not args.scene:
 S = 4            # screen pixels per sprite pixel
 FPS = args.fps
 X0, X1, Y0, Y1 = -1.5, 5.6, -1.2, 2.4   # tiles
+if args.view: X0, X1 = (float(v) for v in args.view.split(','))
 W, H = int((X1 - X0) * 32 * S), int((Y1 - Y0) * 32 * S)
 proto, SRC = SV.load_scene(R, args.scene)
 ACT = proto['actors']; N = len(ACT)

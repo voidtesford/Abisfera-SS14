@@ -332,15 +332,20 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
         var blunt = new DamageSpecifier();
         blunt.DamageDict["Blunt"] = 10;
         _damageable.TryChangeDamage(target, blunt, origin: ent, targetPart: TargetBodyPart.Chest, canMiss: false);
-        ThrowVictim(ent, target, dir);
+        ThrowVictim(ent, target, dir, ent.Comp.LeapThrowDistance);
     }
 
-    private void ThrowVictim(Entity<GilbertRageAbilitiesComponent> ent, EntityUid victim, Vector2 dir)
+    /// <summary>Throws the victim <paramref name="distance"/> tiles along <paramref name="dir"/> (no further than the
+    /// nearest wall allows); with nothing left to cover it only falls where it is.</summary>
+    private void ThrowVictim(Entity<GilbertRageAbilitiesComponent> ent, EntityUid victim, Vector2 dir, float distance)
     {
         if (TerminatingOrDeleted(victim) || dir.LengthSquared() < 0.0001f)
             return;
-        _throwing.TryThrow(victim, Vector2.Normalize(dir) * ent.Comp.LeapThrowDistance, ent.Comp.LeapThrowSpeed, ent,
-            pushbackRatio: 0f, recoil: false);
+        dir = Vector2.Normalize(dir);
+        var at = _transform.GetMapCoordinates(victim);
+        distance = MathF.Min(distance, FreeDistance(at.MapId, at.Position, dir, distance + 0.5f, victim, ent) - 0.4f);
+        if (distance > 0.1f)
+            _throwing.TryThrow(victim, dir * distance, ent.Comp.LeapThrowSpeed, ent, pushbackRatio: 0f, recoil: false);
         _stun.TryKnockdown(victim, ent.Comp.LeapKnockdown, true);
         ent.Comp.LeapThrows++;
         ent.Comp.PunchGraceUntil = _timing.CurTime + TimeSpan.FromSeconds(0.8);
@@ -350,15 +355,19 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
     {
         switch (args.Event.Beat)
         {
-            // Leap scene: he lets go of the arms - the real throw follows the scene's own flight.
+            // Leap scene: he lets go of the body - thrown straight ahead (the way he faces), 5 tiles from here; the
+            // scene's own flight carries it, the real throw at the end finishes whatever walls or lag left over.
             case "release" when TryComp<ProcAnimComponent>(ent, out var anim) && anim.Partner is { } victim:
             {
-                var dir = _transform.GetWorldPosition(victim) - _transform.GetWorldPosition(ent);
+                var dir = anim.Forward;
                 if (dir.LengthSquared() < 0.01f)
-                    dir = anim.Forward;
+                    dir = _transform.GetWorldPosition(victim) - _transform.GetWorldPosition(ent);
+                if (dir.LengthSquared() < 0.0001f)
+                    break;
                 var pending = EnsureComp<GilbertLeapThrowComponent>(victim);
                 pending.Gilbert = ent;
                 pending.Dir = Vector2.Normalize(dir);
+                pending.From = _transform.GetWorldPosition(victim);
                 break;
             }
             // Rage finisher: he vanishes and reappears behind the victim - his spawn burst, faster and paler.
@@ -382,7 +391,9 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
         RemComp<GilbertLeapThrowComponent>(ent);
         if (!args.Completed || !TryComp<GilbertRageAbilitiesComponent>(pending.Gilbert, out var comp))
             return;
-        ThrowVictim((pending.Gilbert, comp), ent, pending.Dir);
+        // Only what the scene's flight did not already cover (it stops short at walls).
+        var covered = Vector2.Dot(_transform.GetWorldPosition(ent) - pending.From, pending.Dir);
+        ThrowVictim((pending.Gilbert, comp), ent, pending.Dir, MathF.Max(0f, comp.LeapThrowDistance - covered));
     }
 
     #endregion

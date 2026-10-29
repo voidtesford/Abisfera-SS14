@@ -45,9 +45,12 @@ public sealed partial class GilbertRageAbilitiesComponent : Component
     [DataField]
     public ProtoId<Content.Shared._CorvaxGoob.ProcAnim.ProcAnimScenePrototype> LeapScene = "GilbertLeapPounce";
 
-    /// <summary>The real throw at the end of the scene: distance (tiles) and speed.</summary>
+    /// <summary>
+    /// v13.1: how far (tiles) the leap's victim is thrown forward from where he lets go of it. The scene's own flight
+    /// covers it (shortened by walls); the real throw at the end only adds whatever the scene did not.
+    /// </summary>
     [DataField]
-    public float LeapThrowDistance = 3.5f;
+    public float LeapThrowDistance = 5f;
 
     [DataField]
     public float LeapThrowSpeed = 9f;
@@ -220,7 +223,11 @@ public sealed partial class GilbertLeapThrowComponent : Component
     [ViewVariables]
     public EntityUid Gilbert;
 
-    /// <summary>World direction (normalized) of the throw.</summary>
+    /// <summary>World direction (normalized) of the throw: the way Gilbert faces.</summary>
     [ViewVariables]
     public Vector2 Dir;
+
+    /// <summary>v13.1: the victim's world position at the release - the 5 tiles are counted from here.</summary>
+    [ViewVariables]
+    public Vector2 From;
 }
