@@ -34,6 +34,11 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
     [Dependency] private readonly SharedTransformSystem _transform = default!;
     [Dependency] private readonly CameraRecoilSystem _recoil = default!;
     [Dependency] private readonly IOverlayManager _overlays = default!;
+    [Dependency] private readonly AnimationPlayerSystem _animPlayer = default!;
+    [Dependency] private readonly AppearanceSystem _appearance = default!;
+
+    /// <summary>The <see cref="Content.Client.Rotation.RotationVisualizerSystem"/> lie-down / stand-up tween key.</summary>
+    private const string RotateAnimationKey = "rotate";
 
     private const float PixelsPerMeter = 32f;
     private const float FlashTime = 0.12f;
@@ -41,6 +46,27 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
     private static readonly Color FlashColor = new(1f, 0.55f, 0.55f);
 
     private readonly Dictionary<EntityUid, PlayState> _states = new();
+
+    /// <summary>
+    /// v13.3: victims left lying after a scene: the sprite eases from the last scene tilt onto the lying side the body
+    /// was tilted to, and that side is held for a moment against the lie-down tween and the facing-based side pick of
+    /// the laying-down system (which would otherwise flip the corpse 180° right after the scene).
+    /// </summary>
+    private readonly Dictionary<EntityUid, Settle> _settles = new();
+    private readonly List<KeyValuePair<EntityUid, Settle>> _settleScratch = new();
+
+    private sealed class Settle
+    {
+        public Angle From;
+        public Angle To;
+        public TimeSpan Start;
+    }
+
+    /// <summary>Seconds the sprite takes to ease from the last scene tilt onto the lying angle.</summary>
+    public const float SettleBlend = 0.3f;
+
+    /// <summary>Seconds the lying side is held after the scene.</summary>
+    public const float SettleHold = 1.5f;
 
     private sealed class PlayState
     {
@@ -124,6 +150,10 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
     public override void Initialize()
     {
         base.Initialize();
+        // v13.3: the actor's sprite rotation is ours during a scene; the lie-down / stand-up tween (AnimationPlayer,
+        // started by appearance changes) must not write over it after us in the same frame.
+        UpdatesAfter.Add(typeof(AnimationPlayerSystem));
+        UpdatesAfter.Add(typeof(AppearanceSystem));
         _bloodOverlay = new ProcAnimBloodOverlay(this, _timing);
         _overlays.AddOverlay(_bloodOverlay);
     }
@@ -146,6 +176,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
         foreach (var (uid, state) in _states)
             Restore(uid, state, null);
         _states.Clear();
+        _settles.Clear();
         foreach (var image in _pngCache.Values)
             image?.Dispose();
         _pngCache.Clear();
@@ -164,6 +195,7 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
         base.FrameUpdate(frameTime);
 
         var now = _timing.CurTime;
+        UpdateSettles(now);
         Stars.Clear();
         FxDots.Clear();
         var query = EntityQueryEnumerator<ProcAnimComponent, SpriteComponent>();
@@ -305,10 +337,16 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
 
         var body = poses[(int) ProcAnimBone.Body];
         state.LastBodyRot = sx * body.Rot;
+        // v13.3: no lie-down / stand-up tween on the sprite while the scene draws it (a crit victim the scene stands
+        // up, damage appearance updates re-triggering the lying tween...).
+        StopRotateTween(ent.Owner);
         _sprite.SetOffset(ent.AsNullable(), state.SpriteOffset + _eye.CurrentEye.Rotation.RotateVec(state.Shift)
                                              + new Vector2(sx * (body.X + shake.X), body.Y + shake.Y) / PixelsPerMeter);
         _sprite.SetScale(ent.AsNullable(), new Vector2(state.SpriteScale.X * flip, state.SpriteScale.Y));
-        _sprite.SetRotation(ent.AsNullable(), state.SpriteRotation + Angle.FromDegrees(sx * body.Rot));
+        // v13.3: the poses are upright side views, so the base is upright on screen whatever the actor was when the
+        // scene started (a downed / crit victim's sprite is at its 90 / 270 lying angle or mid-tween: adding that drew
+        // the whole victim puppet lying on its side while Gilbert stood upright).
+        _sprite.SetRotation(ent.AsNullable(), SceneRotation(sx * body.Rot));
 
         UpdateProps(ent, comp, state, tracks, puppet, poses, t, sx);
 
@@ -885,22 +923,114 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
         _sprite.SetColor(ent, state.SpriteColor);
         _sprite.SetScale(ent, state.SpriteScale);
 
-        // A victim left lying keeps the on-back angle of the cutscene instead of snapping to the default face-down
-        // lying rotation (the server knocks it down right after the component is removed).
+        // A victim left lying (the server knocks it down right after the component is removed) lies on the side its
+        // body was last tilted to: eased there from the last scene angle, then held (see UpdateSettles).
         if (comp is { KeepDown: true }
             && _proto.TryIndex(comp.Scene, out var scene) && comp.Actor >= 0 && comp.Actor < scene.Actors.Count
             && scene.Actors[comp.Actor].KnockDown
-            && MathF.Abs(state.LastBodyRot) > 45f
             && TryComp<RotationVisualsComponent>(uid, out var rotVisuals))
         {
-            var lying = Angle.FromDegrees(state.LastBodyRot > 0 ? 90 : 270);
+            var lying = LyingRotation(state.LastBodyRot);
             rotVisuals.HorizontalRotation = lying;
-            _sprite.SetRotation(ent, lying);
+            StopRotateTween(uid);
+            var from = SceneRotation(state.LastBodyRot);
+            _sprite.SetRotation(ent, from);
+            _settles[uid] = new Settle { From = from, To = lying, Start = _timing.CurTime };
             return;
         }
 
-        _sprite.SetRotation(ent, state.SpriteRotation);
+        // v13.3: back to what the rotation visuals say now (lying / standing), not the angle captured at the start: a
+        // crit victim's capture is its lying angle or a frame of the stand-up tween.
+        RotationState? rotState = null;
+        if (TryComp<RotationVisualsComponent>(uid, out var visuals)
+            && _appearance.TryGetData<RotationState>(uid, RotationVisuals.RotationState, out var rs))
+            rotState = rs;
+        StopRotateTween(uid);
+        _sprite.SetRotation(ent, RestRotation(rotState, visuals?.VerticalRotation ?? Angle.Zero,
+            visuals?.HorizontalRotation ?? Angle.Zero, state.SpriteRotation));
     }
+
+    private void UpdateSettles(TimeSpan now)
+    {
+        if (_settles.Count == 0)
+            return;
+
+        _settleScratch.Clear();
+        _settleScratch.AddRange(_settles);
+        foreach (var (uid, settle) in _settleScratch)
+        {
+            var elapsed = (float) (now - settle.Start).TotalSeconds;
+            if (elapsed > SettleHold || TerminatingOrDeleted(uid) || HasComp<ProcAnimComponent>(uid)
+                || !TryComp<SpriteComponent>(uid, out var sprite)
+                || (elapsed > SettleBlend
+                    && _appearance.TryGetData<RotationState>(uid, RotationVisuals.RotationState, out var rs)
+                    && rs == RotationState.Vertical))
+            {
+                _settles.Remove(uid);
+                continue;
+            }
+
+            if (TryComp<RotationVisualsComponent>(uid, out var visuals))
+                visuals.HorizontalRotation = settle.To;
+            StopRotateTween(uid);
+            _sprite.SetRotation((uid, sprite), SettleRotation(settle.From, settle.To, elapsed / SettleBlend));
+        }
+    }
+
+    /// <summary>
+    /// v13.3: eased rotation from the last scene tilt to the lying angle, the short way round; <paramref name="k"/> is
+    /// the blend progress (clamped to 0..1).
+    /// </summary>
+    public static Angle SettleRotation(Angle from, Angle to, float k)
+    {
+        if (k >= 1f)
+            return to; // land exactly on the lying angle (no -270 for 90 left for a later tween to unwind)
+        k = Math.Clamp(k, 0f, 1f);
+        k = k * k * (3f - 2f * k);
+        var delta = Angle.ShortestDistance(from, to);
+        return new Angle(from.Theta + delta.Theta * k);
+    }
+
+    /// <summary>For tests: true while a victim's lying angle is still being eased in / held after its scene.</summary>
+    public bool IsSettling(EntityUid uid) => _settles.ContainsKey(uid);
+
+    private void StopRotateTween(EntityUid uid)
+    {
+        if (TryComp<AnimationPlayerComponent>(uid, out var player) && _animPlayer.HasRunningAnimation(player, RotateAnimationKey))
+            _animPlayer.Stop((uid, player), RotateAnimationKey);
+    }
+
+    /// <summary>
+    /// v13.3: sprite rotation of an actor mid-scene: upright on screen plus the scene's body tilt (degrees, already
+    /// mirrored), never the actor's own lying angle.
+    /// </summary>
+    public static Angle SceneRotation(float bodyRotDegrees) => Angle.FromDegrees(bodyRotDegrees);
+
+    /// <summary>Lying angle a knocked-down victim keeps after the scene: the side its body was tilted to.</summary>
+    public static Angle LyingRotation(float lastBodyRotDegrees)
+    {
+        // The tilt can wind past a full turn (flips, the neck-twist ending): -270 is +90 on screen.
+        var wrapped = lastBodyRotDegrees % 360f;
+        if (wrapped > 180f)
+            wrapped -= 360f;
+        else if (wrapped <= -180f)
+            wrapped += 360f;
+        return Angle.FromDegrees(wrapped > 0 ? 90 : 270);
+    }
+
+    /// <summary>
+    /// v13.3: sprite rotation after a scene that did not leave the actor lying on its scene angle: the rotation visuals'
+    /// current state, or the angle captured at the start for sprites without rotation visuals.
+    /// </summary>
+    public static Angle RestRotation(RotationState? state, Angle vertical, Angle horizontal, Angle captured) => state switch
+    {
+        RotationState.Vertical => vertical,
+        RotationState.Horizontal => horizontal,
+        _ => captured,
+    };
+
+    /// <summary>For tests: the body tilt (degrees, screen-mirrored) of the last animated frame.</summary>
+    public float? GetLastBodyRot(EntityUid uid) => _states.TryGetValue(uid, out var state) ? state.LastBodyRot : null;
 
     /// <summary>For tests: true while this client still holds modified sprite state for the entity.</summary>
     public bool IsAnimating(EntityUid uid) => _states.ContainsKey(uid);
