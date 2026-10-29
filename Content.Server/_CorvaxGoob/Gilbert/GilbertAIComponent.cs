@@ -636,6 +636,34 @@ public sealed partial class GilbertAIComponent : Component
     [ViewVariables] public int BerserkSmashPunches;
     [ViewVariables] public int BerserkUnstucks;
 
+    // ---- v13: rage route choice (walk round vs smash through) ----
+    /// <summary>He smashes through only if the walk-round path costs more than this many times the smash path...</summary>
+    [DataField] public float BerserkDetourRatio = 2f;
+    /// <summary>...and more than this many tiles extra.</summary>
+    [DataField] public float BerserkDetourExtra = 8f;
+    /// <summary>On a walk-round route: no progress for this long counts as stuck (sidestep, re-path).</summary>
+    [DataField] public float BerserkWalkStuckTime = 2.5f;
+    /// <summary>Stuck this many times on a walk-round route to the same goal: smash after all.</summary>
+    [DataField] public int BerserkWalkStuckLimit = 2;
+    /// <summary>The current goal is best reached by smashing through (no walk path, or a far longer one).</summary>
+    [ViewVariables] public bool BerserkSmashRoute;
+    [ViewVariables] public Vector2 BerserkRouteGoal = new(float.NaN, float.NaN);
+
+    // ---- v13: rage finisher (phase 2) ----
+    /// <summary>Victims the rage finisher was already started on (never twice on the same one).</summary>
+    [ViewVariables] public HashSet<EntityUid> RageFinished = new();
+    /// <summary>No new rage-finisher attempt before this (after a failed one).</summary>
+    [ViewVariables] public TimeSpan NextRageFinisherTry;
+    [ViewVariables] public TimeSpan BerserkRouteCheckedAt;
+    [ViewVariables] public float? BerserkWalkCost;
+    [ViewVariables] public float? BerserkSmashCost;
+    [ViewVariables] public int BerserkWalkStucks;
+    /// <summary>Diagnostics / tests: route evaluations finished.</summary>
+    [ViewVariables] public int BerserkRouteChecks;
+    public System.Threading.Tasks.Task<float?>? BerserkWalkTask;
+    public System.Threading.Tasks.Task<float?>? BerserkSmashTask;
+    public System.Threading.CancellationTokenSource? BerserkRouteCancel;
+
     // ---- v9: patrol memory, anti-oscillation, prediction, own gear ----
 
     /// <summary>

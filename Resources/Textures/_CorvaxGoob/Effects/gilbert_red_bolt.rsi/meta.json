@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Procedurally generated for Gilbert (CorvaxGoob, v13)",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "bolt",
+      "delays": [
+        [
+          0.05,
+          0.05,
+          0.05
+        ]
+      ]
+    },
+    {
+      "name": "crawl",
+      "delays": [
+        [
+          0.06,
+          0.06,
+          0.06,
+          0.06,
+          0.06
+        ]
+      ]
+    },
+    {
+      "name": "spark",
+      "delays": [
+        [
+          0.06,
+          0.06,
+          0.06,
+          0.06
+        ]
+      ]
+    },
+    {
+      "name": "aura",
+      "delays": [
+        [
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05,
+          0.05
+        ]
+      ]
+    }
+  ]
+}

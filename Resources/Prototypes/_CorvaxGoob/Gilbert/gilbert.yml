@@ -56,6 +56,7 @@
   - type: GilbertAbilities
   - type: GilbertAI
   - type: GilbertBerserk
+  - type: GilbertRageAbilities
   - type: GilbertFractureImmune
   # Appearance (pale skin, black HumanHairBusiness3, red eyes) is applied by GilbertSystem on MapInit:
   # humanoidProfile prototypes overflow the stack in HumanoidCharacterProfile.Equals during prototype load.

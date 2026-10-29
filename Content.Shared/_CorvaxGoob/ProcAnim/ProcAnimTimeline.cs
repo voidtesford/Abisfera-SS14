@@ -681,7 +681,7 @@ public static class ProcAnimTimeline
     {
         foreach (var h in tr.Hide)
         {
-            if (t < h.Time)
+            if (t < h.Time || h.Until is { } until && t >= until)
                 continue;
             for (var p = (ProcAnimBone?) part; p is { } q; p = Parent(q))
                 if (h.Parts.Contains(q))

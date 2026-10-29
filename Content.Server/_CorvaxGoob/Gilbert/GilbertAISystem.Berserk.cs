@@ -164,6 +164,13 @@ public sealed partial class GilbertAISystem
         TransformComponent xform, TimeSpan now)
     {
         var comp = ent.Comp;
+        // v13: a rage ability is running (wind-up, cone, levitation): he stands and lets it play.
+        if (_rage.IsBusy(ent))
+        {
+            _steering.Unregister(ent);
+            return;
+        }
+
         // Gone out of sight (or no longer a victim): drop them at once and hunt from where they were last seen,
         // rather than tracking them through walls until the next re-pick.
         if (comp.BerserkTarget is { } current
@@ -209,11 +216,19 @@ public sealed partial class GilbertAISystem
         RecordEnemyMotion(comp, target);
 
         var distance = (_transform.GetWorldPosition(target) - myPos).Length();
+
+        // v13: rage abilities / rage finisher take over when they fit (and keep him still while they run).
+        if (TryRageMove(ent, xform, target, distance, reach, now))
+            return;
+
         if (distance <= reach + 0.1f && _interaction.InRangeUnobstructed(ent.Owner, target, reach + 0.1f))
         {
             _steering.Unregister(ent);
             comp.BerserkObstacle = null;
             FaceTowards(ent, target);
+            // v13: the victim he just threw out of the pounce flies off first (no free punch on the same tick).
+            if (TryComp<GilbertRageAbilitiesComponent>(ent, out var rageComp) && now < rageComp.PunchGraceUntil)
+                return;
             Punch(ent, target);
             comp.BerserkLastProgress = now;
             comp.BerserkLastPos = myPos;
@@ -223,6 +238,7 @@ public sealed partial class GilbertAISystem
         // v9: right there but something (a window, a door, a grille) is in between: break it now instead of
         // shuffling about in front of it.
         if (comp.BerserkObstacle == null && distance <= reach + 1.2f
+            && BerserkRouteSaysSmash(comp, _transform.GetWorldPosition(target))
             && !_interaction.InRangeUnobstructed(ent.Owner, target, distance + 0.1f)
             && TryPickObstacle(ent, xform, Transform(target).Coordinates, myPos, _transform.GetWorldPosition(target),
                 distance, reach, out var between))
@@ -354,7 +370,10 @@ public sealed partial class GilbertAISystem
         steering.Range = MathF.Max(0.6f, reach - 0.4f);
         steering.DirectMove = false;
         steering.RepathRange = 0.75f;
-        steering.Flags = BerserkPathFlags;
+        // v13: walk round unless there is no way round or it is far longer than breaking through.
+        var goalPos = _transform.ToMapCoordinates(goal).Position;
+        var smashRoute = UpdateBerserkRoute(ent, xform, goal, goalPos, reach, now);
+        steering.Flags = smashRoute ? BerserkPathFlags : GilbertPathFlags;
 
         // v9 (t258u/t259u): ripping an airlock open / vaulting a table: that is progress, not being stuck.
         if (IsBusyWithObstacle(ent))
@@ -394,6 +413,24 @@ public sealed partial class GilbertAISystem
             ResetBerserkPath(ent);
         }
 
+        if (!smashRoute)
+        {
+            // v13: walking round: a slow corner is not a reason to break the wall. Re-path, sidestep; only after
+            // BerserkWalkStuckLimit real hold-ups (or the walk path is gone) the route flips to smashing.
+            if (steering.Status == SteeringStatus.NoPath && stuckFor >= BerserkStuckTime)
+            {
+                comp.BerserkWalkStucks = comp.BerserkWalkStuckLimit;
+                return;
+            }
+
+            if (stuckFor < TimeSpan.FromSeconds(comp.BerserkWalkStuckTime))
+                return;
+
+            comp.BerserkWalkStucks++;
+            BerserkSidestep(ent, xform, goalPos, myPos, now);
+            return;
+        }
+
         if (stuckFor < BerserkStuckTime)
             return;
 
@@ -410,9 +447,16 @@ public sealed partial class GilbertAISystem
         }
 
         // Nothing to break: stuck on a corner / another body. Step sideways and try again.
+        BerserkSidestep(ent, xform, goalMap.Position, myPos, now);
+    }
+
+    private void BerserkSidestep(Entity<GilbertAIComponent> ent, TransformComponent xform, Vector2 goalPos,
+        Vector2 myPos, TimeSpan now)
+    {
+        var comp = ent.Comp;
         comp.BerserkUnstucks++;
         comp.BerserkLastProgress = now;
-        var dir = goalMap.Position - myPos;
+        var dir = goalPos - myPos;
         var side = dir.LengthSquared() > 0.01f ? new Vector2(-dir.Y, dir.X) / dir.Length() : new Vector2(1, 0);
         if (_random.NextFloat() < 0.5f)
             side = -side;
@@ -420,6 +464,70 @@ public sealed partial class GilbertAISystem
         var step = BerserkSteer(ent, _transform.ToCoordinates(grid, new MapCoordinates(myPos + side * 1.2f, xform.MapID)));
         step.Range = 0.3f;
         step.DirectMove = true;
+    }
+
+    /// <summary>
+    /// v13: is <paramref name="goalPos"/> best reached by smashing through? Two path costs are asked for
+    /// asynchronously whenever the goal moves 2 tiles (or every 3 s): walking round (doors pried, tables climbed) and
+    /// smashing (walls / windows cost their toughness). Smash only with no walk path at all, or when walking round
+    /// costs more than <see cref="GilbertAIComponent.BerserkDetourRatio"/> × and
+    /// <see cref="GilbertAIComponent.BerserkDetourExtra"/> tiles more than breaking through, or after
+    /// <see cref="GilbertAIComponent.BerserkWalkStuckLimit"/> hold-ups on the walk. Until the answer is in: walk.
+    /// </summary>
+    private bool UpdateBerserkRoute(Entity<GilbertAIComponent> ent, TransformComponent xform, EntityCoordinates goal,
+        Vector2 goalPos, float reach, TimeSpan now)
+    {
+        var comp = ent.Comp;
+        if (comp.BerserkWalkTask is { IsCompleted: true } walk && comp.BerserkSmashTask is { IsCompleted: true } smash)
+        {
+            // Both are completed here: reading the result can't block.
+#pragma warning disable RA0004
+            comp.BerserkWalkCost = walk.IsCompletedSuccessfully ? walk.Result : null;
+            comp.BerserkSmashCost = smash.IsCompletedSuccessfully ? smash.Result : null;
+#pragma warning restore RA0004
+            comp.BerserkWalkTask = null;
+            comp.BerserkSmashTask = null;
+            comp.BerserkSmashRoute = DecideSmashRoute(comp, comp.BerserkWalkCost, comp.BerserkSmashCost);
+            comp.BerserkRouteChecks++;
+        }
+
+        var moved = float.IsNaN(comp.BerserkRouteGoal.X) || (goalPos - comp.BerserkRouteGoal).LengthSquared() > 4f;
+        if ((moved || now - comp.BerserkRouteCheckedAt > TimeSpan.FromSeconds(3)) && comp.BerserkWalkTask == null)
+        {
+            if (moved)
+            {
+                comp.BerserkSmashRoute = false;
+                comp.BerserkWalkStucks = 0;
+            }
+            comp.BerserkRouteGoal = goalPos;
+            comp.BerserkRouteCheckedAt = now;
+            comp.BerserkRouteCancel?.Cancel();
+            comp.BerserkRouteCancel = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(2));
+            var grid = xform.GridUid ?? xform.ParentUid;
+            var end = _transform.ToCoordinates(grid, new MapCoordinates(goalPos, xform.MapID));
+            var range = MathF.Max(0.6f, reach - 0.4f);
+            comp.BerserkWalkTask = _pathfinding.GetPathDistance(ent, end, range, comp.BerserkRouteCancel.Token, GilbertPathFlags);
+            comp.BerserkSmashTask = _pathfinding.GetPathDistance(ent, end, range, comp.BerserkRouteCancel.Token, BerserkPathFlags);
+        }
+
+        return comp.BerserkSmashRoute || comp.BerserkWalkStucks >= comp.BerserkWalkStuckLimit;
+    }
+
+    public static bool DecideSmashRoute(GilbertAIComponent comp, float? walk, float? smash)
+    {
+        if (walk is not { } w)
+            return true;
+        if (smash is not { } s)
+            return false;
+        return w > MathF.Max(s * comp.BerserkDetourRatio, s + comp.BerserkDetourExtra);
+    }
+
+    /// <summary>v13: the route to (about) this spot was judged a smash-through one.</summary>
+    private static bool BerserkRouteSaysSmash(GilbertAIComponent comp, Vector2 goalPos)
+    {
+        if (float.IsNaN(comp.BerserkRouteGoal.X) || (goalPos - comp.BerserkRouteGoal).LengthSquared() > 4f)
+            return false;
+        return comp.BerserkSmashRoute || comp.BerserkWalkStucks >= comp.BerserkWalkStuckLimit;
     }
 
     private void ResetBerserkPath(EntityUid uid)
@@ -841,6 +949,64 @@ public sealed partial class GilbertAISystem
                 continue;
 
             obstacle = hit.HitEntity;
+            return true;
+        }
+
+        return false;
+    }
+    /// <summary>
+    /// v13 (t317u): phase-2 decisions. Rage finisher on a critted victim in reach; levitation when several are
+    /// around or the victim keeps its distance; the red cone at mid range in sight; the leap at a victim 3..9
+    /// tiles off with a clear run. Every ability checks its own cooldown (and the shared gap) itself.
+    /// </summary>
+    private bool TryRageMove(Entity<GilbertAIComponent> ent, TransformComponent xform, EntityUid target,
+        float distance, float reach, TimeSpan now)
+    {
+        if (!TryComp<GilbertRageAbilitiesComponent>(ent, out var rage) || !_rage.InRage(ent))
+            return false;
+
+        var sees = _interaction.InRangeUnobstructed(ent.Owner, target, distance + 0.1f);
+
+        if (_mobState.IsCritical(target) && distance <= reach + 0.3f && sees
+            && now >= ent.Comp.NextRageFinisherTry && !ent.Comp.RageFinished.Contains(target))
+        {
+            ent.Comp.NextRageFinisherTry = now + TimeSpan.FromSeconds(3);
+            if (_rage.TryRageFinisher(ent, target, out _))
+            {
+                ent.Comp.RageFinished.Add(target);
+                _steering.Unregister(ent);
+                return true;
+            }
+        }
+
+        if (_mobState.IsIncapacitated(target))
+            return false;
+
+        if (_rage.CanLevitate(ent, rage))
+        {
+            var living = 0;
+            foreach (var mob in _lookup.GetEntitiesInRange<MobStateComponent>(xform.Coordinates, rage.LevitateRange))
+            {
+                if (mob.Owner != ent.Owner && !_mobState.IsDead(mob) && _interaction.InRangeUnobstructed(ent.Owner, mob.Owner, rage.LevitateRange))
+                    living++;
+            }
+
+            if ((living >= 2 || distance > 3f && sees && distance <= rage.LevitateRange) && _rage.TryLevitate((ent, rage)))
+            {
+                _steering.Unregister(ent);
+                return true;
+            }
+        }
+
+        if (sees && distance >= 2f && distance <= 12f && _rage.CanCone(ent, rage) && _rage.TryCone((ent, rage), target))
+        {
+            _steering.Unregister(ent);
+            return true;
+        }
+
+        if (sees && distance >= 3f && distance <= rage.LeapRange && _rage.CanLeap(ent, rage) && _rage.TryLeap((ent, rage), target))
+        {
+            _steering.Unregister(ent);
             return true;
         }
 

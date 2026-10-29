@@ -904,6 +904,8 @@ public sealed class GilbertV8Test
             comp.TransitionDuration = TimeSpan.FromSeconds(1.0);
             comp.BurstAt = TimeSpan.FromSeconds(0.6);
             comp.RageDuration = TimeSpan.FromSeconds(300);
+            // v13: these targeting tests predate the rage abilities; a leap or levitation mid-test muddies them.
+            entMan.RemoveComponent<GilbertRageAbilitiesComponent>(gilbert);
         });
         await pair.Server.WaitRunTicks(3);
         await pair.Server.WaitPost(() =>

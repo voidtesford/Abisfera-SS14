@@ -151,6 +151,16 @@ public sealed partial class ProcAnimSystem : SharedProcAnimSystem
         // The scene is laid out in screen space: the axes are the screen axes of the lead's camera (grid / eye rotation),
         // so a side view stays a side view on rotated grids.
         var view = ScreenRotation(actors[0]);
+        // v13: no side-on room here: step both actors to the nearest spot that has it first (real positions, so the
+        // corpse lies where it was drawn instead of snapping 1-1.5 tiles at the end).
+        if (actors.Count > 1 && TryStage(actors, map, origin, view, proto, out var staged))
+        {
+            origin = staged;
+            _transform.SetWorldPosition(actors[0], origin);
+            toSecond = _transform.GetWorldPosition(Transform(actors[1])) - origin;
+            if (toSecond.LengthSquared() < 1e-4f)
+                toSecond = view.RotateVec(new Vector2(1, 0));
+        }
         var forward = PickForward(actors, map, origin, toSecond, view, proto.RequiredRoom, out var room);
 
         // Make sure they stand at the start (e.g. the victim may already be lying).
@@ -627,6 +637,81 @@ public sealed partial class ProcAnimSystem : SharedProcAnimSystem
         }
 
         return best;
+    }
+
+    /// <summary>
+    /// v13 staging: true with the new origin when <paramref name="origin"/> has less than <see cref="MinSideRoom"/> of
+    /// screen-horizontal floor on both sides (the scene would be laid out vertically and drawn rotated) and a tile
+    /// within <see cref="ProcAnimScenePrototype.StageRadius"/> has it. Candidates: floor tile centres, not space, not
+    /// blocked, reachable in a straight line from every actor; the ones with the full <c>requiredRoom</c> first, then the
+    /// nearest. None: false (the old vertical fallback).
+    /// </summary>
+    public bool TryStage(IReadOnlyList<EntityUid> actors, MapId map, Vector2 origin, Angle view,
+        ProcAnimScenePrototype proto, out Vector2 staged)
+    {
+        staged = origin;
+        if (proto.StageRadius <= 0f)
+            return false;
+
+        var right = view.RotateVec(new Vector2(1, 0));
+        if (SideRoom(actors, map, origin, right, proto.RequiredRoom) >= MinSideRoom)
+            return false;
+
+        if (!_mapManager.TryFindGridAt(map, origin, out var gridUid, out var grid))
+            return false;
+
+        var positions = actors.Select(a => _transform.GetWorldPosition(a)).ToList();
+        var center = _map.TileIndicesFor(gridUid, grid, new MapCoordinates(origin, map));
+        var r = (int) MathF.Ceiling(proto.StageRadius);
+        var best = (Score: float.MaxValue, Pos: origin);
+        const CollisionGroup blockers = CollisionGroup.Impassable | CollisionGroup.MidImpassable | CollisionGroup.HighImpassable;
+        for (var dx = -r; dx <= r; dx++)
+        for (var dy = -r; dy <= r; dy++)
+        {
+            if (dx == 0 && dy == 0)
+                continue;
+            var tileRef = _map.GetTileRef(gridUid, grid, center + new Vector2i(dx, dy));
+            if (_turf.IsSpace(tileRef) || _turf.IsTileBlocked(tileRef, blockers))
+                continue;
+
+            var c = _transform.ToMapCoordinates(_turf.GetTileCenter(tileRef)).Position;
+            var dist = (c - origin).Length();
+            if (dist > proto.StageRadius + 0.01f)
+                continue;
+
+            var reachable = true;
+            foreach (var p in positions)
+            {
+                var d = c - p;
+                var len = d.Length();
+                if (len > 1e-3f && FreeDistance(actors, map, p, d / len, len + 0.05f) < len)
+                {
+                    reachable = false;
+                    break;
+                }
+            }
+            if (!reachable)
+                continue;
+
+            var room = SideRoom(actors, map, c, right, proto.RequiredRoom);
+            if (room < MinSideRoom)
+                continue;
+            // Full room beats any distance; within a class the nearest wins.
+            var score = dist + (room >= proto.RequiredRoom ? 0f : 100f);
+            if (score < best.Score)
+                best = (score, c);
+        }
+
+        if (best.Score == float.MaxValue)
+            return false;
+        staged = best.Pos;
+        return true;
+    }
+
+    /// <summary>The roomier of the two screen-horizontal sides at <paramref name="at"/>.</summary>
+    private float SideRoom(IReadOnlyList<EntityUid> actors, MapId map, Vector2 at, Vector2 right, float max)
+    {
+        return MathF.Max(FreeDistance(actors, map, at, right, max), FreeDistance(actors, map, at, -right, max));
     }
 
     private float FreeDistance(IReadOnlyList<EntityUid> actors, MapId map, Vector2 origin, Vector2 dir, float max)

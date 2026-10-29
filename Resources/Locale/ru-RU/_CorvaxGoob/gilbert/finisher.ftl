@@ -1,9 +1,9 @@
 cmd-gilbertfinisher-desc = Проигрывает одно из добиваний Гилберта (1-я фаза) на двух гуманоидах (подходит любой гуманоид).
-cmd-gilbertfinisher-help = gilbertfinisher <uid атакующего> <uid жертвы> [вариант 1|2|3|id прототипа] [keepdown=true]  |  gilbertfinisher stop <uid>
+cmd-gilbertfinisher-help = gilbertfinisher <uid атакующего> <uid жертвы> [вариант 1|2|3|4/rage|id прототипа] [keepdown=true]  |  gilbertfinisher stop <uid>
     1 = серия ударов ногами, 2 = ствол дробовика (штык + выстрел), 3 = добивание на земле (с отрыванием рук).
-cmd-gilbertfinisher-usage = Использование: gilbertfinisher <uid атакующего> <uid жертвы> [вариант 1|2|3] [keepdown true/false] или gilbertfinisher stop <uid>
+cmd-gilbertfinisher-usage = Использование: gilbertfinisher <uid атакующего> <uid жертвы> [вариант 1|2|3|4] [keepdown true/false] или gilbertfinisher stop <uid>
 cmd-gilbertfinisher-bad-uid = { $uid } — нет такой сущности.
-cmd-gilbertfinisher-bad-variant = Неизвестный вариант добивания { $variant } (1, 2, 3 или id прототипа).
+cmd-gilbertfinisher-bad-variant = Неизвестный вариант добивания { $variant } (1, 2, 3, 4/rage или id прототипа).
 cmd-gilbertfinisher-no-proto = Прототип добивания не найден.
 cmd-gilbertfinisher-same = Атакующий и жертва должны быть разными сущностями.
 cmd-gilbertfinisher-not-humanoid = Обе сущности должны быть гуманоидами.
@@ -14,7 +14,7 @@ cmd-gilbertfinisher-started = Добивание запущено: { $attacker }
 cmd-gilbertfinisher-stopped = Добивание на { $uid } остановлено.
 cmd-gilbertfinisher-hint-attacker = <uid атакующего>
 cmd-gilbertfinisher-hint-victim = <uid жертвы>
-cmd-gilbertfinisher-hint-variant = [вариант] 1 ноги, 2 ствол дробовика, 3 добивание на земле (или keepdown)
+cmd-gilbertfinisher-hint-variant = [вариант] 1 ноги, 2 ствол дробовика, 3 добивание на земле, 4 ярость: разрыв пополам (или keepdown)
 cmd-gilbertfinisher-hint-keepdown = [keepdown] оставить жертву лежать в конце
 
 cmd-gilbertgoto-desc = Приказывает Гилберту дойти до точки (обычная навигация: шлюзы, столы, его карта) и держать / патрулировать её.

@@ -42,6 +42,14 @@ public sealed partial class ProcAnimScenePrototype : IPrototype
     [DataField]
     public float RequiredRoom = 3.9f;
 
+    /// <summary>
+    /// v13: when the start spot has no screen-horizontal room (a 1-tile vertical corridor), the actors are first moved
+    /// to the nearest free floor within this many tiles (in line of sight of both, not into walls) where the scene fits
+    /// side-on, so the world positions match the drawn side view (no snap at the end). 0 = never move them.
+    /// </summary>
+    [DataField]
+    public float StageRadius = 3f;
+
     [DataField("actors")]
     private List<ProcAnimActor> _actors = new();
 
@@ -778,12 +786,19 @@ public sealed partial class ProcAnimProp
     public bool Front;
 }
 
-/// <summary>From <see cref="Time"/> on, these parts are no longer drawn (e.g. torn-off arms).</summary>
+/// <summary>
+/// From <see cref="Time"/> on, these parts are no longer drawn (e.g. torn-off arms); with <see cref="Until"/> only
+/// until then (v13: e.g. an actor vanishing and reappearing elsewhere).
+/// </summary>
 [DataDefinition]
 public sealed partial class ProcAnimHide
 {
     [DataField("t")]
     public float Time;
+
+    /// <summary>Drawn again from this time on; null = hidden to the end.</summary>
+    [DataField]
+    public float? Until;
 
     [DataField]
     public List<ProcAnimBone> Parts = new();

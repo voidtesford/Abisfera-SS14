@@ -204,7 +204,7 @@ def draw_actor(frame, role, t, shake, real):
     for g, im in layers:
         if g in ('HeldNear', 'HeldFar') and not inh: continue
         if g == 'Slung' and inh: continue
-        if SV.is_hidden(tr, g, t): continue
+        if SV.is_hidden(tr, g, t) or SV.is_hidden(tr, 'Body', t): continue   # v13: Body hidden = whole actor (client: alpha 0)
         lay = xf(g)
         C = im.width
         pix = np.array([[1, 0, -C / 2], [0, -1, C / 2], [0, 0, 1.0]])   # image px -> centred y-up

@@ -1347,6 +1347,8 @@ public sealed class GilbertV9Test
             comp.TransitionDuration = TimeSpan.FromSeconds(1.0);
             comp.BurstAt = TimeSpan.FromSeconds(0.6);
             comp.RageDuration = TimeSpan.FromSeconds(300);
+            // v13: these door/route tests predate the rage abilities; a levitation or cone mid-test stalls him.
+            entMan.RemoveComponent<GilbertRageAbilitiesComponent>(gilbert);
         });
         await pair.Server.WaitRunTicks(3);
         await pair.Server.WaitPost(() =>

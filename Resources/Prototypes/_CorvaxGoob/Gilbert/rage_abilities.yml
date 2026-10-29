@@ -1,0 +1,162 @@
+# Gilbert v13: the effects of his phase-2 (rage) abilities - leap, red discharge cone, levitation - and of the
+# rage finisher's teleport. All purely visual: the damage / stun is done by GilbertRageAbilitiesSystem.
+# Art: Textures/_CorvaxGoob/Effects/gilbert_red_bolt.rsi (32 px) and gilbert_red_threads.rsi (64 px).
+
+- type: entity
+  id: GilbertRageFxBase
+  abstract: true
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_red_bolt.rsi
+    drawdepth: Effects
+    noRot: true
+  - type: TimedDespawn
+    lifetime: 0.3
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Discharges running over a body: on Gilbert while he winds up (cone, leap), and - denser - on whoever the cone hit.
+- type: entity
+  id: GilbertRageAura
+  parent: GilbertRageFxBase
+  name: red discharges
+  components:
+  - type: Sprite
+    layers:
+    - state: aura
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2020"
+    radius: 1.6
+    energy: 1.4
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.3
+
+# One spark of the red discharge cone.
+- type: entity
+  id: GilbertConeSpark
+  parent: GilbertRageFxBase
+  name: red discharge
+  components:
+  - type: Sprite
+    layers:
+    - state: spark
+      shader: unshaded
+  - type: TimedDespawn
+    lifetime: 0.24
+
+# Light travelling with the cone's front (a few of them, not one per spark).
+- type: entity
+  id: GilbertConeFlash
+  parent: GilbertRageFxBase
+  name: red flash
+  components:
+  - type: Sprite
+    layers:
+    - state: spark
+      shader: unshaded
+      visible: false
+  - type: PointLight
+    color: "#ff2020"
+    radius: 2.5
+    energy: 2.2
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.2
+
+# One 1-tile segment of a thin red lightning bolt (the art runs east, rotated along the bolt).
+- type: entity
+  id: GilbertBoltSegment
+  parent: GilbertRageFxBase
+  name: red lightning
+  components:
+  - type: Sprite
+    noRot: false
+    layers:
+    - state: bolt
+      shader: unshaded
+  - type: TimedDespawn
+    lifetime: 0.16
+
+# A bolt crawling over whatever it struck (parented to it, so it follows a running target).
+- type: entity
+  id: GilbertBoltCrawl
+  parent: GilbertRageFxBase
+  name: red crackle
+  components:
+  - type: Sprite
+    layers:
+    - state: crawl
+      shader: unshaded
+  - type: PointLight
+    color: "#ff3030"
+    radius: 1.4
+    energy: 1.6
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.5
+
+# Levitation: a red thread running out over the floor from under him (the art runs east from the centre).
+- type: entity
+  id: GilbertLevitateFloorThread
+  parent: GilbertRageFxBase
+  name: red thread
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_red_threads.rsi
+    drawdepth: FloorObjects
+    noRot: false
+    layers:
+    - state: floor
+      shader: unshaded
+  - type: TimedDespawn
+    lifetime: 0.42
+
+# Levitation: the threads he hangs on, from the floor up into his body.
+- type: entity
+  id: GilbertLevitateRise
+  parent: GilbertRageFxBase
+  name: red threads
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_red_threads.rsi
+    offset: 0, 0.1
+    layers:
+    - state: rise
+      shader: unshaded
+  - type: PointLight
+    color: "#ff2020"
+    radius: 2.2
+    energy: 1.8
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.26
+
+# Rage finisher: Gilbert vanishing / reappearing - his spawn burst, smaller, paler and much faster.
+- type: entity
+  id: GilbertBlinkBurst
+  name: energy burst
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/gilbert_energy_large.rsi
+    drawdepth: Effects
+    noRot: true
+    scale: 0.75, 0.75
+    layers:
+    - state: burst
+      shader: unshaded
+      color: "#ff8080"
+  - type: PointLight
+    color: "#ff4040"
+    radius: 3
+    energy: 2.5
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.25
+  - type: Tag
+    tags:
+    - HideContextMenu

@@ -20,12 +20,17 @@ public sealed class GilbertFinisherSystem : EntitySystem
     /// <summary>The three phase-1 variants, in command order (1 = kick combo, 2 = shotgun barrel, 3 = ground and pound).</summary>
     public static readonly string[] Variants = { DefaultFinisher, "GilbertFinisherBarrel", "GilbertFinisherGroundPound" };
 
+    /// <summary>v13: the phase-2 (rage) finisher - palm strike, teleport behind, torn in half. Command variant 4 / "rage".</summary>
+    public const string RageFinisher = "GilbertFinisherRage";
+
     public const string AttackerRole = "attacker";
     public const string VictimRole = "victim";
 
-    /// <summary>"1".."3" or a scene prototype id → prototype id; null when unknown.</summary>
+    /// <summary>"1".."3", "4"/"rage" or a scene prototype id → prototype id; null when unknown.</summary>
     public string? ResolveVariant(string arg)
     {
+        if (arg == "4" || arg.Equals("rage", StringComparison.OrdinalIgnoreCase))
+            return _proto.HasIndex<ProcAnimScenePrototype>(RageFinisher) ? RageFinisher : null;
         if (int.TryParse(arg, out var n))
             return n >= 1 && n <= Variants.Length ? Variants[n - 1] : null;
         return _proto.HasIndex<ProcAnimScenePrototype>(arg) ? arg : null;

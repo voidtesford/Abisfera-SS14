@@ -570,7 +570,13 @@ public sealed partial class ProcAnimVisualsSystem
                 continue;
             // Torn-off limb: the baked segment stops being drawn (the real body part is gone by then too).
             if (hidden)
+            {
+                if (layer.Visible)
+                    state.HiddenParts.Add(layer);
                 _sprite.LayerSetVisible(layer, false);
+            }
+            else if (state.HiddenParts.Remove(layer))
+                _sprite.LayerSetVisible(layer, true); // v13: a `hide` with `until` ended
             _sprite.LayerSetOffset(layer, offset);
             _sprite.LayerSetRotation(layer, rotation);
         }

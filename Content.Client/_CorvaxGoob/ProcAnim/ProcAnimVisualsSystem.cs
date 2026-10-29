@@ -72,6 +72,8 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
         public int PropHands;
         public ProcAnimExpression Expression;
         public Vector2 SpriteScale = Vector2.One;
+        /// <summary>v13: puppet layers hidden by a timed <see cref="ProcAnimHide"/> (shown again once it ends).</summary>
+        public readonly HashSet<SpriteComponent.Layer> HiddenParts = new();
     }
 
     /// <summary>A running blood burst (drawn by <see cref="ProcAnimBloodOverlay"/>).</summary>
@@ -566,7 +568,11 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
                 StartFx(ent, comp, proto, ev, index);
         }
 
-        _sprite.SetColor(ent.AsNullable(), real < state.FlashUntil ? state.SpriteColor * FlashColor : state.SpriteColor);
+        var color = real < state.FlashUntil ? state.SpriteColor * FlashColor : state.SpriteColor;
+        // v13: `hide` listing Body = the whole actor vanishes (Gilbert's rage-finisher blink), back when it ends.
+        if (ProcAnimTimeline.IsHidden(ProcAnimTimeline.Tracks(proto, comp.Actor), ProcAnimBone.Body, t))
+            color = color.WithAlpha(0f);
+        _sprite.SetColor(ent.AsNullable(), color);
     }
 
     /// <summary>Dizzy stars orbiting the dazed actor's head, in the same forward-frame -> world mapping as the blood.</summary>

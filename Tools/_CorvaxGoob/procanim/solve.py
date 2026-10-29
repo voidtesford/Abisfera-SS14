@@ -403,9 +403,10 @@ def view_at(tr, t):
 
 ANCESTOR = dict(LOW_PARENT)
 def is_hidden(tr, part, t):
-    """ProcAnimTimeline.IsHidden: hidden from a hide entry's t on, with every part carried by a listed part."""
+    """ProcAnimTimeline.IsHidden: hidden from a hide entry's t on (until its `until`, if set), with every part carried by a listed part."""
     for h in tr.get('hide') or []:
         if t < float(h['t']): continue
+        if h.get('until') is not None and t >= float(h['until']): continue
         p = part
         while p:
             if p in h.get('parts', []): return True

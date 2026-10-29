@@ -78,6 +78,8 @@ public sealed partial class GilbertAISystem : EntitySystem
     [Dependency] private readonly MobStateSystem _mobState = default!;
     [Dependency] private readonly MovementSpeedModifierSystem _speed = default!;
     [Dependency] private readonly NPCSteeringSystem _steering = default!;
+    [Dependency] private readonly Content.Server.NPC.Pathfinding.PathfindingSystem _pathfinding = default!; // v13
+    [Dependency] private readonly GilbertRageAbilitiesSystem _rage = default!; // v13
     [Dependency] private readonly SharedCuffableSystem _cuffable = default!;
     [Dependency] private readonly SharedDoAfterSystem _doAfter = default!;
     [Dependency] private readonly SharedInteractionSystem _interaction = default!;
