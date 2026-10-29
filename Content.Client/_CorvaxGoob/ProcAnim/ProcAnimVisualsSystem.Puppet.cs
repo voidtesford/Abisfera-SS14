@@ -558,7 +558,7 @@ public sealed partial class ProcAnimVisualsSystem
 
     /// <summary>Applies one solved part pose to its puppet group (baked layer + leftovers), offsets snapped to whole pixels.</summary>
     private void AnimatePuppetPart(PuppetData puppet, PlayState state, ProcAnimBone part,
-        ProcAnimPose pose, float sx, bool hidden = false)
+        ProcAnimPose pose, float sx, bool hidden = false, float? flipX = null)
     {
         var group = GroupOf(part);
         var offset = new Vector2(MathF.Round(sx * pose.X), MathF.Round(pose.Y)) / PixelsPerMeter;
@@ -579,6 +579,9 @@ public sealed partial class ProcAnimVisualsSystem
                 _sprite.LayerSetVisible(layer, true); // v13: a `hide` with `until` ended
             _sprite.LayerSetOffset(layer, offset);
             _sprite.LayerSetRotation(layer, rotation);
+            // v13.2: a part turned round (mirrored in its own frame, e.g. the head on a broken neck).
+            if (flipX is { } fx)
+                _sprite.LayerSetScale(layer, new Vector2(fx, 1f));
         }
 
         foreach (var (layer, g) in puppet.Leftovers)

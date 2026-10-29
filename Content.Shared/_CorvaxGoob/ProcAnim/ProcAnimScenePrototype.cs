@@ -331,6 +331,13 @@ public sealed partial class ProcAnimActor
     public List<ProcAnimHide> Hide = new();
 
     /// <summary>
+    /// v13.2: parts drawn mirrored about their own vertical axis from some point on (e.g. a head twisted round on a
+    /// broken neck so the face looks back over the shoulder). The flip is a short squash through edge-on.
+    /// </summary>
+    [DataField]
+    public List<ProcAnimPartFlip> Flips = new();
+
+    /// <summary>
     /// Server: before the scene (a pre-beat ahead of the intro) every item in this actor's hands that isn't
     /// <see cref="ProcAnimStow.Keep"/>-matched or one of its <see cref="Items"/> is really put away (storage / slots,
     /// dropped only as a last resort), one quick reach per item. Null: the hands are left alone.
@@ -797,6 +804,27 @@ public sealed partial class ProcAnimHide
     public float Time;
 
     /// <summary>Drawn again from this time on; null = hidden to the end.</summary>
+    [DataField]
+    public float? Until;
+
+    [DataField]
+    public List<ProcAnimBone> Parts = new();
+}
+
+/// <summary>
+/// v13.2: from <see cref="Time"/> on, these parts are drawn mirrored in their own frame (the face turned round), props
+/// on them too; the turn takes <see cref="Blend"/> seconds centred on <see cref="Time"/> (scale 1 -> 0 -> -1).
+/// With <see cref="Until"/> it turns back.
+/// </summary>
+[DataDefinition]
+public sealed partial class ProcAnimPartFlip
+{
+    [DataField("t")]
+    public float Time;
+
+    [DataField]
+    public float Blend = 0.12f;
+
     [DataField]
     public float? Until;
 

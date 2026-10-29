@@ -318,7 +318,8 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
             var pose = poses[i];
             if (puppet != null)
             {
-                AnimatePuppetPart(puppet, state, part, pose, sx, ProcAnimTimeline.IsHidden(tracks, part, t));
+                AnimatePuppetPart(puppet, state, part, pose, sx, ProcAnimTimeline.IsHidden(tracks, part, t),
+                    tracks.Flips.Count > 0 ? ProcAnimTimeline.FlipScale(tracks, part, t) : null);
                 continue;
             }
 
@@ -412,13 +413,15 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
                 continue;
             // The body pose moves the whole sprite already.
             var partPose = prop.Part == ProcAnimBone.Body ? default : poses[(int) prop.Part];
-            var pose = ProcAnimTimeline.PropPose(prop, partPose, t);
             var usesItem = i < state.PropUsesItem.Count && state.PropUsesItem[i];
-            var rot = pose.Rot + (usesItem ? prop.ItemRotation : 0f);
+            // v13.2: a prop on a turned-round part (the baton in a head twisted back) is mirrored with it.
+            var flip = prop.Part == ProcAnimBone.Body ? 1f : ProcAnimTimeline.FlipScale(tracks, prop.Part, t);
+            var pose = ProcAnimTimeline.PropPose(prop, partPose, t, flip, usesItem ? prop.ItemRotation : 0f);
+            var rot = pose.Rot;
             var scale = usesItem ? prop.ItemScale ?? prop.Scale : prop.Scale;
             _sprite.LayerSetOffset(layer, new Vector2(MathF.Round(sx * pose.X), MathF.Round(pose.Y)) / PixelsPerMeter);
             _sprite.LayerSetRotation(layer, Angle.FromDegrees(sx * rot));
-            _sprite.LayerSetScale(layer, new Vector2(sx * scale, scale));
+            _sprite.LayerSetScale(layer, new Vector2(sx * scale * flip, scale));
         }
     }
 
@@ -708,9 +711,13 @@ public sealed partial class ProcAnimVisualsSystem : SharedProcAnimSystem
             return;
         if (ProcAnimTimeline.IsHidden(tracks, ProcAnimBone.Head, t))
             return;
+        // v13.2: a head turned round shows its face on the other side; nothing while it is edge-on.
+        var headFlip = ProcAnimTimeline.FlipScale(tracks, ProcAnimBone.Head, t);
+        if (MathF.Abs(headFlip) < 0.4f)
+            return;
         var info = ProcAnimTimeline.ViewInfoAt(tracks, t);
         var front = false;
-        var faceSign = tracks.Facing >= 0f ? 1f : -1f;
+        var faceSign = (tracks.Facing >= 0f ? 1f : -1f) * MathF.Sign(headFlip);
         if (info is { Turned: true })
             faceSign = -faceSign;
         else if (info != null)

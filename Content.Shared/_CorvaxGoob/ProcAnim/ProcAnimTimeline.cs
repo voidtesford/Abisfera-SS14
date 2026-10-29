@@ -676,6 +676,48 @@ public static class ProcAnimTimeline
         return new ProcAnimPose(part.X + cos * k.X - sin * k.Y, part.Y + sin * k.X + cos * k.Y, part.Rot + k.Rot);
     }
 
+    /// <summary>
+    /// v13.2: horizontal scale of <paramref name="part"/> in its own frame from <see cref="ProcAnimActor.Flips"/>:
+    /// 1 normally, -1 mirrored (face turned round), in between while it turns (a cosine through edge-on). Never
+    /// thinner than <see cref="MinFlipScale"/> (the sprite system rejects a zero layer scale).
+    /// </summary>
+    public const float MinFlipScale = 0.15f;
+
+    public static float FlipScale(ProcAnimActor tr, ProcAnimBone part, float t)
+    {
+        var s = 1f;
+        foreach (var f in tr.Flips)
+        {
+            if (!f.Parts.Contains(part))
+                continue;
+            s *= Turn(f.Time, f.Blend, t);
+            if (f.Until is { } until)
+                s *= Turn(until, f.Blend, t);
+        }
+
+        return s < 0f ? MathF.Min(s, -MinFlipScale) : MathF.Max(s, MinFlipScale);
+
+        static float Turn(float at, float blend, float t)
+        {
+            var u = blend <= 0f ? (t >= at ? 1f : 0f) : Math.Clamp((t - (at - blend / 2f)) / blend, 0f, 1f);
+            return MathF.Cos(MathF.PI * u);
+        }
+    }
+
+    /// <summary>
+    /// <see cref="PropPose(ProcAnimProp, ProcAnimPose, float)"/> on a part drawn with horizontal scale
+    /// <paramref name="flip"/> (<see cref="FlipScale"/>): the prop's own offset is mirrored with it and its rotation
+    /// negated once the part is turned (its sprite is mirrored by the caller).
+    /// </summary>
+    public static ProcAnimPose PropPose(ProcAnimProp prop, ProcAnimPose part, float t, float flip, float extraRot = 0f)
+    {
+        var k = Evaluate(prop.Keys, t);
+        var kx = k.X * flip;
+        var kr = (k.Rot + extraRot) * (flip < 0f ? -1f : 1f);
+        var (sin, cos) = MathF.SinCos(part.Rot * MathF.PI / 180f);
+        return new ProcAnimPose(part.X + cos * kx - sin * k.Y, part.Y + sin * kx + cos * k.Y, part.Rot + kr);
+    }
+
     /// <summary>True when <paramref name="part"/> (or the limb segment it hangs from) is hidden at <paramref name="t"/>.</summary>
     public static bool IsHidden(ProcAnimActor tr, ProcAnimBone part, float t)
     {

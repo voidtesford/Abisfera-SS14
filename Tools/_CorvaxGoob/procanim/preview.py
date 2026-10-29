@@ -153,6 +153,7 @@ def make_actor(layers, leftovers, near_right):
         for g in puppet.ORDER:
             n = int((a & (out[g][..., 3] > 0)).sum())
             if n > bn: best, bn = g, n
+        im.info['leftover'] = True   # v13.2: not mirrored with a flipped part (as in the client)
         left.append((best, im))
     print('puppet', info, {k: tuple(round(float(v), 1) for v in p) for k, p in piv.items()}, [g for g, _ in left], file=sys.stderr)
     return groups + left, piv
@@ -203,32 +204,44 @@ def draw_actor(frame, role, t, shake, real):
     flash = any(e.get('flash') and e['_target'] == role and SV.real_time(proto, e['t']) <= real < SV.real_time(proto, e['t']) + 0.12 for e in EVENTS)
     ash = FX.shake(proto, role, real); fl = FX.view_flip_scale(tr, t)   # v12 per-actor impact shake, view-flip squash
     scr = np.array([[S * fl, 0, (round(ex - X0 * 32 + shake[0]) + ash[0]) * S], [0, -S, (round(Y1 * 32 - ey + shake[1]) - ash[1]) * S], [0, 0, 1.0]])
-    for g, im in layers:
+    names = [n for n, _ in layers]
+    for li, (g, im) in enumerate(layers):
         if g in ('HeldNear', 'HeldFar') and not inh: continue
         if g == 'Slung' and inh: continue
         if SV.is_hidden(tr, g, t) or SV.is_hidden(tr, 'Body', t): continue   # v13: Body hidden = whole actor (client: alpha 0)
         lay = xf(g)
         C = im.width
         pix = np.array([[1, 0, -C / 2], [0, -1, C / 2], [0, 0, 1.0]])   # image px -> centred y-up
+        if not im.info.get('leftover'):   # v13.2 flips: the part mirrored in its own frame
+            fs_ = SV.flip_scale(tr, g, t)
+            if fs_ != 1.0: lay = lay @ np.diag([fs_, 1.0, 1.0])
         F = scr @ body @ lay @ pix
         inv = np.linalg.inv(F)
         src = tint(im, tuple(int(c * 255) for c in FLASH)) if flash else im
         out = src.transform((W, H), Image.AFFINE, tuple(inv[:2].flatten()), resample=Image.NEAREST)
-        draw_props(frame, tr, role, g, t, pose, scr, body, under=True)   # v12 under: below the part's layers
+        if li == names.index(g): draw_props(frame, tr, role, g, t, pose, scr, body, under=True)   # v12 under: below the part's first layer
         frame.alpha_composite(out)
-        draw_props(frame, tr, role, g, t, pose, scr, body, under=False)
+        if li == len(names) - 1 - names[::-1].index(g): draw_props(frame, tr, role, g, t, pose, scr, body, under=False)   # above its last
+    if not SV.is_hidden(tr, 'Body', t):   # v13.2 client parity: front props, and props on a part with no layers, go on top
+        draw_props(frame, tr, role, None, t, pose, scr, body, under=None, names=names)
 
-def draw_props(frame, tr, role, g, t, pose, scr, body, under):
+def _prop_group(pr): return 'Torso' if pr.get('part', 'Body') == 'Body' else pr.get('part', 'Body')
+def draw_props(frame, tr, role, g, t, pose, scr, body, under, names=None):
         for pr in tr.get('props') or []:
-            if bool(pr.get('under', False)) != under: continue
-            if pr.get('part', 'Body') != g and not (g == 'Torso' and pr.get('part', 'Body') == 'Body'): continue
+            if under is None:   # top pass
+                if not (pr.get('front') or _prop_group(pr) not in names): continue
+                g = _prop_group(pr)
+            else:
+                if pr.get('front'): continue
+                if bool(pr.get('under', False)) != under: continue
+                if _prop_group(pr) != g: continue
             if not SV.prop_visible(tr, pr, t): continue
             base = (0, 0, 0) if pr.get('part', 'Body') == 'Body' else pose.get(g, (0, 0, 0))
-            px_, py_, pr_ = SV.prop_pose(pr, base, t)
             pim, sc, extra = prop_image(pr, role)
-            pr_ += extra
+            pf = 1.0 if pr.get('part', 'Body') == 'Body' else SV.flip_scale(tr, pr.get('part', 'Body'), t)   # v13.2
+            px_, py_, pr_ = SV.prop_pose(pr, base, t, pf, extra)
             C = pim.width
-            pix = np.array([[sc, 0, -C / 2 * sc], [0, -sc, C / 2 * sc], [0, 0, 1.0]])
+            pix = np.array([[sc * pf, 0, -C / 2 * sc * pf], [0, -sc, C / 2 * sc], [0, 0, 1.0]])
             F = scr @ body @ trans(round(px_), round(py_)) @ rotm(pr_) @ pix
             inv = np.linalg.inv(F)
             frame.alpha_composite(pim.transform((W, H), Image.AFFINE, tuple(inv[:2].flatten()), resample=Image.NEAREST))
@@ -327,7 +340,9 @@ def draw_fx(frame, real, at, shake):
         face, eyes = SV.expression_at(tr, at)
         cfg = FX.face_cfg(tr)
         if cfg['disabled'] or ((face in (None, 'neutral')) and (eyes in (None, 'open'))) or SV.is_hidden(tr, 'Head', at): continue
-        fs = 1.0 if tr['facing'] >= 0 else -1.0; front = False
+        hf = SV.flip_scale(tr, 'Head', at)   # v13.2: a head turned round faces the other way; none edge-on
+        if abs(hf) < 0.4: continue
+        fs = (1.0 if tr['facing'] >= 0 else -1.0) * (1.0 if hf > 0 else -1.0); front = False
         v = FX._view(tr, at)
         if v and v[0]: fs = -fs
         elif v:

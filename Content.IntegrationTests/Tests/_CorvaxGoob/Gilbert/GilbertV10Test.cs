@@ -125,7 +125,7 @@ public sealed class GilbertV10Test
                 [Variants[2]] = new[]
                 {
                     (TargetBodyPart.Head, "Blunt", 60f), (TargetBodyPart.LeftLeg, "Piercing", 30f),
-                    (TargetBodyPart.RightLeg, "Piercing", 30f), (TargetBodyPart.Chest, "Blunt", 40f),
+                    (TargetBodyPart.RightLeg, "Piercing", 30f), (TargetBodyPart.Chest, "Blunt", 40f), // v13.2: the kick (its force goes to the torso)
                 },
             };
 
@@ -151,30 +151,38 @@ public sealed class GilbertV10Test
             }
 
             var pound = protoMan.Index<ProcAnimScenePrototype>(Variants[2]);
+            // v13.2: no head shot / decapitation any more - only the two arms come off.
             Assert.That(pound.Events.SelectMany(e => e.Amputate),
-                Is.EquivalentTo(new[] { TargetBodyPart.LeftArm, TargetBodyPart.RightArm, TargetBodyPart.Head }));
-            Assert.That(pound.Actor("victim").HoldAlive, "the victim is held alive until the head shot");
-            Assert.That(pound.Actor("victim").Hide.Count, Is.EqualTo(3), "both torn arms and the shot-off head are hidden");
-            // The leg shot carries the leg damage; the head shot carries the rest, removes the head and kills.
+                Is.EquivalentTo(new[] { TargetBodyPart.LeftArm, TargetBodyPart.RightArm }));
+            Assert.That(pound.Actor("victim").HoldAlive, "the victim is held alive until the neck snaps");
+            Assert.That(pound.Actor("victim").Hide.Count, Is.EqualTo(2), "only the two torn arms are hidden; the head stays on");
             var legShot = pound.Events.First(e => e.Damage.Count > 0);
             Assert.That(legShot.Damage.Select(d => d.Part), Is.EquivalentTo(new[] { TargetBodyPart.LeftLeg, TargetBodyPart.RightLeg }));
             Assert.That(legShot.Time, Is.LessThan(pound.Events.First(e => e.Amputate.Count > 0).Time), "legs shot before the arms come off");
-            var shot = pound.Events.Single(e => e.Kill);
-            Assert.That(pound.Events.Last(e => e.Damage.Count > 0), Is.SameAs(shot), "the kill shot is the last hit");
-            Assert.That(shot.Amputate, Is.EquivalentTo(new[] { TargetBodyPart.Head }), "the head is shot off");
-            Assert.That(shot.Damage.Select(d => d.Part), Is.EquivalentTo(new[] { TargetBodyPart.Head, TargetBodyPart.Chest }));
-            Assert.That(pound.Events.Where(e => e.Amputate.Count > 0).All(e => e.Time <= shot.Time));
-            // The truncheon prop: drawn and stowed by Gilbert, lodged in the mouth / stump in between.
+            // The twist breaks the neck (Blunt to the head) and kills; the kick to the face is the last hit.
+            var snap = pound.Events.Single(e => e.Kill);
+            Assert.That(snap.Amputate, Is.Empty, "the neck break leaves the head on");
+            Assert.That(snap.Damage.Select(d => d.Part), Is.EquivalentTo(new[] { TargetBodyPart.Head }));
+            Assert.That(snap.Damage.SelectMany(d => d.Damage.DamageDict.Keys), Is.EquivalentTo(new[] { "Blunt" }));
+            Assert.That(snap.Sound, Is.Not.Null, "an audible crack");
+            Assert.That(pound.Events.Where(e => e.Amputate.Count > 0).All(e => e.Time < snap.Time));
+            var kick = pound.Events.Last(e => e.Damage.Count > 0);
+            Assert.That(kick.Time, Is.GreaterThan(snap.Time));
+            // The kick lands on the face (its blood comes from the head), its force goes to the torso: the head is at its integrity
+            // limit after the snap and a second head hit would roll a random dismemberment.
+            Assert.That(kick.Blood?.From, Is.EqualTo(ProcAnimBone.Head), "the kick lands on the face");
+            Assert.That(kick.Damage.Select(d => d.Part), Is.EquivalentTo(new[] { TargetBodyPart.Chest }), "the kick's force goes to the torso");
+            Assert.That(kick.Damage.SelectMany(d => d.Damage.DamageDict.Keys), Is.EquivalentTo(new[] { "Blunt" }));
+            // The truncheon prop: drawn and stowed by Gilbert, lodged in the mouth in between.
             Assert.That(pound.Actor("attacker").Props.Count, Is.EqualTo(2));
-            Assert.That(pound.Actor("victim").Props.Count, Is.EqualTo(2));
+            Assert.That(pound.Actor("victim").Props.Count, Is.EqualTo(1));
             foreach (var prop in pound.Actor("attacker").Props.Concat(pound.Actor("victim").Props))
             {
                 Assert.That(prop.State, Is.EqualTo("truncheon"));
                 Assert.That(prop.End, Is.GreaterThan(prop.Start));
                 Assert.That(prop.Keys, Is.Not.Empty);
             }
-            Assert.That(pound.Actor("attacker").UnholsterAt, Is.Not.Null.And.GreaterThan(pound.Actor("attacker").HolsterAt ?? 0f).And.LessThan(shot.Time),
-                "the shotgun comes back off his back before the head shot");
+            Assert.That(pound.Actor("attacker").UnholsterAt, Is.Null, "v13.2: no head shot - the shotgun stays on his back");
             Assert.That(pound.Events.Where(e => e.Kill || e.Amputate.Count > 0 || e.Damage.Count > 0).All(e => e.Damage.All(d => d.IgnoreArmor)));
             var barrel = protoMan.Index<ProcAnimScenePrototype>(Variants[1]);
             Assert.That(barrel.Actor("attacker").HolsterHeldItems, Is.False, "the barrel variant keeps the shotgun");
@@ -262,7 +270,7 @@ public sealed class GilbertV10Test
         var elapsed = 0.0;
         if (variant == 3)
         {
-            // Legs shot, both arms torn off, baton rammed in: still alive (not even crit) right before the head shot.
+            // Legs shot, both arms torn off, baton rammed in: still alive (not even crit) right before the neck snaps.
             var shot = proto.Events.Single(e => e.Kill).Time;
             elapsed = proto.Intro + ProcAnimTimeline.RealTime(proto, shot - 0.3f);
             await RunSeconds(pair, elapsed);
@@ -270,9 +278,9 @@ public sealed class GilbertV10Test
             {
                 var state = entMan.GetComponent<Content.Shared.Mobs.Components.MobStateComponent>(v).CurrentState;
                 var parts = body.GetBodyChildren(v).Select(p => body.GetTargetBodyPart(p.Component)).ToList();
-                TestContext.Out.WriteLine($"[v10b] before the shot: {state}, damage {entMan.GetComponent<DamageableComponent>(v).TotalDamage}, parts {string.Join(",", parts)}");
+                TestContext.Out.WriteLine($"[v10b] before the twist: {state}, damage {entMan.GetComponent<DamageableComponent>(v).TotalDamage}, parts {string.Join(",", parts)}");
                 Assert.That(sys.IsPlaying(v), "still in the cutscene");
-                Assert.That(state, Is.EqualTo(Content.Shared.Mobs.MobState.Alive), "held alive until the head shot");
+                Assert.That(state, Is.EqualTo(Content.Shared.Mobs.MobState.Alive), "held alive until the neck snaps");
                 Assert.That(parts, Does.Contain(TargetBodyPart.Head));
                 Assert.That(parts, Does.Not.Contain(TargetBodyPart.LeftArm).And.Not.Contain(TargetBodyPart.RightArm));
             });
@@ -293,7 +301,7 @@ public sealed class GilbertV10Test
                 Is.GreaterThanOrEqualTo(FixedPoint2.New(200)), "final asphyxiation");
             if (variant == 3)
             {
-                Assert.That(parts, Does.Not.Contain(TargetBodyPart.Head), "V3 shoots the head off");
+                Assert.That(parts, Does.Contain(TargetBodyPart.Head), "v13.2: V3 breaks the neck - the head stays on");
                 Assert.That(entMan.GetComponent<Content.Shared.Mobs.Components.MobStateComponent>(v).CurrentState, Is.EqualTo(Content.Shared.Mobs.MobState.Dead), "V3 kills");
             }
         });

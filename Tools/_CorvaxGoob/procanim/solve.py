@@ -420,8 +420,22 @@ def held_in_hands(tr, t):
 def prop_visible(tr, prop, t):
     return float(prop.get('start', 0)) <= t < float(prop.get('end', 1e9)) and not is_hidden(tr, prop.get('part', 'Body'), t)
 
-def prop_pose(prop, part_pose, t):
+def flip_scale(tr, part, t):
+    """v13.2 ProcAnimTimeline.FlipScale: 1, -1 once the part is turned round, a cosine through edge-on."""
+    def turn(at, blend):
+        u = (1.0 if t >= at else 0.0) if blend <= 0 else min(1.0, max(0.0, (t - (at - blend / 2)) / blend))
+        return math.cos(math.pi * u)
+    s = 1.0
+    for f in tr.get('flips') or []:
+        if part not in f.get('parts', []): continue
+        b = float(f.get('blend', 0.12))
+        s *= turn(float(f['t']), b)
+        if f.get('until') is not None: s *= turn(float(f['until']), b)
+    return min(s, -0.15) if s < 0 else max(s, 0.15)  # MinFlipScale
+
+def prop_pose(prop, part_pose, t, flip=1.0, extra=0.0):
     kx, ky, kr = evaluate(prop['keys'], t)
+    kx *= flip; kr = (kr + extra) * (-1.0 if flip < 0 else 1.0)
     px, py, pr = part_pose
     c, s = math.cos(math.radians(pr)), math.sin(math.radians(pr))
     return (px + c * kx - s * ky, py + s * kx + c * ky, pr + kr)
