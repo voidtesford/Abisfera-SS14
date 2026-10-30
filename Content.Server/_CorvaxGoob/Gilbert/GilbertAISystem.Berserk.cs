@@ -801,12 +801,14 @@ public sealed partial class GilbertAISystem
 
     private bool IsBerserkVictim(EntityUid uid, EntityUid target)
     {
-        if (target == uid || TerminatingOrDeleted(target) || !TryComp<MobStateComponent>(target, out var state)
-            || _mobState.IsDead(target, state))
-            return false;
-
+        // v13.4: only humanoids (see GilbertRageAbilitiesSystem.IsRageEnemy) - not the pAI, the DT-2 sword, borgs,
+        // drones or player / ghost-role pets. A non-humanoid that hurt him (a borg with a gun) is fought back via ForcedHostile.
         // Someone inside a locker / mech / bag can't be punched; he goes for someone he can reach.
-        if (_container.IsEntityInContainer(target))
+        // Plain NPC critters (a stray corgi) are still fair game for his fists (v6); ghost-role / player pets are not.
+        if (!_rage.IsRageEnemy(uid, target)
+            && !_rage.IsRageCritter(uid, target)
+            && !(TryComp<GilbertAIComponent>(uid, out var ai) && ai.ForcedHostile.Contains(target)
+                 && _rage.IsRageCollateral(uid, target)))
             return false;
 
         var a = Transform(uid);
@@ -864,8 +866,14 @@ public sealed partial class GilbertAISystem
     /// </summary>
     private void BerserkRetaliate(Entity<GilbertAIComponent> ent, EntityUid? origin)
     {
-        if (origin is not { } attacker || attacker == ent.Owner || !IsBerserkVictim(ent, attacker)
+        if (origin is not { } attacker || attacker == ent.Owner
             || !TryComp<GilbertBerserkComponent>(ent, out var berserk) || berserk.Phase != GilbertBerserkPhase.Rage)
+            return;
+
+        // v13.4: a non-humanoid that actually hurts him (not a gadget in someone's pocket) is fought back.
+        if (!_rage.IsRageEnemy(ent, attacker) && _rage.IsRageCollateral(ent, attacker))
+            ent.Comp.ForcedHostile.Add(attacker);
+        if (!IsBerserkVictim(ent, attacker))
             return;
 
         var xform = Transform(ent);
@@ -965,6 +973,11 @@ public sealed partial class GilbertAISystem
         if (!TryComp<GilbertRageAbilitiesComponent>(ent, out var rage) || !_rage.InRage(ent))
             return false;
 
+        // v13.4: rage abilities and finishers are for enemies (humanoids, or whoever hurt him); a stray critter just
+        // gets his fists.
+        if (!_rage.IsRageEnemy(ent.Owner, target) && !ent.Comp.ForcedHostile.Contains(target))
+            return false;
+
         var sees = _interaction.InRangeUnobstructed(ent.Owner, target, distance + 0.1f);
 
         if (_mobState.IsCritical(target) && distance <= reach + 0.3f && sees
@@ -987,7 +1000,7 @@ public sealed partial class GilbertAISystem
             var living = 0;
             foreach (var mob in _lookup.GetEntitiesInRange<MobStateComponent>(xform.Coordinates, rage.LevitateRange))
             {
-                if (mob.Owner != ent.Owner && !_mobState.IsDead(mob) && _interaction.InRangeUnobstructed(ent.Owner, mob.Owner, rage.LevitateRange))
+                if (_rage.IsRageEnemy(ent.Owner, mob.Owner) && _interaction.InRangeUnobstructed(ent.Owner, mob.Owner, rage.LevitateRange))
                     living++;
             }
 

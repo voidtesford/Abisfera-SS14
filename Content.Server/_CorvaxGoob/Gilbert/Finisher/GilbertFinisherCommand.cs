@@ -91,7 +91,7 @@ public sealed class GilbertFinisherCommand : LocalizedEntityCommands
             1 => CompletionResult.FromHint(Loc.GetString("cmd-gilbertfinisher-hint-attacker")),
             2 => CompletionResult.FromHint(Loc.GetString("cmd-gilbertfinisher-hint-victim")),
             3 => CompletionResult.FromHintOptions(GilbertFinisherSystem.Variants.Select((_, i) => (i + 1).ToString())
-                .Concat(GilbertFinisherSystem.Variants).Concat(new[] { "4", "rage", GilbertFinisherSystem.RageFinisher, "true", "false" }), Loc.GetString("cmd-gilbertfinisher-hint-variant")),
+                .Concat(GilbertFinisherSystem.Variants).Concat(new[] { "4", "rage", "5", "neck", "6", "heart" }).Concat(GilbertFinisherSystem.RageFinishers).Concat(new[] { "true", "false" }), Loc.GetString("cmd-gilbertfinisher-hint-variant")),
             4 => CompletionResult.FromHintOptions(new[] { "true", "false" }, Loc.GetString("cmd-gilbertfinisher-hint-keepdown")),
             _ => CompletionResult.Empty,
         };

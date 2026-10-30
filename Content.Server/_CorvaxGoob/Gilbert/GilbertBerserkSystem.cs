@@ -66,6 +66,7 @@ public sealed class GilbertBerserkSystem : SharedGilbertBerserkSystem
     [Dependency] private readonly StandingStateSystem _standing = default!;
     [Dependency] private readonly TransformSystem _transform = default!;
     [Dependency] private readonly GilbertSpawnSequenceSystem _sequence = default!;
+    [Dependency] private readonly GilbertRageAbilitiesSystem _rage = default!;
 
     /// <summary>Brighter eye light while berserk (the client adds the flame flicker on top).</summary>
     public const float BerserkLightRadius = 3.2f;
@@ -532,8 +533,8 @@ public sealed class GilbertBerserkSystem : SharedGilbertBerserkSystem
 
         foreach (var target in _lookup.GetEntitiesInRange<MobStateComponent>(coords, ent.Comp.BurstRadius))
         {
-            if (target.Owner == ent.Owner || _mobState.IsDead(target, target.Comp))
-                continue;
+            if (!_rage.IsRageCollateral(ent.Owner, target.Owner))
+                continue; // v13.4: not the pAI / DT-2 in someone's pocket
 
             _damageable.TryChangeDamage(target, ent.Comp.BurstDamage, ignoreResistances: true, origin: ent,
                 canMiss: false);

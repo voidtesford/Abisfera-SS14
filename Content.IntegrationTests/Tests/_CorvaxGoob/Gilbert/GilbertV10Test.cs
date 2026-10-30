@@ -116,7 +116,8 @@ public sealed class GilbertV10Test
             Assert.That(sys.ResolveVariant("2"), Is.EqualTo(Variants[1]));
             Assert.That(sys.ResolveVariant("3"), Is.EqualTo(Variants[2]));
             Assert.That(sys.ResolveVariant("4"), Is.EqualTo(GilbertFinisherSystem.RageFinisher)); // v13: 4 = the rage finisher
-            Assert.That(sys.ResolveVariant("5"), Is.Null);
+            Assert.That(sys.ResolveVariant("5"), Is.Not.Null); // v13.4: 5 = RageNeck, 6 = RageHeart
+            Assert.That(sys.ResolveVariant("7"), Is.Null);
 
             var expected = new Dictionary<string, (TargetBodyPart, string, float)[]>
             {

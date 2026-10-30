@@ -8,6 +8,7 @@ using Content.Shared._Shitmed.Medical.Surgery.Wounds.Systems;
 using Content.Shared._Shitmed.Damage;
 using Content.Shared._Shitmed.Targeting;
 using Content.Shared.Body.Components;
+using Content.Shared.Body.Part;
 using Content.Shared.Body.Systems;
 using Content.Shared.Damage;
 using Content.Shared.Buckle.Components;
@@ -23,6 +24,7 @@ using Content.Shared.Movement.Systems;
 using Content.Shared.Physics;
 using Content.Shared.Popups;
 using Content.Shared.Standing;
+using Content.Shared.Throwing;
 using Robust.Server.GameObjects;
 using Robust.Shared.Audio.Systems;
 using Robust.Shared.Map;
@@ -60,6 +62,7 @@ public sealed partial class ProcAnimSystem : SharedProcAnimSystem
     [Dependency] private readonly MobThresholdSystem _thresholds = default!;
     [Dependency] private readonly SharedPopupSystem _popup = default!;
     [Dependency] private readonly SharedMoverController _mover = default!;
+    [Dependency] private readonly ThrowingSystem _throwing = default!;
 
     public override void Initialize()
     {
@@ -320,19 +323,25 @@ public sealed partial class ProcAnimSystem : SharedProcAnimSystem
 
         var pose = ProcAnimTimeline.Evaluate(tracks.Move, t);
         var side = ProcAnimTimeline.Side(comp.Forward, comp.View);
+        float along;
         if (tracks.Flight is { } flight && t > flight.Start)
         {
             // Thrown: shorten the planned displacement (once, on take-off) so the landing spot is free floor.
             var p0 = ProcAnimTimeline.Evaluate(tracks.Move, flight.Start);
             if (comp.FlightScale < 0f)
                 comp.FlightScale = PlanFlight(uid, comp, tracks, flight, p0, side);
+            // v13.4: the flight is checked against walls by PlanFlight from the take-off point, so it is not clamped to
+            // the scene's required room (MaxForward): the body was held at ~2 tiles while the clients drew it flying 5,
+            // then a real throw carried it on after the scene (it "kept flying" past where the animation landed it).
+            along = MathF.Min(p0.X, comp.MaxForward) + (pose.X - p0.X) * comp.FlightScale;
             pose = new ProcAnimPose(
                 p0.X + (pose.X - p0.X) * comp.FlightScale,
                 p0.Y + (pose.Y - p0.Y) * comp.FlightScale,
                 pose.Rot);
         }
+        else
+            along = MathF.Min(pose.X, comp.MaxForward);
 
-        var along = MathF.Min(pose.X, comp.MaxForward);
         var pos = comp.Origin + comp.Forward * along + side * pose.Y;
         _transform.SetWorldPosition(uid, pos);
 
@@ -398,6 +407,9 @@ public sealed partial class ProcAnimSystem : SharedProcAnimSystem
 
             foreach (var part in ev.Amputate)
                 Amputate(target, part);
+
+            foreach (var remove in ev.Remove)
+                Remove(target, remove, comp.Forward, comp.View);
 
             if (ev.Kill)
                 Kill(lead, target);
@@ -508,8 +520,11 @@ public sealed partial class ProcAnimSystem : SharedProcAnimSystem
     }
 
     /// <summary>Tears a limb off (the part entity drops next to the body; its humanoid layers get hidden).</summary>
-    public bool Amputate(EntityUid target, TargetBodyPart part)
+    public bool Amputate(EntityUid target, TargetBodyPart part) => TryAmputate(target, part, out _);
+
+    private bool TryAmputate(EntityUid target, TargetBodyPart part, out EntityUid partId)
     {
+        partId = default;
         foreach (var (id, bodyPart) in _body.GetBodyChildren(target))
         {
             if (_body.GetTargetBodyPart(bodyPart) != part || _body.GetParentPartOrNull(id) is not { } parent)
@@ -518,10 +533,61 @@ public sealed partial class ProcAnimSystem : SharedProcAnimSystem
             // The safe variant: no extra amputation damage on the chest (the prototype's damage is the whole budget),
             // the sound / blood come from the cutscene event.
             _wounds.AmputateWoundableSafely(parent, id);
+            partId = id;
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// v13.4: tears a part off and throws or gibs it, or rips an organ out of the body and throws it
+    /// (<see cref="ProcAnimEvent.Remove"/>). Returns the removed entity (null: nothing matched / gibbed).
+    /// </summary>
+    public EntityUid? Remove(EntityUid target, ProcAnimRemove remove, Vector2 forward, Angle view)
+    {
+        EntityUid? removed = null;
+        if (remove.Part is { } part)
+        {
+            if (!TryAmputate(target, part, out var partId) || TerminatingOrDeleted(partId))
+                return null;
+            if (remove.Gib && TryComp<BodyPartComponent>(partId, out var partComp))
+            {
+                if (partComp.Body != null)
+                    return null;
+                _body.GibPart(partId, partComp, splatDirection: Direction(forward, view, remove.Throw));
+                return null;
+            }
+
+            removed = partId;
+        }
+        else if (remove.Organ is { } slot)
+        {
+            foreach (var (organ, organComp) in _body.GetBodyOrgans(target))
+            {
+                if (organComp.SlotId != slot || !_body.RemoveOrgan(organ, organComp))
+                    continue;
+                _transform.AttachToGridOrMap(organ);
+                removed = organ;
+                break;
+            }
+        }
+
+        if (removed is not { } ent || TerminatingOrDeleted(ent))
+            return null;
+
+        _transform.SetWorldPosition(ent, _transform.GetWorldPosition(target));
+        var dir = Direction(forward, view, remove.Throw);
+        if (dir.LengthSquared() > 1e-4f)
+            _throwing.TryThrow(ent, dir, 6f, null, pushbackRatio: 0f, compensateFriction: true, doSpin: true);
+        return ent;
+    }
+
+    /// <summary>A scene-frame vector (x along forward, y to the screen side) in world space.</summary>
+    private static Vector2 Direction(Vector2 forward, Angle view, Vector2 scene)
+    {
+        var side = ProcAnimTimeline.Side(forward, view);
+        return forward * scene.X + side * scene.Y;
     }
 
     /// <summary>Leaves the event's floor decal (blood splatter) under the solved point, tinted with the target's blood.</summary>

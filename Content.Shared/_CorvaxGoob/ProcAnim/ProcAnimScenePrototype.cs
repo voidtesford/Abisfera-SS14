@@ -695,6 +695,14 @@ public sealed partial class ProcAnimEvent
     public List<TargetBodyPart> Amputate = new();
 
     /// <summary>
+    /// v13.4, server: body parts / organs torn out at this beat (after <see cref="Amputate"/>): a part comes off and is
+    /// thrown (a torn-off head) or gibbed (a head crushed until it pops); an organ is ripped out of the body and thrown
+    /// (the heart). Real entities, the way the Shitmed body has them.
+    /// </summary>
+    [DataField]
+    public List<ProcAnimRemove> Remove = new();
+
+    /// <summary>
     /// Server: after the damage / amputation of this beat, releases the target's hold
     /// (<see cref="ProcAnimActor.HoldAlive"/>) and kills it (tops the damage up to the death threshold, then forces the dead state if still alive).
     /// </summary>
@@ -708,6 +716,27 @@ public sealed partial class ProcAnimEvent
     /// <summary>Preview only: contact sheet frame delay after the event.</summary>
     [DataField]
     public float SheetDelay;
+}
+
+/// <summary>One part or organ torn out by a <see cref="ProcAnimEvent"/> (see <see cref="ProcAnimEvent.Remove"/>).</summary>
+[DataDefinition]
+public sealed partial class ProcAnimRemove
+{
+    /// <summary>A body part to tear off (amputated, then thrown or gibbed).</summary>
+    [DataField]
+    public TargetBodyPart? Part;
+
+    /// <summary>Or an organ slot (<c>heart</c>, <c>brain</c>, ...) to rip out of whichever part holds it.</summary>
+    [DataField]
+    public string? Organ;
+
+    /// <summary>Throw in tiles, in the scene frame: x along the scene's forward (attacker to victim), y to the side.</summary>
+    [DataField]
+    public Vector2 Throw;
+
+    /// <summary>Gib the torn-off part (bursts into giblets, its organs drop) instead of throwing it.</summary>
+    [DataField]
+    public bool Gib;
 }
 
 [DataDefinition]

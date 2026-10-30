@@ -1,5 +1,5 @@
 cmd-gilbertfinisher-desc = Проигрывает одно из добиваний Гилберта (1-я фаза) на двух гуманоидах (подходит любой гуманоид).
-cmd-gilbertfinisher-help = gilbertfinisher <uid атакующего> <uid жертвы> [вариант 1|2|3|4/rage|id прототипа] [keepdown=true]  |  gilbertfinisher stop <uid>
+cmd-gilbertfinisher-help = gilbertfinisher <uid атакующего> <uid жертвы> [вариант 1|2|3|4/rage|5/neck|6/heart|id прототипа] [keepdown=true]  |  gilbertfinisher stop <uid>
     1 = серия ударов ногами, 2 = ствол дробовика (штык + выстрел), 3 = добивание на земле (с отрыванием рук).
 cmd-gilbertfinisher-usage = Использование: gilbertfinisher <uid атакующего> <uid жертвы> [вариант 1|2|3|4] [keepdown true/false] или gilbertfinisher stop <uid>
 cmd-gilbertfinisher-bad-uid = { $uid } — нет такой сущности.
@@ -14,7 +14,7 @@ cmd-gilbertfinisher-started = Добивание запущено: { $attacker }
 cmd-gilbertfinisher-stopped = Добивание на { $uid } остановлено.
 cmd-gilbertfinisher-hint-attacker = <uid атакующего>
 cmd-gilbertfinisher-hint-victim = <uid жертвы>
-cmd-gilbertfinisher-hint-variant = [вариант] 1 ноги, 2 ствол дробовика, 3 добивание на земле, 4 ярость: разрыв пополам (или keepdown)
+cmd-gilbertfinisher-hint-variant = [вариант] 1 ноги, 2 ствол дробовика, 3 добивание на земле, 4 ярость: разрыв пополам, 5 ярость: отрыв головы, 6 ярость: сердце + раздавленная голова (или keepdown)
 cmd-gilbertfinisher-hint-keepdown = [keepdown] оставить жертву лежать в конце
 
 cmd-gilbertgoto-desc = Приказывает Гилберту дойти до точки (обычная навигация: шлюзы, столы, его карта) и держать / патрулировать её.

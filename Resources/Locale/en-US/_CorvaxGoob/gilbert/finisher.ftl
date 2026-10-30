@@ -1,5 +1,5 @@
 cmd-gilbertfinisher-desc = Plays one of Gilbert's phase-1 finisher cutscenes on two humanoids (works for any humanoids).
-cmd-gilbertfinisher-help = gilbertfinisher <attacker uid> <victim uid> [variant 1|2|3|4/rage|prototype id] [keepdown=true]  |  gilbertfinisher stop <uid>
+cmd-gilbertfinisher-help = gilbertfinisher <attacker uid> <victim uid> [variant 1|2|3|4/rage|5/neck|6/heart|prototype id] [keepdown=true]  |  gilbertfinisher stop <uid>
     1 = kick combo, 2 = shotgun barrel (bayonet + shot), 3 = ground and pound (arms torn off).
 cmd-gilbertfinisher-usage = Usage: gilbertfinisher <attacker uid> <victim uid> [variant 1|2|3|4] [keepdown true/false], or gilbertfinisher stop <uid>
 cmd-gilbertfinisher-bad-uid = { $uid } is not an existing entity id.
@@ -14,7 +14,7 @@ cmd-gilbertfinisher-started = Finisher started: { $attacker } -> { $victim }.
 cmd-gilbertfinisher-stopped = Finisher stopped on { $uid }.
 cmd-gilbertfinisher-hint-attacker = <attacker uid>
 cmd-gilbertfinisher-hint-victim = <victim uid>
-cmd-gilbertfinisher-hint-variant = [variant] 1 kick combo, 2 shotgun barrel, 3 ground and pound, 4 rage: torn in half (or keepdown)
+cmd-gilbertfinisher-hint-variant = [variant] 1 kick combo, 2 shotgun barrel, 3 ground and pound, 4 rage: torn in half, 5 rage: head torn off, 6 rage: heart out + head crushed (or keepdown)
 cmd-gilbertfinisher-hint-keepdown = [keepdown] leave the victim lying at the end
 
 cmd-gilbertgoto-desc = Orders Gilbert to walk to a point (normal navigation: airlocks, tables, his map) and hold / patrol there.

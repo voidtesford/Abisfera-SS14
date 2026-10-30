@@ -2804,6 +2804,7 @@
         - {t: 10.7, rot: 5}
         - {t: 12.3, rot: 5}
       HeldNear:
+        # v13.4: aim keys re-done for the wielded (level) M8 frame drawn in game: the leg shot pointed at the head.
         pivot: -2, -4
         keys:
         - {t: 0, rot: -2}
@@ -2825,28 +2826,28 @@
         - {t: 0.6, rot: 110.4}
         - {t: 0.64, rot: 88}
         - {t: 0.68, rot: 56.8}
-        - {t: 0.72, rot: 18}
-        - {t: 0.76, rot: -24}
-        - {t: 0.8, rot: -48.5}
-        - {t: 0.84, rot: -56.8}
-        - {t: 0.88, rot: -62.7}
-        - {t: 0.92, rot: -64.8}
-        - {t: 0.96, rot: -64}
-        - {t: 1, rot: -62.2}
-        - {t: 1.04, rot: -60.4}
-        - {t: 1.05, rot: -60.5}
-        - {t: 1.08, rot: -42.2}
-        - {t: 1.09, rot: -41.8}
-        - {t: 1.12, rot: -44}
-        - {t: 1.16, rot: -50.5}
-        - {t: 1.2, rot: -57.2}
-        - {t: 1.24, rot: -57.6}
-        - {t: 1.25, rot: -56.1}
-        - {t: 1.28, rot: -50.2}
-        - {t: 1.32, rot: -41.7}
-        - {t: 1.36, rot: -17}
-        - {t: 1.4, rot: -2}
-        - {t: 1.58, rot: -44.2, ease: Out}
+        - {t: 0.72, rot: 5.5}
+        - {t: 0.76, rot: -49.0}
+        - {t: 0.8, rot: -88.5}
+        - {t: 0.84, rot: -96.8}
+        - {t: 0.88, rot: -102.7}
+        - {t: 0.92, rot: -104.8}
+        - {t: 0.96, rot: -104.0}
+        - {t: 1, rot: -102.2}
+        - {t: 1.04, rot: -100.4}
+        - {t: 1.05, rot: -100.5}
+        - {t: 1.08, rot: -82.2}
+        - {t: 1.09, rot: -81.8}
+        - {t: 1.12, rot: -84.0}
+        - {t: 1.16, rot: -90.5}
+        - {t: 1.2, rot: -97.2}
+        - {t: 1.24, rot: -97.6}
+        - {t: 1.25, rot: -96.1}
+        - {t: 1.28, rot: -90.2}
+        - {t: 1.32, rot: -81.7}
+        - {t: 1.36, rot: -47.0}
+        - {t: 1.4, rot: -22.0}
+        - {t: 1.58, rot: -52.2, ease: Out}
         - {t: 1.74, rot: -116}
         - {t: 1.82, rot: -132}
         - {t: 1.95, rot: -132}
@@ -3743,7 +3744,7 @@
   - {t: 0.37, target: victim, sound: {collection: Punch}}
   - {t: 0.44, target: victim, beat: 'spun round, back to him', sheet: true}
   - {effects: [{type: Recoil, part: ArmNear, dir: 180, strength: 1.0}, {type: Recoil, part: Body, dir: 180, strength: 0.4}], t: 1.05, target: attacker, beat: shoots the legs, sheet: true, sound: {path: /Audio/Weapons/Guns/Gunshots/shotgun.ogg},
-     blood: {from: HeldNear, at: '11.5, -14.0', count: 10, speed: '90, 190', angle: '-75, -15', gravity: 60, floor: -30, life: 0.22,
+     blood: {from: HeldNear, at: '15, -1.5', count: 10, speed: '90, 190', angle: '-60, -25', gravity: 60, floor: -30, life: 0.22,
      bigChance: 0.6, color: '#ffd84a'}, shake: 1.3}
   - {effects: [{type: Spatter, part: LegNearLow, at: '0, -12', dir: 160, spread: 90, count: 14, strength: 1.0, floor: -16}, {type: Recoil, part: LegNearLow, dir: 180, strength: 1.2}, {type: Drips, part: LegNearLow, at: '0, -12', count: 5, duration: 2.5, floor: -16}, {type: Pool, part: LegNearLow, at: '0, -12', size: 0.8, duration: 4, floor: -16}], t: 1.05, target: victim, hitStop: 0.06, flash: true, damage: [{part: LeftLeg, damage: {types: {Piercing: 30}}, ignoreArmor: true},
      {part: RightLeg, damage: {types: {Piercing: 30}}, ignoreArmor: true}], blood: {from: LegNearLow, at: '0, -12', count: 18, speed: '30, 120',

@@ -605,4 +605,59 @@ public static class ProcAnimPuppet
 
         return best;
     }
+
+    /// <summary>
+    /// v13.4: splits an overlay that can't be baked (shader / animated glow such as Gilbert's neon rage arms) over the
+    /// body groups under it: each pixel goes to the topmost limb group drawn there (held items / the slung group
+    /// excluded), else to the nearest one within <paramref name="radius"/> px, else to the torso. The result is one
+    /// C x C RGBA image per group (null when that group got nothing), so each piece can follow its bone.
+    /// </summary>
+    public static byte[]?[] SplitByGroup(ProcAnimPuppetResult result, byte[] pixels, int c, int radius = 3)
+    {
+        var parts = new byte[]?[GroupCount];
+        for (var y = 0; y < c; y++)
+        for (var x = 0; x < c; x++)
+        {
+            var i = (y * c + x) * 4;
+            if (i + 3 >= pixels.Length || pixels[i + 3] == 0)
+                continue;
+
+            var group = -1;
+            var bestD = int.MaxValue;
+            for (var dy = -radius; dy <= radius && bestD > 0; dy++)
+            for (var dx = -radius; dx <= radius; dx++)
+            {
+                var d = dx * dx + dy * dy;
+                if (d > radius * radius || d > bestD)
+                    continue;
+                int px = x + dx, py = y + dy;
+                if (px < 0 || py < 0 || px >= c || py >= c)
+                    continue;
+                var j = (py * c + px) * 4 + 3;
+                // Topmost (latest drawn) group at the closest distance.
+                for (var g = GroupCount - 1; g >= 0; g--)
+                {
+                    if (g is (int) ProcAnimPuppetGroup.HeldFar or (int) ProcAnimPuppetGroup.HeldNear
+                        or (int) ProcAnimPuppetGroup.Slung)
+                        continue;
+                    var img = result.Images[g];
+                    if (j >= img.Length || img[j] == 0)
+                        continue;
+                    if (d < bestD || d == bestD && g > group)
+                    {
+                        bestD = d;
+                        group = g;
+                    }
+                    break;
+                }
+            }
+
+            if (group < 0)
+                group = (int) ProcAnimPuppetGroup.Torso;
+            var part = parts[group] ??= new byte[c * c * 4];
+            Array.Copy(pixels, i, part, i, 4);
+        }
+
+        return parts;
+    }
 }

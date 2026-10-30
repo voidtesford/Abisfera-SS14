@@ -45,6 +45,9 @@ proto, SRC = SV.load_scene(R, args.scene)
 ACT = proto['actors']; N = len(ACT)
 TOTAL = SV.total_length(proto)
 HELD = not args.empty_hands
+# v13.4: a `wield: true` item is wielded in game (two-handed, the level 'wielded-inhand' frame), not the diagonal
+# one-handed frame: previews of shots aimed with the wrong frame pointed ~45 degrees off.
+WIELD = any(isinstance(it, dict) and it.get('wield') for a in ACT for it in (a.get('items') or []))
 DIRS = {'South': 0, 'North': 1, 'East': 2, 'West': 3}
 PRESET = {}
 for a in args.actor:
@@ -125,7 +128,7 @@ def gilbert(d):
     # state baked as 'back-slung' (holsterHeldItems / holsterAt)
     G = '_CorvaxGoob/Objects/Weapons/Guns/Shotguns/m8_shotgun.rsi'
     if HELD:
-        L['inhand-right'] = state(G, 'inhand-right', d)
+        L['inhand-right'] = state(G, 'wielded-inhand-right' if WIELD else 'inhand-right', d)
         L['back-slung'] = state(G, 'equipped-BACKPACK', d)
     return ordered(L), {'GilbertEyes': state('_CorvaxGoob/Mobs/Gilbert/eyes.rsi', 'glow', d)}   # unshaded -> leftover layer
 def human_preset(d, i=1):

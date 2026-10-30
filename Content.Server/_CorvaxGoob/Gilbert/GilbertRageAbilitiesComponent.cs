@@ -203,6 +203,28 @@ public sealed partial class GilbertRageAbilitiesComponent : Component
 
     [ViewVariables]
     public int Levitations;
+
+    /// <summary>v13.4: while hanging on the threads he slowly floats toward the nearest enemy (tiles per second).</summary>
+    [DataField]
+    public float LevitateDriftSpeed = 0.6f;
+
+    /// <summary>He stops drifting this close to the enemy he floats at.</summary>
+    [DataField]
+    public float LevitateDriftStop = 1.4f;
+
+    /// <summary>How far an enemy may be (in sight) to be drifted at.</summary>
+    [DataField]
+    public float LevitateDriftRange = 12f;
+
+    [ViewVariables]
+    public EntityUid? LevitateDriftTarget;
+
+    [ViewVariables]
+    public TimeSpan NextDriftPick;
+
+    /// <summary>Total distance floated this rage (tests).</summary>
+    [ViewVariables]
+    public float LevitateDrifted;
 }
 
 /// <summary>v13: hit by Gilbert's red cone: stunned, jittering, red discharges crawling all over them.</summary>

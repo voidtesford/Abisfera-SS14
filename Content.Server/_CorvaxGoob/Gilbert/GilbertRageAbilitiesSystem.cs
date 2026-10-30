@@ -1,12 +1,19 @@
+using System.Linq;
 using System.Numerics;
 using Content.Goobstation.Maths.FixedPoint;
 using Content.Server._CorvaxGoob.Gilbert.Finisher;
 using Content.Server._CorvaxGoob.ProcAnim;
+using Content.Server.Ghost.Roles.Components;
 using Content.Server.Popups;
 using Content.Shared._CorvaxGoob.Gilbert;
 using Content.Shared._CorvaxGoob.ProcAnim;
 using Content.Shared._Shitmed.Targeting;
 using Content.Shared.Damage;
+using Content.Shared.Humanoid;
+using Content.Shared.Mind.Components;
+using Content.Shared.Silicons.Borgs.Components;
+using Content.Shared._EinsteinEngines.Silicon.Components;
+using Content.Shared.Item;
 using Content.Shared.IdentityManagement;
 using Content.Shared.Interaction;
 using Content.Shared.Jittering;
@@ -19,6 +26,7 @@ using Content.Shared.Throwing;
 using Robust.Server.Audio;
 using Robust.Server.GameObjects;
 using Robust.Shared.Audio;
+using Robust.Shared.Containers;
 using Robust.Shared.Map;
 using Robust.Shared.Physics;
 using Robust.Shared.Physics.Components;
@@ -38,8 +46,10 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
 {
     [Dependency] private readonly IGameTiming _timing = default!;
     [Dependency] private readonly IRobustRandom _random = default!;
+    [Dependency] private readonly IPrototypeManager _proto = default!;
     [Dependency] private readonly AudioSystem _audio = default!;
     [Dependency] private readonly DamageableSystem _damageable = default!;
+    [Dependency] private readonly SharedContainerSystem _container = default!;
     [Dependency] private readonly EntityLookupSystem _lookup = default!;
     [Dependency] private readonly GilbertFinisherSystem _finisher = default!;
     [Dependency] private readonly MobStateSystem _mobState = default!;
@@ -96,6 +106,58 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
     public bool InRage(EntityUid uid)
     {
         return TryComp<GilbertBerserkComponent>(uid, out var berserk) && berserk.Phase == GilbertBerserkPhase.Rage;
+    }
+
+    /// <summary>
+    /// v13.4: who counts as an enemy in the rage phase. Same idea as phase 1 (<c>GilbertAISystem.IsEnemy</c>):
+    /// a living humanoid that is not Gilbert. Before v13.4 anything with a <see cref="MobStateComponent"/> was a
+    /// target, which made him hunt and shoot ghost-role items and gadgets - the pAI, the HoS's sentient sword
+    /// DT-2 "Justice", MMIs/positronic brains - plus borgs, drones and pets. Items that are mobs and anything inside
+    /// a container (a pocket, a bag, a locker, a borg chassis) are never targets. Crit humanoids still count (he
+    /// finishes them); cuffs do not save anyone from his rage.
+    /// </summary>
+    public bool IsRageEnemy(EntityUid gilbert, EntityUid target)
+    {
+        if (target == gilbert || TerminatingOrDeleted(target)
+            || !TryComp<MobStateComponent>(target, out var state) || _mobState.IsDead(target, state))
+            return false;
+
+        if (!HasComp<HumanoidAppearanceComponent>(target) || HasComp<GilbertComponent>(target)
+            || HasComp<ItemComponent>(target))
+            return false;
+
+        return !_container.IsEntityInContainer(target);
+    }
+
+    /// <summary>
+    /// v13.4: what his area attacks (the burst, stray bolts) may hurt besides enemies: a free-standing living mob
+    /// that is not an item and not in a container. Ghost-role gadgets (pAI, DT-2) are never hurt.
+    /// </summary>
+    public bool IsRageCollateral(EntityUid gilbert, EntityUid target)
+    {
+        if (target == gilbert || TerminatingOrDeleted(target)
+            || !TryComp<MobStateComponent>(target, out var state) || _mobState.IsDead(target, state))
+            return false;
+
+        return !HasComp<ItemComponent>(target) && !HasComp<GilbertComponent>(target)
+            && !_container.IsEntityInContainer(target);
+    }
+
+    /// <summary>
+    /// v13.4: a plain NPC critter (a stray corgi, a mouse) his fists may still go after in berserk, as in v6:
+    /// a free-standing living mob that is not an item, not a borg / silicon, not a ghost role (offered or taken)
+    /// and not controlled by a player. A pet a ghost took over, the pAI, DT-2 and borgs are never hunted.
+    /// </summary>
+    public bool IsRageCritter(EntityUid gilbert, EntityUid target)
+    {
+        if (!IsRageCollateral(gilbert, target))
+            return false;
+
+        if (HasComp<BorgChassisComponent>(target) || HasComp<SiliconComponent>(target)
+            || HasComp<GhostRoleComponent>(target) || HasComp<GhostTakeoverAvailableComponent>(target))
+            return false;
+
+        return !(TryComp<MindContainerComponent>(target, out var mind) && mind.HasMind);
     }
 
     /// <summary>One of the abilities is running (wind-up, cone wave, levitation): he holds still.</summary>
@@ -198,7 +260,7 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
             if (comp.ConeActive)
                 UpdateCone((uid, comp), xform, now, frameTime);
             if (comp.Levitating)
-                UpdateLevitation((uid, comp), xform, now);
+                UpdateLevitation((uid, comp), xform, now, frameTime);
         }
 
         var shocked = EntityQueryEnumerator<GilbertShockedComponent>();
@@ -315,7 +377,7 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
 
         if ((to.Position - land).Length() > comp.LeapHitRange
             || !_interaction.InRangeUnobstructed(ent.Owner, target, comp.LeapHitRange + 0.2f)
-            || !HasComp<MobStateComponent>(target) || _mobState.IsDead(target))
+            || !IsRageEnemy(ent.Owner, target))
             return;
 
         comp.LeapHits++;
@@ -346,6 +408,19 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
         distance = MathF.Min(distance, FreeDistance(at.MapId, at.Position, dir, distance + 0.5f, victim, ent) - 0.4f);
         if (distance > 0.1f)
             _throwing.TryThrow(victim, dir * distance, ent.Comp.LeapThrowSpeed, ent, pushbackRatio: 0f, recoil: false);
+        _stun.TryKnockdown(victim, ent.Comp.LeapKnockdown, true);
+        ent.Comp.LeapThrows++;
+        ent.Comp.PunchGraceUntil = _timing.CurTime + TimeSpan.FromSeconds(0.8);
+    }
+
+    /// <summary>The leap scene's victim at its landing spot: still, knocked down.</summary>
+    private void StopVictim(Entity<GilbertRageAbilitiesComponent> ent, EntityUid victim)
+    {
+        if (TerminatingOrDeleted(victim))
+            return;
+        if (TryComp<PhysicsComponent>(victim, out var body))
+            _physics.SetLinearVelocity(victim, Vector2.Zero, body: body);
+        RemComp<ThrownItemComponent>(victim);
         _stun.TryKnockdown(victim, ent.Comp.LeapKnockdown, true);
         ent.Comp.LeapThrows++;
         ent.Comp.PunchGraceUntil = _timing.CurTime + TimeSpan.FromSeconds(0.8);
@@ -391,9 +466,9 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
         RemComp<GilbertLeapThrowComponent>(ent);
         if (!args.Completed || !TryComp<GilbertRageAbilitiesComponent>(pending.Gilbert, out var comp))
             return;
-        // Only what the scene's flight did not already cover (it stops short at walls).
-        var covered = Vector2.Dot(_transform.GetWorldPosition(ent) - pending.From, pending.Dir);
-        ThrowVictim((pending.Gilbert, comp), ent, pending.Dir, MathF.Max(0f, comp.LeapThrowDistance - covered));
+        // v13.4: the body stays where the scene's flight landed it (it is already shortened at walls): no follow-up
+        // throw, no leftover velocity - it only stays down.
+        StopVictim((pending.Gilbert, comp), ent);
     }
 
     #endregion
@@ -552,7 +627,7 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
         foreach (var (mob, _) in _lookup.GetEntitiesInRange<MobStateComponent>(new MapCoordinates(comp.ConeOrigin, map),
                      front + 0.5f))
         {
-            if (mob == ent.Owner || comp.ConeHit.Contains(mob) || _mobState.IsDead(mob))
+            if (comp.ConeHit.Contains(mob) || !IsRageEnemy(ent.Owner, mob))
                 continue;
             var pos = _transform.GetWorldPosition(mob);
             if (!InCone(comp, pos, front + 0.5f))
@@ -596,6 +671,8 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
         comp.Levitating = true;
         comp.LevitateStart = now;
         comp.StrikesDone = 0;
+        comp.NextDriftPick = now;
+        comp.LevitateDriftTarget = null;
         comp.NextLevitateFx = now;
         comp.NextLevitate = now + comp.LevitateCooldown;
         comp.NextAny = now + comp.GlobalGap;
@@ -620,10 +697,12 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
         return comp.LevitateStart + comp.LevitateRise + comp.LevitateDuration * ((i + 0.5) / n);
     }
 
-    private void UpdateLevitation(Entity<GilbertRageAbilitiesComponent> ent, TransformComponent xform, TimeSpan now)
+    private void UpdateLevitation(Entity<GilbertRageAbilitiesComponent> ent, TransformComponent xform, TimeSpan now, float frameTime)
     {
         var comp = ent.Comp;
         Halt(ent);
+        if (now >= comp.LevitateStart + comp.LevitateRise)
+            Drift(ent, xform, now, frameTime);
 
         // Red threads running out over the floor from under him, and up into him (what he hangs on).
         if (now >= comp.NextLevitateFx)
@@ -647,6 +726,56 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
             EndLevitation(ent, comp);
     }
 
+    /// <summary>
+    /// v13.4: once risen he floats slowly at the nearest enemy he can see (stopping short of it and of walls), so
+    /// the levitation chases the crew instead of hanging in one spot.
+    /// </summary>
+    private void Drift(Entity<GilbertRageAbilitiesComponent> ent, TransformComponent xform, TimeSpan now, float frameTime)
+    {
+        var comp = ent.Comp;
+        if (comp.LevitateDriftSpeed <= 0f)
+            return;
+
+        var origin = _transform.GetWorldPosition(xform);
+        if (now >= comp.NextDriftPick || comp.LevitateDriftTarget is not { } current || !IsRageEnemy(ent.Owner, current))
+        {
+            comp.NextDriftPick = now + TimeSpan.FromSeconds(0.5);
+            comp.LevitateDriftTarget = null;
+            var best = float.MaxValue;
+            foreach (var (mob, _) in _lookup.GetEntitiesInRange<MobStateComponent>(xform.Coordinates, comp.LevitateDriftRange))
+            {
+                if (!IsRageEnemy(ent.Owner, mob)
+                    || !_interaction.InRangeUnobstructed(ent.Owner, mob, comp.LevitateDriftRange + 0.5f))
+                    continue;
+                var d = (_transform.GetWorldPosition(mob) - origin).LengthSquared();
+                if (d < best)
+                {
+                    best = d;
+                    comp.LevitateDriftTarget = mob;
+                }
+            }
+        }
+
+        if (comp.LevitateDriftTarget is not { } target || Transform(target).MapID != xform.MapID)
+            return;
+
+        var to = _transform.GetWorldPosition(target) - origin;
+        var dist = to.Length();
+        if (dist <= comp.LevitateDriftStop || dist < 1e-3f)
+            return;
+
+        var dir = to / dist;
+        Face(ent, dir);
+        var step = MathF.Min(comp.LevitateDriftSpeed * frameTime, dist - comp.LevitateDriftStop);
+        var free = FreeDistance(xform.MapID, origin, dir, step + 0.45f, ent, target) - 0.45f;
+        step = MathF.Min(step, free);
+        if (step <= 0f)
+            return;
+
+        _transform.SetWorldPosition(ent, origin + dir * step);
+        comp.LevitateDrifted += step;
+    }
+
     private void EndLevitation(EntityUid uid, GilbertRageAbilitiesComponent comp)
     {
         comp.Levitating = false;
@@ -666,7 +795,7 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
         var living = new List<EntityUid>();
         foreach (var (mob, _) in _lookup.GetEntitiesInRange<MobStateComponent>(new MapCoordinates(origin, map), comp.LevitateRange))
         {
-            if (mob == ent.Owner || _mobState.IsDead(mob))
+            if (!IsRageEnemy(ent.Owner, mob))
                 continue;
             if (!_interaction.InRangeUnobstructed(ent.Owner, mob, comp.LevitateRange + 0.5f))
                 continue;
@@ -734,16 +863,27 @@ public sealed class GilbertRageAbilitiesSystem : EntitySystem
 
     #region Finisher
 
-    /// <summary>The rage finisher (palm strike, teleport behind, torn in half) on <paramref name="victim"/>.</summary>
-    public bool TryRageFinisher(EntityUid gilbert, EntityUid victim, out string? error)
+    /// <summary>
+    /// A rage finisher on <paramref name="victim"/>: palm strike, teleport behind, then (v13.4: picked at random unless
+    /// <paramref name="finisher"/> forces one) torn in half, the head torn off, or the heart ripped out and the head crushed.
+    /// </summary>
+    public bool TryRageFinisher(EntityUid gilbert, EntityUid victim, out string? error, string? finisher = null)
     {
         error = null;
         if (TryComp<GilbertRageAbilitiesComponent>(gilbert, out var comp))
             CancelAll(gilbert, comp);
-        if (_finisher.TryStart(gilbert, victim, out var err, RageFinisher))
+        finisher ??= PickRageFinisher();
+        if (_finisher.TryStart(gilbert, victim, out var err, finisher))
             return true;
         error = err;
         return false;
+    }
+
+    /// <summary>v13.4: one of <see cref="GilbertFinisherSystem.RageFinishers"/> (only the loaded ones), uniformly.</summary>
+    public string PickRageFinisher()
+    {
+        var loaded = GilbertFinisherSystem.RageFinishers.Where(id => _proto.HasIndex<ProcAnimScenePrototype>(id)).ToList();
+        return loaded.Count == 0 ? RageFinisher : _random.Pick(loaded);
     }
 
     #endregion

@@ -427,7 +427,7 @@ public sealed partial class ProcAnimVisualsSystem
                 displacement[target] = layer;
 
         var baked = new List<(int Index, SpriteComponent.Layer Layer, (byte[], int, int) Frame, string? Key)>();
-        var leftovers = new List<(SpriteComponent.Layer Layer, (byte[], int, int)? Frame)>();
+        var leftovers = new List<(SpriteComponent.Layer Layer, (byte[], int, int)? Frame, string? Key)>();
         var holstered = new List<SpriteComponent.Layer>();
         var maxSize = 32;
         var maxOff = 0f;
@@ -492,7 +492,7 @@ public sealed partial class ProcAnimVisualsSystem
             if (eligible && frame is { } ef)
                 baked.Add((i, layer, ef, keys.GetValueOrDefault(i)));
             else
-                leftovers.Add((layer, frame));
+                leftovers.Add((layer, frame, keys.GetValueOrDefault(i)));
         }
 
         if (!baked.Any(b => b.Key == nameof(HumanoidVisualLayers.Chest)))
@@ -513,47 +513,119 @@ public sealed partial class ProcAnimVisualsSystem
         var result = ProcAnimPuppet.Build(inputs, c, nearRight);
         var puppet = new PuppetData { Result = result };
 
+        // v13.4: shader / animated overlays can't go into the plain group bakes. In-hand ones (the M8's crackle over
+        // Gilbert's shotgun) ride rigidly on that hand's held item (still animated); one mostly over a single limb
+        // rides on it; one spread over several groups (his neon rage arms) is cut per group and each piece baked with
+        // the overlay's shader, so it bends with the limbs. Before: left static over the torso (a second, unmoving
+        // shotgun / pair of arms next to the animated ones).
+        var rigid = new List<(SpriteComponent.Layer Layer, ProcAnimPuppetGroup Group)>();
+        var fx = new List<(ProcAnimPuppetGroup Group, byte[] Pixels, SpriteComponent.Layer Source)>();
+        foreach (var (layer, frame, leftKey) in leftovers)
+        {
+            if (frame is not { } f)
+                continue;
+            var placed = Place(f, layer.Offset, layer.Color, c);
+            if (leftKey != null && leftKey.StartsWith("inhand-"))
+            {
+                var near = leftKey.StartsWith("inhand-right") == nearRight;
+                var held = near ? ProcAnimPuppetGroup.HeldNear : ProcAnimPuppetGroup.HeldFar;
+                if (result.IsEmpty(held))
+                    held = near ? ProcAnimPuppetGroup.ArmNearLow : ProcAnimPuppetGroup.ArmFarLow;
+                rigid.Add((layer, held));
+                continue;
+            }
+
+            var parts = ProcAnimPuppet.SplitByGroup(result, placed, c);
+            var counts = new int[ProcAnimPuppet.GroupCount];
+            var total = 0;
+            for (var g = 0; g < counts.Length; g++)
+            {
+                if (parts[g] is not { } part)
+                    continue;
+                for (var i = 3; i < part.Length; i += 4)
+                    if (part[i] > 0)
+                        counts[g]++;
+                total += counts[g];
+            }
+
+            if (total == 0)
+                continue;
+            var major = 0;
+            for (var g = 1; g < counts.Length; g++)
+                if (counts[g] > counts[major])
+                    major = g;
+            var majorGroup = (ProcAnimPuppetGroup) major;
+            var torsoish = majorGroup is ProcAnimPuppetGroup.Torso or ProcAnimPuppetGroup.TorsoTop;
+            if (counts[major] >= total * 0.9f)
+            {
+                // One group: as before (torso: left as it is, it moves with the whole sprite).
+                if (!torsoish)
+                    rigid.Add((layer, majorGroup));
+                continue;
+            }
+
+            for (var g = 0; g < counts.Length; g++)
+                if (counts[g] > 0 && parts[g] is { } part)
+                    fx.Add(((ProcAnimPuppetGroup) g, part, layer));
+        }
+
         var insertAt = 0;
+        var fxCount = 0;
         for (var g = 0; g < ProcAnimPuppet.GroupCount; g++)
         {
             var group = (ProcAnimPuppetGroup) g;
-            if (result.IsEmpty(group))
-                continue;
-
-            var src = result.Images[g];
-            using var image = new Image<Rgba32>(c, c);
-            for (var y = 0; y < c; y++)
-            for (var x = 0; x < c; x++)
+            if (!result.IsEmpty(group))
             {
-                var i = (y * c + x) * 4;
-                image[x, y] = new Rgba32(src[i], src[i + 1], src[i + 2], src[i + 3]);
+                var key = PuppetKeyPrefix + group;
+                var texture = LoadPuppetTexture(result.Images[g], c, key);
+                var index = insertAt++;
+                var layer = _sprite.AddBlankLayer(ent, index);
+                _sprite.LayerSetTexture(layer, texture);
+                _sprite.LayerMapSet(ent.AsNullable(), key, index);
+                puppet.Layers.Add((group, key, layer, texture));
             }
 
-            var key = PuppetKeyPrefix + group;
-            var texture = _clyde.LoadTextureFromImage(image, key, PuppetTextureParameters);
-            var index = insertAt++;
-            var layer = _sprite.AddBlankLayer(ent, index);
-            _sprite.LayerSetTexture(layer, texture);
-            _sprite.LayerMapSet(ent.AsNullable(), key, index);
-            puppet.Layers.Add((group, key, layer, texture));
+            foreach (var (fxGroup, pixels, source) in fx)
+            {
+                if (fxGroup != group)
+                    continue;
+                var key = PuppetKeyPrefix + group + "-fx" + fxCount++;
+                var texture = LoadPuppetTexture(pixels, c, key);
+                var index = insertAt++;
+                var layer = _sprite.AddBlankLayer(ent, index);
+                _sprite.LayerSetTexture(layer, texture);
+                if (source.Shader != null)
+                    sprite.LayerSetShader(index, source.Shader, source.ShaderPrototype?.Id);
+                else if (source.ShaderPrototype is { } shaderProto)
+                    sprite.LayerSetShader(index, shaderProto.Id);
+                _sprite.LayerMapSet(ent.AsNullable(), key, index);
+                puppet.Layers.Add((group, key, layer, texture));
+            }
         }
 
-        foreach (var layer in baked.Select(b => b.Layer).Concat(holstered).Distinct())
+        foreach (var layer in baked.Select(b => b.Layer).Concat(holstered).Concat(fx.Select(f => f.Source)).Distinct())
         {
             puppet.Hidden[layer] = (layer.ActualRsi, layer.ActualState?.StateId.Name, false);
             _sprite.LayerSetVisible(layer, false);
         }
 
-        foreach (var (layer, frame) in leftovers)
-        {
-            var group = frame is { } f
-                ? ProcAnimPuppet.MajorityGroup(result, Place(f, layer.Offset, Color.White, c))
-                : ProcAnimPuppetGroup.Torso;
-            if (group is not (ProcAnimPuppetGroup.Torso or ProcAnimPuppetGroup.TorsoTop))
-                puppet.Leftovers[layer] = group;
-        }
+        foreach (var (layer, group) in rigid)
+            puppet.Leftovers[layer] = group;
 
         return puppet;
+    }
+
+    private OwnedTexture LoadPuppetTexture(byte[] src, int c, string name)
+    {
+        using var image = new Image<Rgba32>(c, c);
+        for (var y = 0; y < c; y++)
+        for (var x = 0; x < c; x++)
+        {
+            var i = (y * c + x) * 4;
+            image[x, y] = new Rgba32(src[i], src[i + 1], src[i + 2], src[i + 3]);
+        }
+
+        return _clyde.LoadTextureFromImage(image, name, PuppetTextureParameters);
     }
 
     /// <summary>Applies one solved part pose to its puppet group (baked layer + leftovers), offsets snapped to whole pixels.</summary>

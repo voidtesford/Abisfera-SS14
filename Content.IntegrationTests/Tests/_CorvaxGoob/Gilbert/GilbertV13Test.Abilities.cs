@@ -310,7 +310,7 @@ public sealed partial class GilbertV13Test
         await server.WaitAssertion(() =>
         {
             Assert.That(server.System<GilbertFinisherSystem>().ResolveVariant("rage"), Is.EqualTo(GilbertFinisherSystem.RageFinisher));
-            Assert.That(rage.TryRageFinisher(gilbert, victim, out var error), $"started ({error})");
+            Assert.That(rage.TryRageFinisher(gilbert, victim, out var error, GilbertFinisherSystem.RageFinisher), $"started ({error})"); // v13.4: forced (else random of 3)
             Assert.That(entMan.GetComponent<ProcAnimComponent>(victim).Scene.Id, Is.EqualTo(GilbertFinisherSystem.RageFinisher));
         });
 
