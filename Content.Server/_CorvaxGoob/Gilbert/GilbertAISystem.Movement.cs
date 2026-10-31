@@ -86,7 +86,10 @@ public sealed partial class GilbertAISystem
             return;
 
         var pos = _transform.GetWorldPosition(xform);
-        var dest = _transform.ToMapCoordinates(steering.Coordinates).Position;
+        // v9: the way he is actually walking (next path node), not the straight line to the final destination:
+        // round corners the door ahead is often "behind" that line.
+        var next = steering.CurrentPath.TryPeek(out var node) ? node.Coordinates : steering.Coordinates;
+        var dest = _transform.ToMapCoordinates(next).Position;
         var dir = dest - pos;
 
         foreach (var door in _lookup.GetEntitiesInRange<DoorComponent>(xform.Coordinates, ent.Comp.DoorOpenRange))
@@ -142,6 +145,18 @@ public sealed partial class GilbertAISystem
         var comp = ent.Comp;
         var pos = _transform.GetWorldPosition(xform);
         TryComp<NPCSteeringComponent>(ent, out var steering);
+        var sinceLast = comp.LastWatchdog == TimeSpan.Zero ? TimeSpan.Zero : now - comp.LastWatchdog;
+        comp.LastWatchdog = now;
+
+        // v9 (t258u/t259u): prying an airlock open (5 s) or vaulting a table: waiting for that do-after is not
+        // being stuck, and it doesn't eat into the walk's timeout either.
+        if (IsBusyWithObstacle(ent))
+        {
+            comp.MoveStarted += sinceLast;
+            comp.LastProgress = now;
+            comp.ProgressPosition = pos;
+            return;
+        }
 
         // v8: the reload cover spot turned out unreachable: just reload where he stands.
         if (steering?.Status == SteeringStatus.NoPath && comp.Task == GilbertTask.Reload)
@@ -155,6 +170,17 @@ public sealed partial class GilbertAISystem
         // Unreachable destination in a state that doesn't handle it itself.
         if (steering?.Status == SteeringStatus.NoPath && comp.State is GilbertAIState.Idle or GilbertAIState.Combat or GilbertAIState.Surrender)
         {
+            // v9: standing in an airlock's tile the pathfinder can briefly find no path (the door node);
+            // replan a few times instead of blacklisting a perfectly reachable target.
+            if (comp.DoorwayRepaths < 3 && InDoorway(xform))
+            {
+                comp.DoorwayRepaths++;
+                steering.Status = SteeringStatus.Moving;
+                steering.FailedPathCount = 0;
+                comp.LastProgress = now;
+                return;
+            }
+
             OnStalled(ent, xform, now);
             return;
         }
@@ -296,4 +322,10 @@ public sealed partial class GilbertAISystem
     }
 
     #endregion
+
+    /// <summary>v9: is he standing in (or right at) a doorway?</summary>
+    private bool InDoorway(TransformComponent xform)
+    {
+        return _lookup.GetEntitiesInRange<DoorComponent>(xform.Coordinates, 1.2f).Count > 0;
+    }
 }

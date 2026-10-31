@@ -65,9 +65,12 @@ public sealed partial class GilbertAISystem
 
     private void OnGunShot(Entity<GunComponent> gun, ref GunShotEvent args)
     {
-        // His own shotgun is not news to him.
-        if (HasComp<GilbertAIComponent>(args.User))
+        // His own shotgun is not news to him (v10: but a point-blank hit may lead to a finisher).
+        if (TryComp<GilbertAIComponent>(args.User, out var own))
+        {
+            NoteOwnShot((args.User, own));
             return;
+        }
 
         var source = args.User.IsValid() && !TerminatingOrDeleted(args.User) ? args.User : gun.Owner;
         var query = EntityQueryEnumerator<GilbertAIComponent>();
@@ -320,11 +323,11 @@ public sealed partial class GilbertAISystem
             return;
         }
 
-        // Look around the spot, a quarter turn at a time.
-        if (now >= comp.NextLookTurn)
+        // v9: look around the spot by walking about it (short steps in random directions), not standing still.
+        if (!TryComp<NPCSteeringComponent>(ent, out var around) || around.Status != SteeringStatus.Moving)
         {
-            comp.NextLookTurn = now + TimeSpan.FromSeconds(0.4);
-            _transform.SetWorldRotation(ent, _transform.GetWorldRotation(xform) + Angle.FromDegrees(90));
+            _steering.Unregister(ent);
+            Wander(ent, spot, 3f);
         }
 
         if (now >= comp.InvestigateLookUntil)

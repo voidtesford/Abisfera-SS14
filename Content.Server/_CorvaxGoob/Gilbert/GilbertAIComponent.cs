@@ -57,6 +57,8 @@ public enum GilbertTask : byte
     /// every useful item with the normal strip do-afters, including taking off and emptying their backpack.
     /// </summary>
     Loot,
+    /// <summary>v9: walk to one of his own lost weapons, pick it up and put it back where it belongs.</summary>
+    Recover,
 }
 
 public enum GilbertWeaponMode : byte
@@ -94,7 +96,7 @@ public sealed partial class GilbertAIComponent : Component
 
     /// <summary>How long he looks around at each spot he checks while searching.</summary>
     [DataField]
-    public TimeSpan SearchLookTime = TimeSpan.FromSeconds(3);
+    public TimeSpan SearchLookTime = TimeSpan.FromSeconds(1.5); // v9: a short glance, he doesn't stand around
 
     /// <summary>Adjacent rooms around the last known position he checks before widening the sweep.</summary>
     [DataField]
@@ -123,10 +125,10 @@ public sealed partial class GilbertAIComponent : Component
 
     /// <summary>Short pause on arrival before the next destination (always under the stall limit).</summary>
     [DataField]
-    public TimeSpan ExplorePauseMin = TimeSpan.FromSeconds(0.2);
+    public TimeSpan ExplorePauseMin = TimeSpan.FromSeconds(0); // v9: no standing around
 
     [DataField]
-    public TimeSpan ExplorePauseMax = TimeSpan.FromSeconds(0.6);
+    public TimeSpan ExplorePauseMax = TimeSpan.FromSeconds(0.15);
 
     // ---- Watchdogs ----
 
@@ -280,6 +282,33 @@ public sealed partial class GilbertAIComponent : Component
     [DataField]
     public FixedPoint2 UnderFireDamage = 3;
 
+    /// <summary>v9: starts treating bleeding this fast (bandages, gauze, tourniquets, styptics).</summary>
+    [DataField]
+    public float HealBleedThreshold = 1.5f;
+
+    /// <summary>v9: starts restoring blood below this fraction (saline, iron, blood packs)...</summary>
+    [DataField]
+    public float HealBloodThreshold = 0.8f;
+
+    /// <summary>v9: ...and keeps at it up to this one.</summary>
+    [DataField]
+    public float HealBloodStop = 0.92f;
+
+    /// <summary>v9: an injection is worth it only against at least this much damage of the kinds it treats.</summary>
+    [DataField]
+    public float InjectorMinDamage = 40f;
+
+    /// <summary>v9: topicals (bruise packs, ointment, gauze) are preferred by this factor.</summary>
+    [DataField]
+    public float TopicalPreference = 1.25f;
+
+    /// <summary>v9: this hurt, he uses an autoinjector mid-fight once the enemy is out of sight.</summary>
+    [DataField]
+    public FixedPoint2 HealCriticalDamage = 380;
+
+    [DataField]
+    public TimeSpan HealCriticalDelay = TimeSpan.FromSeconds(1.5);
+
     /// <summary>Damage group each injector (by prototype) treats. Topicals are matched by their HealingComponent.</summary>
     [DataField]
     public Dictionary<EntProtoId, string> InjectorGroups = new()
@@ -306,6 +335,32 @@ public sealed partial class GilbertAIComponent : Component
         { "kill", 6 },
         { "getout", 1 },
     };
+
+    /// <summary>
+    /// v9: an enemy he saw within this long is not "found" again (no contact / «Я же говорил...» line) when he
+    /// re-spots them; after a longer absence the «Я же говорил...» re-encounter line is used.
+    /// </summary>
+    [DataField]
+    public TimeSpan ReencounterMemory = TimeSpan.FromSeconds(45);
+
+    /// <summary>v9: no two lines closer together than this (orders like the surrender demand are exempt).</summary>
+    [DataField]
+    public TimeSpan GlobalLineCooldown = TimeSpan.FromSeconds(4);
+
+    /// <summary>v9: the same kind of line is not repeated sooner than this.</summary>
+    [DataField]
+    public Dictionary<string, TimeSpan> LineCooldowns = new()
+    {
+        { "found", TimeSpan.FromSeconds(30) },
+        { "lost", TimeSpan.FromSeconds(30) },
+        { "kill", TimeSpan.FromSeconds(10) },
+        { "halfhealth", TimeSpan.FromSeconds(30) },
+        { "noncomply", TimeSpan.FromSeconds(15) },
+    };
+
+    /// <summary>v9: never held back by the cooldowns: they are orders, the gameplay depends on hearing them.</summary>
+    [DataField]
+    public HashSet<string> EssentialLines = new() { "surrender", "getout" };
 
     // ---- Scavenging ----
 
@@ -348,21 +403,29 @@ public sealed partial class GilbertAIComponent : Component
 
     // ---- Cuffed loiterers ----
 
-    /// <summary>"Near" him: within this many tiles with nothing solid in between (a window counts as solid here).</summary>
+    /// <summary>
+    /// "Near" him: within this many tiles with nothing solid in between (a window counts as solid here).
+    /// v9 (t262u): 3 → 8 tiles, but beyond <see cref="LingerCloseRange"/> only while he actually sees them
+    /// (in his view cone, nothing opaque in between): someone behind a wall doesn't count.
+    /// </summary>
     [DataField]
-    public float LingerRange = 3f;
+    public float LingerRange = 8f;
 
-    /// <summary>A cuffed person who has spent this long near him in total gets punched.</summary>
+    /// <summary>Up to this distance a loiterer counts without him having to look at them (the old v3 range).</summary>
     [DataField]
-    public TimeSpan LingerPunchTime = TimeSpan.FromSeconds(60);
+    public float LingerCloseRange = 3f;
+
+    /// <summary>A cuffed person who has spent this long near him in total gets punched. v9 (t262u): 60 → 15 s.</summary>
+    [DataField]
+    public TimeSpan LingerPunchTime = TimeSpan.FromSeconds(15);
 
     /// <summary>The accumulated time is forgotten if the person stays away this long.</summary>
     [DataField]
     public TimeSpan LingerForget = TimeSpan.FromMinutes(2);
 
-    /// <summary>After the punch: still near and in view for this long (in total) means combat.</summary>
+    /// <summary>After the punch: still near and in view for this long (in total) means combat. v9 (t262u): 30 → 10 s.</summary>
     [DataField]
-    public TimeSpan ExpelWatchTime = TimeSpan.FromSeconds(30);
+    public TimeSpan ExpelWatchTime = TimeSpan.FromSeconds(10);
 
     /// <summary>After the punch: out of range / sight this long and he goes back to his business.</summary>
     [DataField]
@@ -424,6 +487,8 @@ public sealed partial class GilbertAIComponent : Component
     [ViewVariables] public int HealFailures;
     /// <summary>Medical items that turned out not to be consumed on use (or kept failing); never used again.</summary>
     [ViewVariables] public HashSet<EntityUid> HealBlacklist = new();
+    /// <summary>v9: an emergency mid-fight heal (fast injectors only).</summary>
+    [ViewVariables] public bool HealCritical;
 
     [ViewVariables] public TimeSpan NextScavenge;
     [ViewVariables] public Dictionary<EntityUid, TimeSpan> ScavengeIgnore = new();
@@ -514,6 +579,10 @@ public sealed partial class GilbertAIComponent : Component
 
     [ViewVariables] public bool SaidHalfHealth;
     [ViewVariables] public string? LastLine;
+    /// <summary>v9: when each enemy was last in sight (re-encounter lines).</summary>
+    [ViewVariables] public Dictionary<EntityUid, TimeSpan> EnemyLastSeen = new();
+    [ViewVariables] public Dictionary<string, TimeSpan> LineSaidAt = new();
+    [ViewVariables] public TimeSpan LastLineAt = TimeSpan.MinValue;
     /// <summary>How many times each line category was said (v8: tests check there is no reload spam).</summary>
     [ViewVariables] public Dictionary<string, int> SaidCounts = new();
 
@@ -542,6 +611,13 @@ public sealed partial class GilbertAIComponent : Component
     [ViewVariables] public Vector2 BerserkLastPos;
     [ViewVariables] public TimeSpan BerserkLastProgress;
 
+    /// <summary>v9: the goal his progress is measured against, the closest he has got to it, the last victim picked.</summary>
+    [ViewVariables] public Vector2 BerserkProgressGoal = new(float.MaxValue, float.MaxValue);
+    [ViewVariables] public float BerserkBestGoalDist = float.MaxValue;
+    [ViewVariables] public EntityUid? BerserkLastPicked;
+    /// <summary>v9 (t258u) diagnostics: airlocks ripped open in the rage.</summary>
+    [ViewVariables] public int BerserkDoorsRipped;
+
     /// <summary>Berserk: the obstacle he is breaking through to get at <see cref="BerserkTarget"/>.</summary>
     [ViewVariables] public EntityUid? BerserkObstacle;
 
@@ -559,4 +635,256 @@ public sealed partial class GilbertAIComponent : Component
     [ViewVariables] public int BerserkRepaths;
     [ViewVariables] public int BerserkSmashPunches;
     [ViewVariables] public int BerserkUnstucks;
+
+    // ---- v13: rage route choice (walk round vs smash through) ----
+    /// <summary>He smashes through only if the walk-round path costs more than this many times the smash path...</summary>
+    [DataField] public float BerserkDetourRatio = 2f;
+    /// <summary>...and more than this many tiles extra.</summary>
+    [DataField] public float BerserkDetourExtra = 8f;
+    /// <summary>On a walk-round route: no progress for this long counts as stuck (sidestep, re-path).</summary>
+    [DataField] public float BerserkWalkStuckTime = 2.5f;
+    /// <summary>Stuck this many times on a walk-round route to the same goal: smash after all.</summary>
+    [DataField] public int BerserkWalkStuckLimit = 2;
+    /// <summary>The current goal is best reached by smashing through (no walk path, or a far longer one).</summary>
+    [ViewVariables] public bool BerserkSmashRoute;
+    [ViewVariables] public Vector2 BerserkRouteGoal = new(float.NaN, float.NaN);
+
+    // ---- v13: rage finisher (phase 2) ----
+    /// <summary>Victims the rage finisher was already started on (never twice on the same one).</summary>
+    [ViewVariables] public HashSet<EntityUid> RageFinished = new();
+    /// <summary>No new rage-finisher attempt before this (after a failed one).</summary>
+    [ViewVariables] public TimeSpan NextRageFinisherTry;
+    [ViewVariables] public TimeSpan BerserkRouteCheckedAt;
+    [ViewVariables] public float? BerserkWalkCost;
+    [ViewVariables] public float? BerserkSmashCost;
+    [ViewVariables] public int BerserkWalkStucks;
+    /// <summary>Diagnostics / tests: route evaluations finished.</summary>
+    [ViewVariables] public int BerserkRouteChecks;
+    public System.Threading.Tasks.Task<float?>? BerserkWalkTask;
+    public System.Threading.Tasks.Task<float?>? BerserkSmashTask;
+    public System.Threading.CancellationTokenSource? BerserkRouteCancel;
+
+    // ---- v9: patrol memory, anti-oscillation, prediction, own gear ----
+
+    /// <summary>
+    /// v9: visit memory fades: a cell visited this long ago counts as half-forgotten (the score is exponential).
+    /// </summary>
+    [DataField]
+    public TimeSpan VisitHalfLife = TimeSpan.FromMinutes(3);
+
+    /// <summary>v9: walking somewhere but staying inside <see cref="OscillationRadius"/> this long = stuck / pacing.</summary>
+    [DataField]
+    public TimeSpan OscillationWindow = TimeSpan.FromSeconds(5);
+
+    [DataField]
+    public TimeSpan BerserkOscillationWindow = TimeSpan.FromSeconds(3);
+
+    [DataField]
+    public float OscillationRadius = 1.5f;
+
+    /// <summary>v9: a destination he got stuck on is avoided this long.</summary>
+    [DataField]
+    public TimeSpan BlacklistTime = TimeSpan.FromSeconds(60);
+
+    /// <summary>v9: how far ahead along the enemy's heading he guesses where they went.</summary>
+    [DataField]
+    public float PredictMaxDistance = 12f;
+
+    /// <summary>v9: doors within this angle (degrees) of the enemy's heading are where they likely went.</summary>
+    [DataField]
+    public float PredictDoorCone = 65f;
+
+    /// <summary>v9 berserk: he "smells" living things this far away and roams towards them.</summary>
+    [DataField]
+    public float BerserkScentRange = 40f;
+
+    /// <summary>v9 berserk: a roam destination not reached in this long is dropped.</summary>
+    [DataField]
+    public TimeSpan BerserkRoamTimeout = TimeSpan.FromSeconds(20);
+
+    /// <summary>v9: he goes back for his own lost weapons he sees within this range.</summary>
+    [DataField]
+    public float RecoverRange = 12f;
+
+    /// <summary>v9: in a fight he only grabs a lost weapon this close (or once the enemy is out of sight).</summary>
+    [DataField]
+    public float RecoverCombatRange = 3f;
+
+    [ViewVariables] public Dictionary<(EntityUid Grid, Vector2i Cell), TimeSpan> Blacklist = new();
+    [ViewVariables] public Vector2 OscillationAnchor;
+    [ViewVariables] public TimeSpan OscillationSince;
+
+    /// <summary>v9: NoPath replans allowed while standing in a doorway, per walk target.</summary>
+    [ViewVariables] public int DoorwayRepaths;
+    [ViewVariables] public EntityCoordinates? OscillationGoal;
+    /// <summary>Diagnostics / tests.</summary>
+    [ViewVariables] public int Oscillations;
+
+    /// <summary>v9: the enemy's velocity (map space) the last time he saw them.</summary>
+    [ViewVariables] public Vector2 LastSeenVelocity;
+    /// <summary>v9: guessed escape route after losing sight: doors / points along their heading, in order.</summary>
+    [ViewVariables] public List<EntityCoordinates> PursuitPlan = new();
+    /// <summary>v9: where the room search is centred and which way it leans (the predicted escape direction).</summary>
+    [ViewVariables] public EntityCoordinates? SearchCenter;
+    [ViewVariables] public Vector2 SearchBias;
+
+    [ViewVariables] public EntityCoordinates? BerserkRoamGoal;
+    [ViewVariables] public TimeSpan BerserkRoamStarted;
+    [ViewVariables] public int BerserkRoams;
+
+    /// <summary>v9: his own spawned weapons (shotgun, truncheon, shield) and where each one belongs.</summary>
+    [ViewVariables] public Dictionary<EntityUid, string> OwnGear = new();
+    [ViewVariables] public bool OwnGearRecorded;
+    [ViewVariables] public Dictionary<EntityUid, TimeSpan> RecoverIgnore = new();
+    [ViewVariables] public int Recovered;
+
+    /// <summary>
+    /// v10.1 (t292u): in combat with a hostile in reach and in plain view but no shot / swing for this long (no
+    /// cutscene, no task): the combat state is reset and the best weapon re-equipped into the active hand.
+    /// </summary>
+    [DataField]
+    public TimeSpan AttackWatchdogDelay = TimeSpan.FromSeconds(3);
+
+    [ViewVariables] public TimeSpan AttackStallSince;
+    [ViewVariables] public long AttackSignature;
+    [ViewVariables] public int AttackWatchdogResets;
+
+    // ---- v9 (t256u): mental map of the station, routes over it, 5-minute trail ----
+
+    /// <summary>The remembered map is scanned this often (not every tick).</summary>
+    [DataField]
+    public TimeSpan MapScanInterval = TimeSpan.FromSeconds(1);
+
+    /// <summary>Tiles within this many tiles that he can see are remembered (walls, doors, floor).</summary>
+    [DataField]
+    public int MapScanRadius = 8;
+
+    /// <summary>Route graph nodes are square chunks of this many tiles (a coarse room / corridor level graph).</summary>
+    [DataField]
+    public int MapChunkSize = 4;
+
+    /// <summary>v9 (t259u): extra route cost (tiles) of a chunk with a table: the 1.5 s vault do-after ≈ that much walking.</summary>
+    [DataField]
+    public float ClimbRouteCost = 5f;
+
+    /// <summary>v9 (t259u): the same in the rage (he vaults ×3 faster and runs).</summary>
+    [DataField]
+    public float BerserkClimbRouteCost = 2f;
+
+    /// <summary>v9 (t258u): seconds to pry an airlock open with his bare hands (phase 1; bolts still stop him).</summary>
+    [DataField]
+    public float HandPryTime = 5f;
+
+    /// <summary>v9 (t259u): do-after multiplier in the rage (climbing over tables: 1.5 s -> 0.45 s).</summary>
+    [DataField]
+    public float BerserkDoAfterMultiplier = 0.3f;
+
+    /// <summary>v9: last watchdog tick (a pry / climb do-after pauses the walk timeout by that much).</summary>
+    [ViewVariables]
+    public TimeSpan LastWatchdog;
+
+    /// <summary>Patrol destinations further than this (path length, tiles) are walked via remembered waypoints.</summary>
+    [DataField]
+    public float RouteMinDistance = 12f;
+
+    /// <summary>Upper bound on route-graph nodes expanded per plan (keeps a plan cheap on big stations).</summary>
+    [DataField]
+    public int RouteMaxExpanded = 6000;
+
+    /// <summary>How long his footsteps are remembered: patrol prefers chunks not walked within this window.</summary>
+    [DataField]
+    public TimeSpan TrailMemory = TimeSpan.FromMinutes(5);
+
+    [ViewVariables] public GilbertMentalMap MentalMap = new();
+    [ViewVariables] public TimeSpan NextMapScan;
+    /// <summary>Remaining patrol waypoints (planned over the mental map), in order; the last is the destination.</summary>
+    [ViewVariables] public List<EntityCoordinates> Route = new();
+    /// <summary>The waypoint he is walking to now (a different move in between cancels the route).</summary>
+    [ViewVariables] public EntityCoordinates? RouteLeg;
+    /// <summary>Diagnostics / tests: patrol trips planned over the mental map.</summary>
+    [ViewVariables] public int RoutesPlanned;
+
+    // ---- v10 (t277u): finisher after a point-blank shotgun hit (phase 1 only) ----
+
+    /// <summary>Master switch for the AI finisher.</summary>
+    [DataField]
+    public bool FinisherEnabled = true;
+
+    /// <summary>Shots at a target further than this (tiles) never lead to a finisher.</summary>
+    [DataField]
+    public float FinisherShotRange = 4f;
+
+    /// <summary>After the shot the victim must be alive (not crit) with at most this much damage left before crit.</summary>
+    [DataField]
+    public FixedPoint2 FinisherCritMargin = 20;
+
+    /// <summary>v10.1: walks up to someone he fought who already lies in crit within <see cref="FinisherSeekRange"/>.</summary>
+    [DataField]
+    public bool FinisherSeekCrit = true;
+
+    /// <summary>Tiles.</summary>
+    [DataField]
+    public float FinisherSeekRange = 4f;
+
+    /// <summary>The pellets need a moment to land: the margin is checked this long after the shot...</summary>
+    [DataField]
+    public TimeSpan FinisherShotSettle = TimeSpan.FromSeconds(0.2);
+
+    /// <summary>...and the shot is forgotten after this long.</summary>
+    [DataField]
+    public TimeSpan FinisherShotWindow = TimeSpan.FromSeconds(1.2);
+
+    /// <summary>Distance (tiles) from the victim at which the cutscene starts.</summary>
+    [DataField]
+    public float FinisherStartRange = 1.3f;
+
+    /// <summary>The run-up is dropped when the victim gets further than this (tiles) or it takes longer than <see cref="FinisherApproachTimeout"/>.</summary>
+    [DataField]
+    public float FinisherAbortRange = 5f;
+
+    [DataField]
+    public TimeSpan FinisherApproachTimeout = TimeSpan.FromSeconds(4);
+
+    /// <summary>The same victim can't get another finisher attempt for this long (after a start or an abort).</summary>
+    [DataField]
+    public TimeSpan FinisherVictimCooldown = TimeSpan.FromSeconds(30);
+
+    /// <summary>No finisher while another hostile is this close (tiles) to him or the victim; 0 disables the check.</summary>
+    [DataField]
+    public float FinisherClearRadius = 6f;
+
+    /// <summary>Weighted random pick of the variant (finisher prototype id -> weight). Shotgun variants need the shotgun in hand.</summary>
+    [DataField]
+    public Dictionary<string, float> FinisherWeights = new()
+    {
+        { "GilbertFinisherPhase1", 1f },
+        { "GilbertFinisherBarrel", 1f },
+        { "GilbertFinisherGroundPound", 1f },
+    };
+
+    /// <summary>Last own shot at a combat target (victim, time), checked once the pellets landed.</summary>
+    [ViewVariables] public (EntityUid Target, TimeSpan At)? FinisherShot;
+    /// <summary>Run-up in progress: the victim and when it started.</summary>
+    [ViewVariables] public EntityUid? FinisherVictim;
+    [ViewVariables] public TimeSpan FinisherApproachStart;
+    [ViewVariables] public Dictionary<EntityUid, TimeSpan> FinisherCooldowns = new();
+    /// <summary>Diagnostics / tests: last finisher variant started by the AI.</summary>
+    [ViewVariables] public string? LastFinisher;
+
+    // ---- v10 (t278u): admin orders ----
+
+    /// <summary><c>gilbertgoto</c>: where he goes (normal navigation) and then holds / patrols.</summary>
+    [ViewVariables] public EntityCoordinates? GotoOrder;
+    [ViewVariables] public bool GotoArrived;
+
+    /// <summary>Patrol radius (tiles) around the ordered point once there.</summary>
+    [DataField]
+    public float GotoHoldRadius = 2.5f;
+
+    /// <summary>Further than this (tiles) from the point (e.g. after a fight) he walks back to it.</summary>
+    [DataField]
+    public float GotoReturnDistance = 4f;
+
+    /// <summary><c>gilberttarget</c>: hunted to death (always knows where it is, no warning / arrest).</summary>
+    [ViewVariables] public EntityUid? HuntTarget;
 }

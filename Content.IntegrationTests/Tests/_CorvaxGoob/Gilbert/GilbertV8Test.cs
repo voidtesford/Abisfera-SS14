@@ -709,9 +709,9 @@ public sealed class GilbertV8Test
         await server.WaitPost(() =>
             entMan.System<GilbertBerserkSystem>().StartBerserk((gilbert, entMan.GetComponent<GilbertBerserkComponent>(gilbert))));
 
-        // Transition (10 s) + the shout (music at 13.5 s): none yet at ~12.8 s.
+        // Transition (v9: 6.9 s, the length of the clip) + the shout (music at 10.4 s): none yet at ~9.6 s.
         var early = false;
-        for (var i = 0; i < 24; i++)
+        for (var i = 0; i < 19; i++)
         {
             await RunSeconds(pair, 0.5);
             await server.WaitAssertion(() => early |= Playing(entMan, gilbert, music));
@@ -904,6 +904,8 @@ public sealed class GilbertV8Test
             comp.TransitionDuration = TimeSpan.FromSeconds(1.0);
             comp.BurstAt = TimeSpan.FromSeconds(0.6);
             comp.RageDuration = TimeSpan.FromSeconds(300);
+            // v13: these targeting tests predate the rage abilities; a leap or levitation mid-test muddies them.
+            entMan.RemoveComponent<GilbertRageAbilitiesComponent>(gilbert);
         });
         await pair.Server.WaitRunTicks(3);
         await pair.Server.WaitPost(() =>
@@ -1017,7 +1019,7 @@ public sealed class GilbertV8Test
         await pair.CleanReturnAsync();
     }
 
-    /// <summary>+50 % fist range while raging.</summary>
+    /// <summary>+30 % fist range while raging (v9: was +50 %).</summary>
     [Test]
     public async Task BerserkMeleeRangeTest()
     {
@@ -1046,7 +1048,14 @@ public sealed class GilbertV8Test
         await RunSeconds(pair, 1.3);
         await server.WaitAssertion(() =>
             Assert.That(entMan.GetComponent<Content.Shared.Weapons.Melee.MeleeWeaponComponent>(gilbert).Range,
-                Is.EqualTo(before * 1.5f).Within(0.001f), "+50 % reach in the rage"));
+                Is.EqualTo(before * 1.3f).Within(0.001f), "+30 % reach in the rage"));
+        // v9 (t260u): base fist reach 1.5 (MeleeWeaponComponent default, not overridden in gilbert.yml) -> 1.95.
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(before, Is.EqualTo(1.5f).Within(0.001f), "base reach");
+            Assert.That(entMan.GetComponent<Content.Shared.Weapons.Melee.MeleeWeaponComponent>(gilbert).Range,
+                Is.EqualTo(1.95f).Within(0.001f), "final berserk reach");
+        });
         await pair.CleanReturnAsync();
     }
 
@@ -1102,8 +1111,11 @@ public sealed class GilbertV8Test
         {
             var comp = entMan.GetComponent<GilbertAIComponent>(gilbert);
             TestContext.Out.WriteLine($"[v8] smash {blockerProto}: broken={entMan.Deleted(blocker)} punches={comp.BerserkSmashPunches} repaths={comp.BerserkRepaths} unstuck={comp.BerserkUnstucks}");
-            Assert.That(entMan.Deleted(blocker) || entMan.GetComponent<TransformComponent>(blocker).Anchored == false,
-                $"{blockerProto} broken");
+            // v9 (t258u): in the rage he rips an airlock open instantly (bolts or not) instead of punching it apart.
+            Assert.That(entMan.Deleted(blocker) || entMan.GetComponent<TransformComponent>(blocker).Anchored == false
+                || entMan.TryGetComponent<Content.Shared.Doors.Components.DoorComponent>(blocker, out var door)
+                   && door.State is Content.Shared.Doors.Components.DoorState.Open or Content.Shared.Doors.Components.DoorState.Opening,
+                $"{blockerProto} broken or ripped open");
             Assert.That(hit, $"through the {blockerProto} and at the victim within 30 s");
         });
         await pair.CleanReturnAsync();
@@ -1155,26 +1167,30 @@ public sealed class GilbertV8Test
             Box(entMan, map, 14, 14);
             xformSys.SetCoordinates(open, map.GridCoords.Offset(new Vector2(14.5f, 14.5f)));
         });
-        await RunSeconds(pair, 0.4);
-        await server.WaitAssertion(() =>
-        {
-            var comp = entMan.GetComponent<GilbertAIComponent>(gilbert);
-            Assert.That(comp.BerserkTarget, Is.Null, "lost sight");
-            Assert.That(comp.BerserkLastKnown, Is.Not.Null, "remembers where");
-        });
 
+        // v9: the search now moves on along the guessed escape route the moment the spot is reached, so sample
+        // finely: he must lose the target, remember the spot, and be at it (within 3 tiles) while searching.
+        var lost = false;
+        var remembered = false;
         var searched = false;
-        for (var i = 0; i < 16 && !searched; i++)
+        for (var i = 0; i < 90 && !searched; i++)
         {
-            await RunSeconds(pair, 0.5);
+            await RunSeconds(pair, 0.1);
             await server.WaitPost(() =>
             {
                 var comp = entMan.GetComponent<GilbertAIComponent>(gilbert);
+                lost |= comp.BerserkTarget == null;
+                remembered |= comp.BerserkLastKnown != null;
                 var d = (xformSys.GetWorldPosition(gilbert) - xformSys.ToMapCoordinates(lastSeen).Position).Length();
                 searched = comp.BerserkSearchUntil > TimeSpan.Zero && d < 3f;
             });
         }
 
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(lost, "lost sight");
+            Assert.That(remembered, "remembers where");
+        });
         await server.WaitAssertion(() => Assert.That(searched, "went to the last-known spot and searched there"));
         await pair.CleanReturnAsync();
     }

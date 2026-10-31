@@ -1,0 +1,101 @@
+# ProcAnim example scene (v11): a straight punch to the face. See README.md next to this file.
+# Play it on two humanoids: `procanim play ProcAnimExamplePunch <attacker uid> <victim uid>`.
+# Frame: +x = from the first actor towards the second, +y = up; part x/y in px (32 px = 1 tile), `move` in tiles.
+
+- type: procAnimScene
+  id: ProcAnimExamplePunch
+  length: 1.6
+  requiredRoom: 1.2
+  actors:
+  - role: attacker
+    facing: 1
+    look: {keys: [{t: 0, x: 1}]}
+    idle: {}
+    move:
+    - {t: 0, x: 0}
+    - {t: 0.3, x: -0.04, ease: Out}
+    - {t: 0.48, x: 0.16, ease: In}
+    - {t: 0.7, x: 0.14}
+    - {t: 1.4, x: 0}
+    parts:
+      Body:
+        pivot: 0, -14
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.3, rot: 4, ease: Out}
+        - {t: 0.48, rot: -9, ease: In}
+        - {t: 0.75, rot: -6}
+        - {t: 1.4, rot: 0}
+      ArmNear: # wind-up only; the strike itself is IK
+        pivot: 0, 5
+        keys:
+        - {t: 0, rot: 10}
+        - {t: 0.3, rot: -30, ease: Out}
+        - {t: 1.4, rot: 10}
+      ArmNearLow:
+        pivot: 0, 0
+        keys:
+        - {t: 0, rot: 30}
+        - {t: 0.3, rot: 110, ease: Out}
+        - {t: 1.4, rot: 30}
+      ArmNearHand: {pivot: '0, -5', keys: [{t: 0}]}
+      LegNear:
+        pivot: 0, -8
+        keys: [{t: 0, rot: 0}, {t: 0.48, rot: 14, ease: In}, {t: 1.4, rot: 0}]
+      LegFar:
+        pivot: 0, -8
+        keys: [{t: 0, rot: 0}, {t: 0.48, rot: -10, ease: In}, {t: 1.4, rot: 0}]
+    ik:
+    # The fist goes to the victim's face, wherever its head is at that moment.
+    - limb: ArmNear
+      relativeTo: victim.Head
+      at: 0, 3
+      weights:
+      - {t: 0.3, x: 0}
+      - {t: 0.48, x: 1, ease: In}
+      - {t: 0.6, x: 1}
+      - {t: 0.95, x: 0, ease: InOut}
+    expressions:
+    - {t: 0, face: neutral}
+    - {t: 0.3, face: angry, eyes: narrowed}
+    - {t: 1.2, face: neutral}
+  - role: victim
+    facing: -1
+    standUp: true
+    look: {keys: [{t: 0, x: 1}, {t: 0.48, x: 0}, {t: 1.1, x: 1}]}
+    move:
+    - {t: 0, x: 0.7}
+    - {t: 0.48, x: 0.7}
+    - {t: 0.75, x: 0.82, ease: Out}
+    - {t: 1.6, x: 0.82}
+    parts:
+      Body:
+        pivot: 0, -14
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.48, rot: 0}
+        - {t: 0.62, rot: -10, ease: Out}
+        - {t: 1.3, rot: 0, ease: BackOut}
+      Head:
+        pivot: 0, 6
+        keys:
+        - {t: 0, rot: 0}
+        - {t: 0.48, rot: 0}
+        - {t: 0.56, rot: -22, ease: HitStop}
+        - {t: 1.2, rot: 0, ease: ElasticOut}
+      ArmNear:
+        pivot: 0, 5
+        keys: [{t: 0, rot: 0}, {t: 0.5, rot: 0}, {t: 0.65, rot: -25, ease: Out}, {t: 1.4, rot: 0}]
+      ArmFar:
+        pivot: 0, 5
+        keys: [{t: 0, rot: 0}, {t: 0.5, rot: 0}, {t: 0.65, rot: -35, ease: Out}, {t: 1.4, rot: 0}]
+    expressions:
+    - {t: 0, face: neutral}
+    - {t: 0.5, face: pain, eyes: closed}
+    - {t: 1.3, face: neutral}
+  events:
+  - {t: 0.1, target: attacker, beat: wind-up, sheet: true, sound: {path: /Audio/Effects/thudswoosh.ogg}}
+  - {t: 0.48, target: victim, beat: punch, sheet: true, hitStop: 0.06, shake: 0.6, flash: true,
+     sound: {collection: Punch}, blood: {count: 6},
+     damage: [{part: Head, damage: {types: {Blunt: 8}}, ignoreArmor: false}]}
+  - {t: 1.1, target: victim, beat: recovers, sheet: true}

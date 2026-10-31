@@ -31,6 +31,9 @@ public sealed partial class GilbertAISystem
         if (IsEnemy(uid))
             return true;
 
+        if (IsHuntTarget(ent.Comp, uid))
+            return true; // v10: gilberttarget - hostile until dead (crit included)
+
         return ent.Comp.ForcedHostile.Contains(uid) && !TerminatingOrDeleted(uid) && _mobState.IsAlive(uid);
     }
 
@@ -59,11 +62,18 @@ public sealed partial class GilbertAISystem
             ent.Comp.LastActive[victim] = now;
     }
 
-    /// <summary>Within <see cref="GilbertAIComponent.LingerRange"/> with nothing solid (windows included) in between.</summary>
+    /// <summary>
+    /// Within <see cref="GilbertAIComponent.LingerRange"/> with nothing solid (windows included) in between;
+    /// v9 (t262u): beyond <see cref="GilbertAIComponent.LingerCloseRange"/> he must also actually see them.
+    /// </summary>
     public bool IsNearby(Entity<GilbertAIComponent> ent, EntityUid other)
     {
         var range = ent.Comp.LingerRange;
-        return DistanceTo(ent, other) <= range && _interaction.InRangeUnobstructed(ent.Owner, other, range + 0.5f);
+        var dist = DistanceTo(ent, other);
+        if (dist > range || !_interaction.InRangeUnobstructed(ent.Owner, other, dist + 0.5f))
+            return false;
+
+        return dist <= ent.Comp.LingerCloseRange || CanSee(ent.Owner, other, ent.Comp);
     }
 
     /// <summary>
@@ -165,7 +175,7 @@ public sealed partial class GilbertAISystem
 
         if (!comp.ExpelPunched)
         {
-            if (now - comp.ExpelStarted > ExpelApproachTimeout || DistanceTo(ent, victim) > comp.LingerRange * 2f
+            if (now - comp.ExpelStarted > ExpelApproachTimeout || DistanceTo(ent, victim) > comp.LingerRange + 3f
                 || TryComp<Content.Server.NPC.Components.NPCSteeringComponent>(ent, out var steering)
                 && steering.Status == Content.Server.NPC.Components.SteeringStatus.NoPath)
             {

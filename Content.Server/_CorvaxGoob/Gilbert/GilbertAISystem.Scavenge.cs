@@ -92,25 +92,47 @@ public sealed partial class GilbertAISystem
 
     #region What he wants
 
-    /// <summary>Is this item worth taking: 8-gauge shells (if a box has room), shell boxes, grenades, cuffs, meds.</summary>
+    /// <summary>Is this item worth taking at all (see <see cref="LootPriority"/>).</summary>
     public bool IsWantedLoot(Entity<GilbertAIComponent> ent, EntityUid item)
     {
-        if (TerminatingOrDeleted(item) || ent.Comp.ScavengeIgnore.ContainsKey(item) || HasComp<GunComponent>(item))
-            return false;
+        return LootPriority(ent, item) > 0;
+    }
 
-        if (IsGrenade(item))
-            return !HasComp<ActiveTimerTriggerComponent>(item);
+    /// <summary>
+    /// v9 whitelist with priorities (0 = leave it): his own weapons 100, 8-gauge shells for a box with room 80,
+    /// shell boxes 70, medicine he'd actually use 60, first-aid kits holding such medicine 55, grenades 50, cuffs 40.
+    /// Anything else - cable coils, tools, trash, guns that aren't his - stays where it is.
+    /// </summary>
+    public int LootPriority(Entity<GilbertAIComponent> ent, EntityUid item)
+    {
+        if (TerminatingOrDeleted(item) || ent.Comp.ScavengeIgnore.ContainsKey(item))
+            return 0;
 
-        if (HasComp<HandcuffComponent>(item))
-            return CountStored(ent, e => HasComp<HandcuffComponent>(e)) < ent.Comp.MaxCuffs;
+        if (ent.Comp.OwnGear.ContainsKey(item))
+            return IsOnHim(ent, item) ? 0 : 100;
+
+        if (HasComp<GunComponent>(item))
+            return 0;
 
         if (IsHeavyShell(item))
-            return TryFindBoxWithRoom(ent, item, out _);
+            return TryFindBoxWithRoom(ent, item, out _) ? 80 : 0;
 
         if (IsShotgunBox(item))
-            return true;
+            return 70;
 
-        return IsMedicalLoot(ent.Comp, item);
+        if (IsMedicalLoot(ent.Comp, item, ent))
+            return 60;
+
+        if (IsMedkitWithMeds(ent, item))
+            return 55;
+
+        if (IsGrenade(item))
+            return HasComp<ActiveTimerTriggerComponent>(item) ? 0 : 50;
+
+        if (HasComp<HandcuffComponent>(item))
+            return CountStored(ent, e => HasComp<HandcuffComponent>(e)) < ent.Comp.MaxCuffs ? 40 : 0;
+
+        return 0;
     }
 
     public bool IsHeavyShell(EntityUid item)
@@ -131,17 +153,10 @@ public sealed partial class GilbertAISystem
             out box);
     }
 
-    private bool IsMedicalLoot(GilbertAIComponent comp, EntityUid item)
+    /// <summary>v9: consumable medicine that treats something a body like his can have (not cable coils...).</summary>
+    private bool IsMedicalLoot(GilbertAIComponent comp, EntityUid item, EntityUid uid)
     {
-        if (!IsConsumableHealItem(comp, item))
-            return false;
-
-        if (HasComp<HealingComponent>(item))
-            return true;
-
-        return HasComp<HyposprayComponent>(item)
-               && MetaData(item).EntityPrototype?.ID is { } id
-               && comp.InjectorGroups.ContainsKey(id);
+        return IsConsumableHealItem(comp, item) && IsUsefulMedicine(uid, item);
     }
 
     private int CountStored(EntityUid uid, Func<EntityUid, bool> predicate)
@@ -185,7 +200,8 @@ public sealed partial class GilbertAISystem
             if (!IsWantedLoot(ent, item))
                 continue;
 
-            if (!IsHeavyShell(item) && !CanStow(ent, item))
+            if (!IsHeavyShell(item) && !CanStow(ent, item) && !CanStowMedicine(ent, item)
+                && !IsMedkitWithMeds(ent, item) && !ent.Comp.OwnGear.ContainsKey(item))
                 continue;
 
             var dist = DistanceTo(ent, item);
@@ -267,51 +283,56 @@ public sealed partial class GilbertAISystem
     /// <summary>Something he wants in this bag (top level of its storage).</summary>
     private bool TryFindWantedInBag(Entity<GilbertAIComponent> ent, EntityUid bag, out EntityUid item)
     {
+        item = default;
+        var best = 0;
         if (TryComp<StorageComponent>(bag, out var storage))
         {
             foreach (var stored in storage.Container.ContainedEntities)
             {
-                if (IsWantedLoot(ent, stored))
+                var priority = LootPriority(ent, stored);
+                if (priority > best)
                 {
+                    best = priority;
                     item = stored;
-                    return true;
                 }
             }
         }
 
-        item = default;
-        return false;
+        return best > 0;
     }
 
+    /// <summary>v9: the most wanted thing in their hands / pockets / suit storage / belt (own weapons first).</summary>
     private bool TryFindLootSlot(Entity<GilbertAIComponent> ent, EntityUid victim, out EntityUid item, out string slot, out bool isHand)
     {
+        item = default;
+        slot = string.Empty;
+        isHand = false;
+        var best = 0;
+
         foreach (var hand in _hands.EnumerateHands(victim))
         {
-            if (_hands.GetHeldItem(victim, hand) is { } held && IsWantedLoot(ent, held))
+            if (_hands.GetHeldItem(victim, hand) is { } held && LootPriority(ent, held) is var priority && priority > best)
             {
+                best = priority;
                 item = held;
                 slot = hand;
                 isHand = true;
-                return true;
             }
         }
 
         foreach (var invSlot in LootSlots)
         {
-            if (_inventory.TryGetSlotEntity(victim, invSlot, out var worn) && IsWantedLoot(ent, worn.Value)
-                && !HasComp<StripMenuInvisibleComponent>(worn))
+            if (_inventory.TryGetSlotEntity(victim, invSlot, out var worn) && !HasComp<StripMenuInvisibleComponent>(worn)
+                && LootPriority(ent, worn.Value) is var priority && priority > best)
             {
+                best = priority;
                 item = worn.Value;
                 slot = invSlot;
                 isHand = false;
-                return true;
             }
         }
 
-        item = default;
-        slot = string.Empty;
-        isHand = false;
-        return false;
+        return best > 0;
     }
 
     #endregion
@@ -611,14 +632,86 @@ public sealed partial class GilbertAISystem
         if (!_hands.IsHolding(ent.Owner, item))
             return;
 
+        StoreLoot(ent, item);
+    }
+
+    /// <summary>
+    /// v9: where a looted thing goes. His own weapon: back to its home slot. Shells: into a box. Medicine: into one of
+    /// his first-aid kits if there's room. A first-aid kit: its useful medicine goes into his kits, then the kit
+    /// itself into the bag if it still holds something useful (otherwise it is dropped). The rest: the bag.
+    /// </summary>
+    private void StoreLoot(Entity<GilbertAIComponent> ent, EntityUid item)
+    {
+        if (ent.Comp.OwnGear.ContainsKey(item))
+        {
+            ReturnGear(ent, item);
+            ent.Comp.Recovered++;
+            return;
+        }
+
         if (IsHeavyShell(item) && TryFindBoxWithRoom(ent, item, out var box))
             _interaction.InteractUsing(ent, item, box, Transform(box).Coordinates, checkCanInteract: false, checkCanUse: false);
+
+        if (_hands.IsHolding(ent.Owner, item) && IsUsefulMedicine(ent, item))
+            TryPutInMedkit(ent, item);
+
+        if (_hands.IsHolding(ent.Owner, item) && IsMedkit(item) && TryComp<StorageComponent>(item, out var kit))
+        {
+            foreach (var med in kit.Container.ContainedEntities.ToList())
+            {
+                if (IsMedicalLoot(ent.Comp, med, ent))
+                    TryPutInMedkit(ent, med);
+            }
+
+            if (!IsMedkitWithMeds(ent, item))
+            {
+                _hands.TryDrop(ent.Owner, item);
+                IgnoreForScavenge(ent.Comp, item);
+                return;
+            }
+        }
 
         if (_hands.IsHolding(ent.Owner, item))
             StowOrDrop(ent, item);
 
         if (!_container.IsEntityOrParentInContainer(item))
             IgnoreForScavenge(ent.Comp, item);
+    }
+
+    /// <summary>His first-aid kits (the combat ones first).</summary>
+    private IEnumerable<EntityUid> OwnMedkits(EntityUid uid)
+    {
+        return EnumerateStored(uid).Where(IsMedkit)
+            .OrderByDescending(e => MetaData(e).EntityPrototype?.ID.StartsWith("MedkitCombat") == true);
+    }
+
+    /// <summary>v9: into one of his first-aid kits, if one has room.</summary>
+    public bool TryPutInMedkit(EntityUid uid, EntityUid item)
+    {
+        foreach (var kit in OwnMedkits(uid).ToList())
+        {
+            if (kit == item || !TryComp<StorageComponent>(kit, out var storage) || !_storage.CanInsert(kit, item, out _, storage))
+                continue;
+
+            if (_storage.Insert(kit, item, out _, user: uid, storageComp: storage, playSound: false))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool CanStowMedicine(EntityUid uid, EntityUid item)
+    {
+        if (!TryComp<GilbertAIComponent>(uid, out var comp) || !IsMedicalLoot(comp, item, uid))
+            return false;
+
+        foreach (var kit in OwnMedkits(uid))
+        {
+            if (TryComp<StorageComponent>(kit, out var storage) && _storage.CanInsert(kit, item, out _, storage))
+                return true;
+        }
+
+        return false;
     }
 
     private void EndFrisk(Entity<GilbertAIComponent> ent)
@@ -642,16 +735,7 @@ public sealed partial class GilbertAISystem
     {
         var comp = ent.Comp;
         if (_hands.IsHolding(ent.Owner, item))
-        {
-            if (IsHeavyShell(item) && TryFindBoxWithRoom(ent, item, out var box))
-                _interaction.InteractUsing(ent, item, box, Transform(box).Coordinates, checkCanInteract: false, checkCanUse: false);
-
-            if (_hands.IsHolding(ent.Owner, item))
-                StowOrDrop(ent, item);
-
-            if (!_container.IsEntityOrParentInContainer(item))
-                IgnoreForScavenge(comp, item);
-        }
+            StoreLoot(ent, item);
 
         comp.TaskItem = null;
         FinishTask(ent);

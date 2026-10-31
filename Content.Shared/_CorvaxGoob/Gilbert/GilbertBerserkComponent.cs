@@ -9,7 +9,7 @@ namespace Content.Shared._CorvaxGoob.Gilbert;
 /// <summary>
 /// Gilbert's second phase, «Берсерк» (v6). Lives on every Gilbert from spawn with <see cref="Phase"/> None;
 /// when only 50 of his 500 HP are left (<see cref="TriggerDamage"/>) the server's GilbertBerserkSystem runs
-/// Transition (10 s) -> Rage (5 min) -> Dying (4 s) -> Dead. From the trigger on he can't be hurt or healed,
+/// Transition (6.9 s) -> Rage (5 min) -> Dying (4 s) -> Dead. From the trigger on he can't be hurt or healed,
 /// and once Dead he can't be revived.
 /// </summary>
 [RegisterComponent, NetworkedComponent, AutoGenerateComponentState(true)]
@@ -19,12 +19,19 @@ public sealed partial class GilbertBerserkComponent : Component
     [DataField]
     public float TriggerDamage = 450f;
 
+    /// <summary>
+    /// v9: exactly as long as <see cref="TransitionSound"/> (the growl-into-roar clip is 6.898 s), so the sound and
+    /// the transition start and end together (was 10 s with the clip ending 3 s early).
+    /// </summary>
     [DataField]
-    public TimeSpan TransitionDuration = TimeSpan.FromSeconds(10);
+    public TimeSpan TransitionDuration = TimeSpan.FromSeconds(6.9);
 
-    /// <summary>When during the transition the charge peaks and bursts out (and the 20 Shock lands).</summary>
+    /// <summary>
+    /// When during the transition the charge peaks and bursts out (and the 20 Shock lands). v9: 4.75 s, where the
+    /// growl in the transition clip breaks into the roar.
+    /// </summary>
     [DataField]
-    public TimeSpan BurstAt = TimeSpan.FromSeconds(8);
+    public TimeSpan BurstAt = TimeSpan.FromSeconds(4.75);
 
     [DataField]
     public TimeSpan RageDuration = TimeSpan.FromMinutes(5);
@@ -63,9 +70,9 @@ public sealed partial class GilbertBerserkComponent : Component
     [DataField]
     public float HearingRange = 15f;
 
-    /// <summary>v8: his fists reach this much further while raging (×1.5).</summary>
+    /// <summary>v8: his fists reach this much further while raging (v9: ×1.3, was ×1.5).</summary>
     [DataField]
-    public float MeleeRangeMultiplier = 1.5f;
+    public float MeleeRangeMultiplier = 1.3f;
 
     /// <summary>Fist range before the rage (to put it back); server only.</summary>
     [ViewVariables]
@@ -86,13 +93,24 @@ public sealed partial class GilbertBerserkComponent : Component
     [DataField]
     public float InterferenceStrength = 2f;
 
+    /// <summary>
+    /// v9: the dying sequence's only sound: «Прости! Прости!» cut from his original voice track (1.6 s), said once
+    /// <see cref="DeathLineDelay"/> into the 4 s of shaking, before the energy explosion. Replaces the zombie wails.
+    /// </summary>
     [DataField]
-    public SoundSpecifier ScreamSound = new SoundCollectionSpecifier("ZombieScreams",
-        AudioParams.Default.WithVolume(8f).WithMaxDistance(20f).WithPitchScale(0.8f).WithVariation(0.12f));
+    public SoundSpecifier DeathLineSound = new SoundPathSpecifier("/Audio/_CorvaxGoob/Gilbert/gilbert_death_sorry_1.ogg",
+        AudioParams.Default.WithVolume(6f).WithMaxDistance(20f));
+
+    [DataField]
+    public TimeSpan DeathLineDelay = TimeSpan.FromSeconds(0.4);
+
+    /// <summary>Set once the death line has been said (server only).</summary>
+    [ViewVariables]
+    public bool DeathLineSaid;
 
     /// <summary>
-    /// v8: one growl-into-roar clip (about 6.9 s) played once at the start of the 10 s transition, instead of the
-    /// overlapping zombie screams. The dying sequence still uses <see cref="ScreamSound"/>.
+    /// v8: one growl-into-roar clip (6.898 s) played once at the start of the transition, instead of the
+    /// overlapping zombie screams. v9: the transition lasts exactly as long (<see cref="TransitionDuration"/>).
     /// </summary>
     [DataField]
     public SoundSpecifier TransitionSound = new SoundPathSpecifier("/Audio/_CorvaxGoob/Gilbert/gilbert_berserk_transition_1.ogg",
@@ -118,13 +136,6 @@ public sealed partial class GilbertBerserkComponent : Component
     /// <summary>Set once the berserk soundtrack has been started (it never starts twice).</summary>
     [ViewVariables]
     public bool RageMusicStarted;
-
-    /// <summary>Gap between the overlapping screams of the dying sequence (v8: no longer used by the transition).</summary>
-    [DataField]
-    public float ScreamIntervalMin = 0.55f;
-
-    [DataField]
-    public float ScreamIntervalMax = 1.1f;
 
     [DataField]
     public SoundSpecifier BurstSound = new SoundPathSpecifier("/Audio/Effects/Lightning/lightningbolt.ogg",
@@ -200,9 +211,6 @@ public sealed partial class GilbertBerserkComponent : Component
     public bool Fallen;
 
     [ViewVariables]
-    public TimeSpan NextScream;
-
-    [ViewVariables]
     public TimeSpan NextArc;
 
     [ViewVariables]
@@ -225,7 +233,7 @@ public enum GilbertBerserkPhase : byte
     /// <summary>First phase, his normal self.</summary>
     None,
 
-    /// <summary>10 s: stopped, shaking and screaming, charging up and bursting out.</summary>
+    /// <summary>6.9 s: stopped, shaking and screaming, charging up and bursting out.</summary>
     Transition,
 
     /// <summary>5 min: hunting everything alive, fists only.</summary>

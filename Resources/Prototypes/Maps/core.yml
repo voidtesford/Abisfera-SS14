@@ -29,7 +29,7 @@
   id: Core
   mapName: 'Core'
   mapPath: /Maps/_Goobstation/core.yml # Goobstation
-  minPlayers: 50
+  minPlayers: 0
   maxPlayers: 70
   stations:
     Core:

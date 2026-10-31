@@ -1,4 +1,5 @@
 using Content.Shared._CorvaxGoob.Gilbert;
+using Content.Shared._CorvaxGoob.ProcAnim;
 using Robust.Client.GameObjects;
 using Robust.Shared.Timing;
 using Robust.Shared.Utility;
@@ -36,6 +37,11 @@ public sealed class GilbertBerserkVisualsSystem : EntitySystem
         var query = EntityQueryEnumerator<GilbertBerserkComponent, SpriteComponent>();
         while (query.MoveNext(out var uid, out var comp, out var sprite))
         {
+            // v13: in a ProcAnim scene (rage finisher, leap) the puppet has baked these layers as they were at the
+            // start and keeps the originals hidden: touching them every frame would re-bake it or draw them unposed.
+            if (HasComp<ProcAnimComponent>(uid))
+                continue;
+
             var visible = comp.Phase is GilbertBerserkPhase.Transition or GilbertBerserkPhase.Rage or GilbertBerserkPhase.Dying;
             Entity<SpriteComponent?> ent = (uid, sprite);
             if (!visible)

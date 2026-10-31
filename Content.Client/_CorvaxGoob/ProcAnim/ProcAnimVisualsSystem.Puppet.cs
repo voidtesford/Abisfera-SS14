@@ -1,0 +1,698 @@
+using System.Linq;
+using System.Numerics;
+using Content.Client.Inventory;
+using Content.Shared._CorvaxGoob.ProcAnim;
+using Content.Shared.Hands.Components;
+using Content.Shared.Humanoid;
+using Robust.Client.GameObjects;
+using Robust.Client.Graphics;
+using Robust.Client.Utility;
+using Robust.Shared.ContentPack;
+using Robust.Shared.Graphics;
+using Robust.Shared.Graphics.RSI;
+using Robust.Shared.Utility;
+using SixLabors.ImageSharp;
+using Color = Robust.Shared.Maths.Color;
+using SixLabors.ImageSharp.PixelFormats;
+
+namespace Content.Client._CorvaxGoob.ProcAnim;
+
+/// <summary>
+/// Runtime "puppet" for side-facing humanoids: the visible layers are composited into one texture per limb group (see
+/// <see cref="ProcAnimPuppet"/>), the originals are hidden for the duration of the cutscene and the group layers
+/// are animated about mask-derived joint pivots with whole-pixel offsets. Layers that cannot be baked (animated,
+/// shader-driven, scaled, raw textures) stay as they are and follow the group under most of their pixels.
+/// </summary>
+public sealed partial class ProcAnimVisualsSystem
+{
+    [Dependency] private readonly IClyde _clyde = default!;
+    [Dependency] private readonly IResourceManager _res = default!;
+
+    public const string PuppetKeyPrefix = "gilbert-finisher-";
+
+    /// <summary>
+    /// Baked puppet segments: sRGB like every RSI texture (the pixels are copied straight from the RSI frames), only
+    /// point sampled. A plain <c>new TextureLoadParameters { .. }</c> leaves <see cref="TextureLoadParameters.Srgb"/>
+    /// false, and then the GPU reads the sRGB bytes as linear: every colour comes out washed towards grey, so the dark
+    /// clothing turns into a pale, see-through-looking ghost during the finisher.
+    /// </summary>
+    public static readonly TextureLoadParameters PuppetTextureParameters = new()
+    {
+        Srgb = true,
+        SampleParameters = TextureSampleParameters.Default with { Filter = false },
+    };
+
+    private readonly Dictionary<(ResPath, string), Image<Rgba32>?> _pngCache = new();
+
+    private sealed class PuppetData
+    {
+        public int Signature;
+        public required ProcAnimPuppetResult Result;
+        public readonly List<(ProcAnimPuppetGroup Group, string Key, SpriteComponent.Layer Layer, OwnedTexture Texture)> Layers = new();
+        public readonly Dictionary<SpriteComponent.Layer, (RSI? Rsi, string? State, bool WantsVisible)> Hidden = new();
+        public readonly Dictionary<SpriteComponent.Layer, ProcAnimPuppetGroup> Leftovers = new();
+    }
+
+    private static ProcAnimPuppetGroup GroupOf(ProcAnimBone part) => part switch
+    {
+        ProcAnimBone.Head => ProcAnimPuppetGroup.Head,
+        ProcAnimBone.ArmNear => ProcAnimPuppetGroup.ArmNear,
+        ProcAnimBone.ArmFar => ProcAnimPuppetGroup.ArmFar,
+        ProcAnimBone.LegNear => ProcAnimPuppetGroup.LegNear,
+        ProcAnimBone.LegFar => ProcAnimPuppetGroup.LegFar,
+        ProcAnimBone.ArmNearLow => ProcAnimPuppetGroup.ArmNearLow,
+        ProcAnimBone.ArmFarLow => ProcAnimPuppetGroup.ArmFarLow,
+        ProcAnimBone.LegNearLow => ProcAnimPuppetGroup.LegNearLow,
+        ProcAnimBone.LegFarLow => ProcAnimPuppetGroup.LegFarLow,
+        ProcAnimBone.ArmNearHand => ProcAnimPuppetGroup.ArmNearHand,
+        ProcAnimBone.ArmFarHand => ProcAnimPuppetGroup.ArmFarHand,
+        ProcAnimBone.LegNearFoot => ProcAnimPuppetGroup.LegNearFoot,
+        ProcAnimBone.LegFarFoot => ProcAnimPuppetGroup.LegFarFoot,
+        ProcAnimBone.HeldNear => ProcAnimPuppetGroup.HeldNear,
+        ProcAnimBone.HeldFar => ProcAnimPuppetGroup.HeldFar,
+        _ => ProcAnimPuppetGroup.Torso,
+    };
+
+    private static ProcAnimBone? PartOf(ProcAnimPuppetGroup group) => group switch
+    {
+        ProcAnimPuppetGroup.Head => ProcAnimBone.Head,
+        ProcAnimPuppetGroup.ArmNear => ProcAnimBone.ArmNear,
+        ProcAnimPuppetGroup.ArmFar => ProcAnimBone.ArmFar,
+        ProcAnimPuppetGroup.LegNear => ProcAnimBone.LegNear,
+        ProcAnimPuppetGroup.LegFar => ProcAnimBone.LegFar,
+        ProcAnimPuppetGroup.ArmNearLow => ProcAnimBone.ArmNearLow,
+        ProcAnimPuppetGroup.ArmFarLow => ProcAnimBone.ArmFarLow,
+        ProcAnimPuppetGroup.LegNearLow => ProcAnimBone.LegNearLow,
+        ProcAnimPuppetGroup.LegFarLow => ProcAnimBone.LegFarLow,
+        ProcAnimPuppetGroup.ArmNearHand => ProcAnimBone.ArmNearHand,
+        ProcAnimPuppetGroup.ArmFarHand => ProcAnimBone.ArmFarHand,
+        ProcAnimPuppetGroup.LegNearFoot => ProcAnimBone.LegNearFoot,
+        ProcAnimPuppetGroup.LegFarFoot => ProcAnimBone.LegFarFoot,
+        ProcAnimPuppetGroup.HeldNear => ProcAnimBone.HeldNear,
+        ProcAnimPuppetGroup.HeldFar => ProcAnimBone.HeldFar,
+        _ => null,
+    };
+
+    /// <summary>Mask pivots are measured on screen; converted to the forward frame (x mirrored when facing left).</summary>
+    private static Dictionary<ProcAnimBone, Vector2> ForwardPivots(PuppetData puppet, float sx)
+    {
+        var res = new Dictionary<ProcAnimBone, Vector2>();
+        foreach (var (group, p) in puppet.Result.Pivots)
+            if (PartOf(group) is { } part)
+                res[part] = new Vector2(sx * p.X, p.Y);
+        return res;
+    }
+
+    /// <summary>Base 4-dir RSI direction the sprite is currently drawn with.</summary>
+    private RsiDirection DisplayDir(Entity<SpriteComponent> ent, RsiDirectionType type = RsiDirectionType.Dir4)
+    {
+        if (ent.Comp.EnableDirectionOverride)
+            return ent.Comp.DirectionOverride.Convert(type);
+
+        var angle = (_transform.GetWorldRotation(ent.Owner) + _eye.CurrentEye.Rotation).Reduced().FlipPositive();
+        return SpriteComponent.Layer.GetDirection(type, angle);
+    }
+
+    private RsiDirection LayerDir(Entity<SpriteComponent> ent, SpriteComponent.Layer layer, RSI.State state)
+    {
+        var dir = state.RsiDirections == RsiDirectionType.Dir1 ? RsiDirection.South : DisplayDir(ent, state.RsiDirections);
+        if (ent.Comp.EnableDirectionOverride)
+            dir = ent.Comp.DirectionOverride.Convert(state.RsiDirections);
+        return dir.OffsetRsiDir(layer.DirOffset);
+    }
+
+    private int PuppetSignature(Entity<SpriteComponent> ent, PlayState state, RsiDirection dir)
+    {
+        var hc = new HashCode();
+        hc.Add(dir);
+        hc.Add(state.PropHands);
+        var puppet = state.Puppet;
+        foreach (var l in ent.Comp.AllLayers)
+        {
+            if (l is not SpriteComponent.Layer layer)
+                continue;
+            if (puppet != null && puppet.Layers.Any(p => p.Layer == layer))
+                continue;
+            if (state.Props.Any(p => p.Layer == layer))
+                continue;
+
+            // Visibility of shader / unshaded layers (blinking eyes, glows) never changes the bake. A layer the puppet
+            // hid counts as such whatever its visibility (re-enabled ones are just hidden again), but a *new* visible
+            // layer (clothing / in-hand visuals re-created by their systems: new layer objects with the same state)
+            // must force a rebake, or it is drawn as a static original under the puppet.
+            var plain = layer.ShaderPrototype == null && layer.Shader == null;
+            var hidden = puppet != null && puppet.Hidden.ContainsKey(layer);
+            hc.Add(hidden ? 1 : plain && layer.Visible ? 2 : 0);
+            hc.Add(layer.ActualRsi?.Path);
+            hc.Add(layer.ActualState?.StateId.Name);
+            hc.Add(layer.Color);
+            hc.Add(state.Layers.TryGetValue(layer, out var orig) ? orig.Offset : layer.Offset);
+        }
+
+        return hc.ToHashCode();
+    }
+
+    /// <summary>Keeps the puppet in sync with the sprite; null when this sprite cannot be puppeted (use the fallback).</summary>
+    /// <param name="holster">RSI states to draw held items with on the back, or null to keep them in the hands.</param>
+    /// <param name="keepInHand">With <paramref name="holster"/>: also bake the in-hand frames (shown until the holster swing ends).</param>
+    /// <param name="forcedNearRight">A forced (e.g. back) view: puppet the vertical direction too, with this near side.</param>
+    private PuppetData? UpdatePuppet(Entity<SpriteComponent> ent, PlayState state, List<string>? holster, bool keepInHand,
+        bool? forcedNearRight)
+    {
+        if (!ent.Comp.NoRotation)
+        {
+            TearDownPuppet(ent, state);
+            return null;
+        }
+
+        var dir = DisplayDir(ent);
+        var sig = PuppetSignature(ent, state, dir);
+        if (state.Puppet is { } current && current.Signature == sig)
+        {
+            RehideOriginals(ent, current);
+            return current;
+        }
+
+        if (state.Puppet == null && state.FailedPuppetSignature == sig)
+            return null;
+
+        TearDownPuppet(ent, state);
+        RestoreLayerTransforms(ent, state);
+
+        bool? nearRight = dir is RsiDirection.East or RsiDirection.West ? dir == RsiDirection.East : forcedNearRight;
+        if (nearRight is { } near)
+        {
+            try
+            {
+                state.Puppet = BuildPuppet(ent, state, near, holster, keepInHand);
+            }
+            catch (Exception e)
+            {
+                Log.Warning($"Finisher puppet failed for {ToPrettyString(ent)}: {e}");
+                TearDownPuppet(ent, state);
+            }
+        }
+
+        if (state.Puppet == null)
+        {
+            state.FailedPuppetSignature = sig;
+            return null;
+        }
+
+        // Signature after the bake (puppet layers excluded, hidden layers count as visible: unchanged).
+        state.Puppet.Signature = PuppetSignature(ent, state, dir);
+        return state.Puppet;
+    }
+
+    private void RehideOriginals(Entity<SpriteComponent> ent, PuppetData puppet)
+    {
+        foreach (var (layer, info) in puppet.Hidden.ToList())
+        {
+            if (!layer.Visible)
+                continue;
+            // Something (re)enabled the layer while it was baked: honour that on teardown.
+            puppet.Hidden[layer] = info with { WantsVisible = true };
+            _sprite.LayerSetVisible(layer, false);
+        }
+    }
+
+    private void RestoreLayerTransforms(Entity<SpriteComponent> ent, PlayState state)
+    {
+        var alive = new HashSet<ISpriteLayer>(ent.Comp.AllLayers);
+        foreach (var (layer, orig) in state.Layers)
+        {
+            if (!alive.Contains(layer))
+                continue;
+            _sprite.LayerSetOffset(layer, orig.Offset);
+            _sprite.LayerSetRotation(layer, orig.Rotation);
+        }
+
+        state.Layers.Clear();
+    }
+
+    private void TearDownPuppet(Entity<SpriteComponent> ent, PlayState state)
+    {
+        if (state.Puppet is not { } puppet)
+            return;
+
+        state.Puppet = null;
+        foreach (var (_, key, _, texture) in puppet.Layers)
+        {
+            _sprite.RemoveLayer(ent.AsNullable(), key, false);
+            texture.Dispose();
+        }
+
+        var alive = new HashSet<ISpriteLayer>(ent.Comp.AllLayers);
+        foreach (var (layer, info) in puppet.Hidden)
+        {
+            if (!alive.Contains(layer))
+                continue;
+            if (info.WantsVisible || (layer.ActualRsi == info.Rsi && layer.ActualState?.StateId.Name == info.State))
+                _sprite.LayerSetVisible(layer, true);
+        }
+
+        // Body layers the humanoid hid meanwhile (limbs torn off during the cutscene) stay hidden.
+        if (TryComp<HumanoidAppearanceComponent>(ent, out var humanoid))
+        {
+            foreach (var key in humanoid.HiddenLayers.Keys.Concat(humanoid.PermanentlyHidden))
+            {
+                if (_sprite.LayerMapTryGet(ent.AsNullable(), key, out var index, false))
+                    _sprite.LayerSetVisible(ent.AsNullable(), index, false);
+            }
+        }
+
+        foreach (var layer in puppet.Leftovers.Keys)
+        {
+            if (!state.Layers.Remove(layer, out var orig) || !alive.Contains(layer))
+                continue;
+            _sprite.LayerSetOffset(layer, orig.Offset);
+            _sprite.LayerSetRotation(layer, orig.Rotation);
+        }
+    }
+
+    private Image<Rgba32>? LoadPng(RSI rsi, RSI.State st)
+    {
+        var key = (rsi.Path, st.StateId.Name ?? string.Empty);
+        if (_pngCache.TryGetValue(key, out var cached))
+            return cached;
+
+        Image<Rgba32>? image = null;
+        try
+        {
+            using var stream = _res.ContentFileRead(rsi.Path / $"{key.Item2}.png");
+            image = Image.Load<Rgba32>(stream);
+        }
+        catch (Exception e)
+        {
+            Log.Debug($"Finisher puppet: cannot read {rsi.Path}/{key.Item2}.png: {e.Message}");
+        }
+
+        _pngCache[key] = image;
+        return image;
+    }
+
+    /// <summary>Displayed frame of a layer as raw RGBA (w x h), or null.</summary>
+    private (byte[] Pixels, int W, int H)? LayerFrame(Entity<SpriteComponent> ent, SpriteComponent.Layer layer,
+        RSI.State? stateOverride = null)
+    {
+        if (layer.ActualRsi is not { } rsi || (stateOverride ?? layer.ActualState) is not { } st || LoadPng(rsi, st) is not { } png)
+            return null;
+
+        var dir = LayerDir(ent, layer, st);
+        var w = st.Size.X;
+        var h = st.Size.Y;
+        var frames = Math.Max(1, st.DelayCount);
+        var dirIndex = st.RsiDirections == RsiDirectionType.Dir1 ? 0 : (int) dir;
+        var idx = dirIndex * frames + Math.Clamp(layer.AnimationFrame, 0, frames - 1);
+        var cols = Math.Max(1, png.Width / w);
+        var fx = idx % cols * w;
+        var fy = idx / cols * h;
+        if (fx + w > png.Width || fy + h > png.Height)
+            return null;
+
+        // The sandbox forbids Image<T>'s pixel getter (only the setter is whitelisted): read the backing span.
+        var span = png.GetPixelSpan();
+        var stride = png.Width;
+        var pixels = new byte[w * h * 4];
+        for (var y = 0; y < h; y++)
+        for (var x = 0; x < w; x++)
+        {
+            var p = span[(fy + y) * stride + fx + x];
+            var i = (y * w + x) * 4;
+            pixels[i] = p.R; pixels[i + 1] = p.G; pixels[i + 2] = p.B; pixels[i + 3] = p.A;
+        }
+
+        return (pixels, w, h);
+    }
+
+    private static byte[] Place((byte[] Pixels, int W, int H) frame, Vector2 offset, Color color, int c)
+    {
+        var dst = new byte[c * c * 4];
+        var x0 = (c - frame.W) / 2 + (int) MathF.Round(offset.X * PixelsPerMeter);
+        var y0 = (c - frame.H) / 2 - (int) MathF.Round(offset.Y * PixelsPerMeter);
+        for (var y = 0; y < frame.H; y++)
+        for (var x = 0; x < frame.W; x++)
+        {
+            int dx = x0 + x, dy = y0 + y;
+            if (dx < 0 || dy < 0 || dx >= c || dy >= c)
+                continue;
+            var s = (y * frame.W + x) * 4;
+            var d = (dy * c + dx) * 4;
+            dst[d] = (byte) Math.Clamp(MathF.Round(frame.Pixels[s] * color.R), 0, 255);
+            dst[d + 1] = (byte) Math.Clamp(MathF.Round(frame.Pixels[s + 1] * color.G), 0, 255);
+            dst[d + 2] = (byte) Math.Clamp(MathF.Round(frame.Pixels[s + 2] * color.B), 0, 255);
+            dst[d + 3] = (byte) Math.Clamp(MathF.Round(frame.Pixels[s + 3] * color.A), 0, 255);
+        }
+
+        return dst;
+    }
+
+    /// <summary>CPU version of the displacement shader: out(x, y) = src(x + R - 128, y + G - 128), alpha x map alpha.</summary>
+    private static byte[] Displace(byte[] src, byte[] map, int c)
+    {
+        var dst = new byte[src.Length];
+        for (var y = 0; y < c; y++)
+        for (var x = 0; x < c; x++)
+        {
+            var m = (y * c + x) * 4;
+            if (map[m + 3] == 0)
+                continue;
+            var sx = x + map[m] - 128;
+            var sy = y + map[m + 1] - 128;
+            if (sx < 0 || sy < 0 || sx >= c || sy >= c)
+                continue;
+            var s = (sy * c + sx) * 4;
+            dst[m] = src[s];
+            dst[m + 1] = src[s + 1];
+            dst[m + 2] = src[s + 2];
+            dst[m + 3] = (byte) MathF.Round(src[s + 3] * map[m + 3] / 255f);
+        }
+
+        return dst;
+    }
+
+    private bool TryIndex(Entity<SpriteComponent> ent, object key, out int index)
+    {
+        index = -1;
+        return key switch
+        {
+            Enum e => _sprite.LayerMapTryGet(ent.AsNullable(), e, out index, false),
+            string s => _sprite.LayerMapTryGet(ent.AsNullable(), s, out index, false),
+            _ => false,
+        };
+    }
+
+    private PuppetData? BuildPuppet(Entity<SpriteComponent> ent, PlayState state, bool nearRight, List<string>? holster,
+        bool keepInHand)
+    {
+        var sprite = ent.Comp;
+        var all = sprite.AllLayers.OfType<SpriteComponent.Layer>().ToList();
+
+        // index -> classification key
+        var keys = new Dictionary<int, string>();
+        foreach (var v in Enum.GetValues<HumanoidVisualLayers>())
+            if (_sprite.LayerMapTryGet(ent.AsNullable(), v, out var idx, false))
+                keys.TryAdd(idx, v.ToString());
+        if (TryComp<InventorySlotsComponent>(ent, out var slots))
+        {
+            foreach (var (slot, slotKeys) in slots.VisualLayerKeys)
+            foreach (var key in slotKeys)
+                if (_sprite.LayerMapTryGet(ent.AsNullable(), key, out var idx, false))
+                    keys.TryAdd(idx, $"{slot}-{key}");
+        }
+        // Every layer the hands drew for each hand (the item's own layers plus extras such as its crackle overlay).
+        if (TryComp<HandsComponent>(ent, out var hands))
+        {
+            foreach (var (location, revealed) in hands.RevealedLayers)
+            {
+                var side = location == HandLocation.Left ? "inhand-left" : "inhand-right";
+                foreach (var key in revealed)
+                    if (_sprite.LayerMapTryGet(ent.AsNullable(), key, out var idx, false))
+                        keys.TryAdd(idx, key.StartsWith(side) ? key : $"{side}-{key}");
+            }
+        }
+        foreach (var side in new[] { "inhand-left", "inhand-right" })
+        {
+            if (_sprite.LayerMapTryGet(ent.AsNullable(), side, out var idx, false))
+                keys.TryAdd(idx, side);
+            for (var i = 0; i < 4; i++)
+                if (_sprite.LayerMapTryGet(ent.AsNullable(), $"{side}-{i}", out idx, false))
+                    keys.TryAdd(idx, $"{side}-{i}");
+        }
+
+        // displacement target index -> map layer
+        var displacement = new Dictionary<int, SpriteComponent.Layer>();
+        foreach (var layer in all)
+            if (layer.CopyToShaderParameters is { } copy && TryIndex(ent, copy.LayerKey, out var target))
+                displacement[target] = layer;
+
+        var baked = new List<(int Index, SpriteComponent.Layer Layer, (byte[], int, int) Frame, string? Key)>();
+        var leftovers = new List<(SpriteComponent.Layer Layer, (byte[], int, int)? Frame, string? Key)>();
+        var holstered = new List<SpriteComponent.Layer>();
+        var maxSize = 32;
+        var maxOff = 0f;
+        for (var i = 0; i < all.Count; i++)
+        {
+            var layer = all[i];
+            if (!layer.Visible || layer.CopyToShaderParameters != null)
+                continue;
+            if (state.Props.Any(p => p.Layer == layer))
+                continue;
+            if (layer.ActualState == null && layer.Texture == null)
+                continue;
+
+            // A held item a prop draws (the real baton...): the prop is the item, its in-hand frame is not drawn.
+            if (keys.TryGetValue(i, out var propHand)
+                && (propHand.StartsWith("inhand-left") && (state.PropHands & 1) != 0
+                    || propHand.StartsWith("inhand-right") && (state.PropHands & 2) != 0))
+            {
+                holstered.Add(layer);
+                continue;
+            }
+
+            // Holstered held item: baked from the item's on-back state (the Slung group, over the torso), else just
+            // hidden; with keepInHand also from its in-hand frame (the Held groups, until the holster swing ends).
+            if (holster != null && keys.TryGetValue(i, out var handKey) && handKey.StartsWith("inhand-"))
+            {
+                holstered.Add(layer);
+                if (layer.ActualRsi is not { } handRsi)
+                    continue;
+                if (keepInHand && layer.ActualState is { IsAnimated: false } && LayerFrame(ent, layer) is { } handFrame)
+                {
+                    maxSize = Math.Max(maxSize, Math.Max(handFrame.W, handFrame.H));
+                    baked.Add((i, layer, handFrame, handKey));
+                }
+
+                foreach (var stateName in holster)
+                {
+                    if (!handRsi.TryGetState(stateName, out var backState)
+                        || LayerFrame(ent, layer, backState) is not { } backFrame)
+                        continue;
+                    maxSize = Math.Max(maxSize, Math.Max(backFrame.W, backFrame.H));
+                    baked.Add((i, layer, backFrame, "back-slung"));
+                    break;
+                }
+
+                continue;
+            }
+
+            var plain = layer.ShaderPrototype == null && layer.Shader == null || displacement.ContainsKey(i);
+            var eligible = plain
+                           && layer.ActualState is { IsAnimated: false }
+                           && layer.Scale == Vector2.One
+                           && layer.Rotation == Angle.Zero
+                           && layer.RenderingStrategy == LayerRenderingStrategy.UseSpriteStrategy;
+            var frame = LayerFrame(ent, layer);
+            if (frame is { } f)
+            {
+                maxSize = Math.Max(maxSize, Math.Max(f.W, f.H));
+                maxOff = Math.Max(maxOff, Math.Max(MathF.Abs(layer.Offset.X), MathF.Abs(layer.Offset.Y)) * PixelsPerMeter);
+            }
+
+            if (eligible && frame is { } ef)
+                baked.Add((i, layer, ef, keys.GetValueOrDefault(i)));
+            else
+                leftovers.Add((layer, frame, keys.GetValueOrDefault(i)));
+        }
+
+        if (!baked.Any(b => b.Key == nameof(HumanoidVisualLayers.Chest)))
+            return null;
+
+        var c = maxSize + 2 * (int) MathF.Ceiling(maxOff);
+        c += c % 2;
+
+        var inputs = new List<ProcAnimPuppetInput>();
+        foreach (var (index, layer, frame, bakeKey) in baked)
+        {
+            var pixels = Place(frame, layer.Offset, layer.Color, c);
+            if (displacement.TryGetValue(index, out var mapLayer) && LayerFrame(ent, mapLayer) is { } mapFrame)
+                pixels = Displace(pixels, Place(mapFrame, mapLayer.Offset, Color.White, c), c);
+            inputs.Add(new ProcAnimPuppetInput(bakeKey, pixels));
+        }
+
+        var result = ProcAnimPuppet.Build(inputs, c, nearRight);
+        var puppet = new PuppetData { Result = result };
+
+        // v13.4: shader / animated overlays can't go into the plain group bakes. In-hand ones (the M8's crackle over
+        // Gilbert's shotgun) ride rigidly on that hand's held item (still animated); one mostly over a single limb
+        // rides on it; one spread over several groups (his neon rage arms) is cut per group and each piece baked with
+        // the overlay's shader, so it bends with the limbs. Before: left static over the torso (a second, unmoving
+        // shotgun / pair of arms next to the animated ones).
+        var rigid = new List<(SpriteComponent.Layer Layer, ProcAnimPuppetGroup Group)>();
+        var fx = new List<(ProcAnimPuppetGroup Group, byte[] Pixels, SpriteComponent.Layer Source)>();
+        foreach (var (layer, frame, leftKey) in leftovers)
+        {
+            if (frame is not { } f)
+                continue;
+            var placed = Place(f, layer.Offset, layer.Color, c);
+            if (leftKey != null && leftKey.StartsWith("inhand-"))
+            {
+                var near = leftKey.StartsWith("inhand-right") == nearRight;
+                var held = near ? ProcAnimPuppetGroup.HeldNear : ProcAnimPuppetGroup.HeldFar;
+                if (result.IsEmpty(held))
+                    held = near ? ProcAnimPuppetGroup.ArmNearLow : ProcAnimPuppetGroup.ArmFarLow;
+                rigid.Add((layer, held));
+                continue;
+            }
+
+            var parts = ProcAnimPuppet.SplitByGroup(result, placed, c);
+            var counts = new int[ProcAnimPuppet.GroupCount];
+            var total = 0;
+            for (var g = 0; g < counts.Length; g++)
+            {
+                if (parts[g] is not { } part)
+                    continue;
+                for (var i = 3; i < part.Length; i += 4)
+                    if (part[i] > 0)
+                        counts[g]++;
+                total += counts[g];
+            }
+
+            if (total == 0)
+                continue;
+            var major = 0;
+            for (var g = 1; g < counts.Length; g++)
+                if (counts[g] > counts[major])
+                    major = g;
+            var majorGroup = (ProcAnimPuppetGroup) major;
+            var torsoish = majorGroup is ProcAnimPuppetGroup.Torso or ProcAnimPuppetGroup.TorsoTop;
+            if (counts[major] >= total * 0.9f)
+            {
+                // One group: as before (torso: left as it is, it moves with the whole sprite).
+                if (!torsoish)
+                    rigid.Add((layer, majorGroup));
+                continue;
+            }
+
+            for (var g = 0; g < counts.Length; g++)
+                if (counts[g] > 0 && parts[g] is { } part)
+                    fx.Add(((ProcAnimPuppetGroup) g, part, layer));
+        }
+
+        var insertAt = 0;
+        var fxCount = 0;
+        for (var g = 0; g < ProcAnimPuppet.GroupCount; g++)
+        {
+            var group = (ProcAnimPuppetGroup) g;
+            if (!result.IsEmpty(group))
+            {
+                var key = PuppetKeyPrefix + group;
+                var texture = LoadPuppetTexture(result.Images[g], c, key);
+                var index = insertAt++;
+                var layer = _sprite.AddBlankLayer(ent, index);
+                _sprite.LayerSetTexture(layer, texture);
+                _sprite.LayerMapSet(ent.AsNullable(), key, index);
+                puppet.Layers.Add((group, key, layer, texture));
+            }
+
+            foreach (var (fxGroup, pixels, source) in fx)
+            {
+                if (fxGroup != group)
+                    continue;
+                var key = PuppetKeyPrefix + group + "-fx" + fxCount++;
+                var texture = LoadPuppetTexture(pixels, c, key);
+                var index = insertAt++;
+                var layer = _sprite.AddBlankLayer(ent, index);
+                _sprite.LayerSetTexture(layer, texture);
+                if (source.Shader != null)
+                    sprite.LayerSetShader(index, source.Shader, source.ShaderPrototype?.Id);
+                else if (source.ShaderPrototype is { } shaderProto)
+                    sprite.LayerSetShader(index, shaderProto.Id);
+                _sprite.LayerMapSet(ent.AsNullable(), key, index);
+                puppet.Layers.Add((group, key, layer, texture));
+            }
+        }
+
+        foreach (var layer in baked.Select(b => b.Layer).Concat(holstered).Concat(fx.Select(f => f.Source)).Distinct())
+        {
+            puppet.Hidden[layer] = (layer.ActualRsi, layer.ActualState?.StateId.Name, false);
+            _sprite.LayerSetVisible(layer, false);
+        }
+
+        foreach (var (layer, group) in rigid)
+            puppet.Leftovers[layer] = group;
+
+        return puppet;
+    }
+
+    private OwnedTexture LoadPuppetTexture(byte[] src, int c, string name)
+    {
+        using var image = new Image<Rgba32>(c, c);
+        for (var y = 0; y < c; y++)
+        for (var x = 0; x < c; x++)
+        {
+            var i = (y * c + x) * 4;
+            image[x, y] = new Rgba32(src[i], src[i + 1], src[i + 2], src[i + 3]);
+        }
+
+        return _clyde.LoadTextureFromImage(image, name, PuppetTextureParameters);
+    }
+
+    /// <summary>Applies one solved part pose to its puppet group (baked layer + leftovers), offsets snapped to whole pixels.</summary>
+    private void AnimatePuppetPart(PuppetData puppet, PlayState state, ProcAnimBone part,
+        ProcAnimPose pose, float sx, bool hidden = false, float? flipX = null)
+    {
+        var group = GroupOf(part);
+        var offset = new Vector2(MathF.Round(sx * pose.X), MathF.Round(pose.Y)) / PixelsPerMeter;
+        var rotation = Angle.FromDegrees(sx * pose.Rot);
+
+        foreach (var (g, _, layer, _) in puppet.Layers)
+        {
+            if (g != group)
+                continue;
+            // Torn-off limb: the baked segment stops being drawn (the real body part is gone by then too).
+            if (hidden)
+            {
+                if (layer.Visible)
+                    state.HiddenParts.Add(layer);
+                _sprite.LayerSetVisible(layer, false);
+            }
+            else if (state.HiddenParts.Remove(layer))
+                _sprite.LayerSetVisible(layer, true); // v13: a `hide` with `until` ended
+            _sprite.LayerSetOffset(layer, offset);
+            _sprite.LayerSetRotation(layer, rotation);
+            // v13.2: a part turned round (mirrored in its own frame, e.g. the head on a broken neck).
+            if (flipX is { } fx)
+                _sprite.LayerSetScale(layer, new Vector2(fx, 1f));
+        }
+
+        foreach (var (layer, g) in puppet.Leftovers)
+        {
+            if (g != group)
+                continue;
+            if (!state.Layers.TryGetValue(layer, out var orig))
+            {
+                orig = (layer.Offset, layer.Rotation);
+                state.Layers[layer] = orig;
+            }
+
+            _sprite.LayerSetOffset(layer, offset + rotation.RotateVec(orig.Offset));
+            _sprite.LayerSetRotation(layer, orig.Rotation + rotation);
+        }
+    }
+
+    /// <summary>For tests: the puppet layer of a group, if the entity is currently puppeted.</summary>
+    public SpriteComponent.Layer? GetPuppetLayer(EntityUid uid, ProcAnimPuppetGroup group)
+    {
+        if (!_states.TryGetValue(uid, out var state) || state.Puppet is not { } puppet)
+            return null;
+        foreach (var (g, _, layer, _) in puppet.Layers)
+            if (g == group)
+                return layer;
+        return null;
+    }
+
+    /// <summary>For tests / debugging: the current bake of a puppeted entity.</summary>
+    public ProcAnimPuppetResult? GetPuppetResult(EntityUid uid)
+    {
+        return _states.TryGetValue(uid, out var state) ? state.Puppet?.Result : null;
+    }
+
+    /// <summary>For tests: original layers currently hidden by the puppet.</summary>
+    public IReadOnlyCollection<SpriteComponent.Layer> GetPuppetHiddenLayers(EntityUid uid)
+    {
+        return _states.TryGetValue(uid, out var state) && state.Puppet is { } puppet
+            ? puppet.Hidden.Keys.ToList()
+            : Array.Empty<SpriteComponent.Layer>();
+    }
+}
