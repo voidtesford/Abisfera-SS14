@@ -2,7 +2,7 @@
   id: CorvaxCluster
   mapName: 'NGT Кластер'
   mapPath: /Maps/_CorvaxGoob/Stations/Cluster/corvax_cluster.yml
-  minPlayers: 0
+  minPlayers: 50
   maxPlayers: 50
   stations:
     Cluster:

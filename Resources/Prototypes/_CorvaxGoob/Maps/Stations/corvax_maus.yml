@@ -1,6 +1,6 @@
 - type: gameMap
   id: CorvaxMaus
-  mapName: 'NTMG Маус'
+  mapName: 'Maus'
   mapPath: /Maps/_CorvaxGoob/Stations/Maus/corvax_maus.yml
   maxRandomOffset: 0
   randomRotation: false
