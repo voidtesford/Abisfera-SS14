@@ -67,7 +67,7 @@ public sealed partial class CCVars
     ///     Sets the duration of the map vote timer.
     /// </summary>
     public static readonly CVarDef<int>
-        VoteTimerMap = CVarDef.Create("vote.timermap", 90, CVar.SERVERONLY);
+        VoteTimerMap = CVarDef.Create("vote.timermap", 120, CVar.SERVERONLY);
 
     /// <summary>
     ///     Sets the duration of the restart vote timer.
@@ -79,7 +79,7 @@ public sealed partial class CCVars
     ///     Sets the duration of the gamemode/preset vote timer.
     /// </summary>
     public static readonly CVarDef<int>
-        VoteTimerPreset = CVarDef.Create("vote.timerpreset", 30, CVar.SERVERONLY);
+        VoteTimerPreset = CVarDef.Create("vote.timerpreset", 120, CVar.SERVERONLY);
 
     /// <summary>
     ///     Sets the duration of the map vote timer when ALONE.
@@ -182,4 +182,24 @@ public sealed partial class CCVars
     /// </summary>
     public static readonly CVarDef<bool> VotekickIgnoreGhostReqInLobby =
         CVarDef.Create("votekick.ignore_ghost_req_in_lobby", true, CVar.SERVERONLY);
+
+    /// <summary>
+    ///     Enables the automatic voting system.
+    /// </summary>
+    public static readonly CVarDef<bool> AutoVoteEnabled =
+        CVarDef.Create("vote.autovote_enabled", false, CVar.SERVERONLY);
+
+    /// <summary>
+    ///     Automatically starts a map vote when returning to the lobby.
+    ///     Requires auto voting to be enabled.
+    /// </summary>
+    public static readonly CVarDef<bool> MapAutoVoteEnabled =
+        CVarDef.Create("vote.map_autovote_enabled", true, CVar.SERVERONLY);
+
+    /// <summary>
+    ///     Automatically starts a gamemode vote when returning to the lobby.
+    ///     Requires auto voting to be enabled.
+    /// </summary>
+    public static readonly CVarDef<bool> PresetAutoVoteEnabled =
+        CVarDef.Create("vote.preset_autovote_enabled", true, CVar.SERVERONLY);
 }
