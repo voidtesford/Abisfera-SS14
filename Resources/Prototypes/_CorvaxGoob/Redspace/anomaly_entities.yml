@@ -1,0 +1,238 @@
+# Redspace anomalies: zone events (server) and client-only decorations. No screen shaders, no colour tint:
+# everything here is an entity with a sprite and maybe a small light.
+
+# ---------- zone events (spawned by RedspaceAnomalyEventSystem) ----------
+
+- type: entity
+  id: RedspaceAnomalyEventBase
+  abstract: true
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+- type: entity
+  parent: RedspaceAnomalyEventBase
+  id: RedspaceRift
+  name: rift
+  description: A crack in space. It pulls.
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    sprite: _CorvaxGoob/Effects/redspace_rift.rsi
+    layers:
+    - state: rift
+    - state: glow
+      shader: unshaded
+  - type: PointLight
+    radius: 3
+    energy: 1.2
+    color: "#FFC2D1"
+  - type: AmbientSound
+    volume: -6
+    range: 6
+    sound:
+      path: /Audio/Ambience/Objects/drain.ogg
+
+- type: entity
+  parent: RedspaceAnomalyEventBase
+  id: RedspaceRiftExit
+  name: rift exit
+  components:
+  - type: TimedDespawn
+    lifetime: 0.45
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    sprite: _CorvaxGoob/Effects/redspace_rift_exit.rsi
+    layers:
+    - state: exit
+      shader: unshaded
+
+- type: entity
+  parent: RedspaceAnomalyEventBase
+  id: RedspaceGravityKnot
+  name: gravity knot
+  description: Everything nearby slowly circles a point of nothing.
+  components:
+  - type: Sprite
+    drawdepth: FloorObjects
+    noRot: true
+    sprite: _CorvaxGoob/Effects/redspace_gravity_knot.rsi
+    layers:
+    - state: knot
+  - type: PointLight
+    radius: 2
+    energy: 0.8
+    color: "#D9C2FF"
+  - type: AmbientSound
+    volume: -8
+    range: 6
+    sound:
+      path: /Audio/Ambience/Objects/gravity_gen_hum.ogg
+
+- type: entity
+  parent: RedspaceAnomalyEventBase
+  id: RedspaceBloodRain
+  name: blood rain
+  description: Warm red drops fall out of nowhere.
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    sprite: _CorvaxGoob/Effects/redspace_blood_rain.rsi
+    layers:
+    - state: rain
+
+- type: entity
+  parent: RedspaceAnomalyEventBase
+  id: RedspaceMirrorCorridor
+  name: mirror corridor
+  description: Space here is reflected. Left is right, forward is back.
+  components:
+  - type: Sprite
+    drawdepth: FloorObjects
+    sprite: _CorvaxGoob/Effects/redspace_mirror.rsi
+    layers:
+    - state: mirror
+
+- type: entity
+  parent: RedspaceAnomalyEventBase
+  id: RedspaceTimeLoopMarker
+  name: time loop
+  description: You have been here before. In five seconds.
+  components:
+  - type: Sprite
+    drawdepth: FloorObjects
+    noRot: true
+    sprite: _CorvaxGoob/Effects/redspace_timeloop.rsi
+    layers:
+    - state: ring
+      shader: unshaded
+
+# Distorted copy of a player that repeats their moves with a delay. The client copies the sprite of the source.
+- type: entity
+  id: RedspaceDoppelganger
+  name: doppelganger
+  description: It looks just like someone. Almost.
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Mobs
+    visible: false
+  - type: RedspaceDoppelganger
+  - type: Clickable
+  - type: InteractionOutline
+  - type: Damageable
+    damageContainer: Biological
+  - type: Physics
+    bodyType: KinematicController
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeCircle
+          radius: 0.35
+        hard: false
+        layer:
+        - MobLayer
+
+# ---------- client-only decorations (RedspaceAmbientVisualsSystem / hallucinations) ----------
+
+- type: entity
+  id: RedspaceVisualBase
+  abstract: true
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: TimedDespawn
+    lifetime: 10
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+- type: entity
+  parent: RedspaceVisualBase
+  id: RedspaceVisualDebris
+  name: debris
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    sprite: _CorvaxGoob/Effects/redspace_debris.rsi
+    layers:
+    - state: dust1
+
+- type: entity
+  parent: RedspaceVisualBase
+  id: RedspaceVisualPatch
+  name: reality patch
+  components:
+  - type: Sprite
+    drawdepth: FloorObjects
+    noRot: true
+    sprite: _CorvaxGoob/Effects/redspace_reality_patch.rsi
+    layers:
+    - state: wall
+
+- type: entity
+  parent: RedspaceVisualBase
+  id: RedspaceVisualSilhouette
+  name: silhouette
+  components:
+  - type: Sprite
+    drawdepth: Mobs
+    sprite: _CorvaxGoob/Effects/redspace_silhouette.rsi
+    layers:
+    - state: stalker
+
+- type: entity
+  parent: RedspaceVisualBase
+  id: RedspaceVisualArc
+  name: discharge arc
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    sprite: _CorvaxGoob/Effects/redspace_arc.rsi
+    layers:
+    - state: arc
+      shader: unshaded
+
+- type: entity
+  parent: RedspaceVisualBase
+  id: RedspaceVisualArcGlow
+  name: afterglow
+  components:
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    sprite: _CorvaxGoob/Effects/redspace_arc.rsi
+    layers:
+    - state: glow
+      shader: unshaded
+  - type: PointLight
+    radius: 1.5
+    energy: 1.5
+    color: "#E6D6FF"
+
+- type: entity
+  parent: RedspaceVisualBase
+  id: RedspaceVisualFootprint
+  name: footprint
+  components:
+  - type: Sprite
+    drawdepth: FloorObjects
+    sprite: _CorvaxGoob/Effects/redspace_footprint.rsi
+    layers:
+    - state: left
+
+- type: entity
+  parent: RedspaceVisualBase
+  id: RedspaceHallucinationFigure
+  name: figure
+  components:
+  - type: Sprite
+    drawdepth: Mobs
+    sprite: _CorvaxGoob/Effects/redspace_silhouette.rsi
+    layers:
+    - state: stalker

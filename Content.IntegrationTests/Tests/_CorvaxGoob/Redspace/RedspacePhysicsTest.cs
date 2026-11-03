@@ -47,6 +47,8 @@ public sealed class RedspacePhysicsTest
         ["echoEnabled"] = "false", ["hallucinationsEnabled"] = "false", ["dischargesEnabled"] = "false",
         ["lightFlickerEnabled"] = "false", ["radioStaticEnabled"] = "false", ["ambientEnabled"] = "false",
         ["jitterChance"] = "0", ["vomitChancePerMinute"] = "0",
+        ["anomalyEventsEnabled"] = "false", ["mutationsEnabled"] = "false", ["privateHallucinationsEnabled"] = "false",
+        ["itemDecayEnabled"] = "false", ["visualsEnabled"] = "false",
     };
 
     private sealed class CaptureShell(IConsoleHost host) : IConsoleShell
@@ -444,10 +446,10 @@ public sealed class RedspacePhysicsTest
             var state = Run(host, "redspacemap", $"{id}");
             Assert.That(state.Lines.Single(), Does.Contain("RedspaceStorm").And.Contain("cellularPerSecond=2"));
 
-            Assert.That(Run(host, "redspacestatus", $"{id} 3 3").Lines.Single(), Is.EqualTo(Loc("cmd-redspacestatus-exposed", id, 3, 3)));
+            Assert.That(Run(host, "redspacestatus", $"{id} 3 3").Lines[0], Is.EqualTo(Loc("cmd-redspacestatus-exposed", id, 3, 3)));
             var portal = entMan.SpawnEntity(null, map.MapCoords);
             entMan.AddComponent<RedspaceGatePortalComponent>(portal);
-            Assert.That(Run(host, "redspacestatus", $"{id} 3 3").Lines.Single(), Does.Contain(portal.ToString()));
+            Assert.That(Run(host, "redspacestatus", $"{id} 3 3").Lines[0], Does.Contain(portal.ToString()));
             Assert.That(Run(host, "redspacestatus", "").Errors, Has.Count.EqualTo(1), "no player: needs coordinates");
 
             Assert.That(Run(host, "redspacemap", $"{id} off").Errors, Is.Empty);

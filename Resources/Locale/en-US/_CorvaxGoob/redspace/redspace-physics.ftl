@@ -48,3 +48,50 @@ cmd-redspacestatus-usage = Usage: redspacestatus [mapId x y]
 cmd-redspacestatus-not-redspace = { $where }: not a redspace map.
 cmd-redspacestatus-suppressed = { $where }: suppressed by { $by }.
 cmd-redspacestatus-exposed = { $where }: exposed to redspace.
+
+## Redspace anomalies
+
+redspace-event-start-rift = Space next to you cracks open and pulls!
+redspace-event-start-gravityknot = Everything around starts to slowly circle an empty point.
+redspace-event-start-bloodrain = Warm red drops fall from the ceiling.
+redspace-event-start-mirrorcorridor = Space is reflected: right became left.
+redspace-event-start-timeloop = You feel you have been here before...
+redspace-event-start-doppelganger = Someone very much like you repeats your moves.
+redspace-rift-swallowed = The rift swallows you and spits you out somewhere else!
+redspace-blood-rain-slip = You slip on the blood!
+redspace-mirror-enter = Your legs go the wrong way!
+redspace-timeloop-snap = Five seconds ago. Again.
+redspace-timeloop-broken = The time loop snaps.
+redspace-doppelganger-hit = The doppelganger hits you!
+redspace-doppelganger-vanish = The doppelganger falls apart into static.
+redspace-whispers-local = [italic][bold]{ $name }[/bold] whispers from somewhere far away: "{ $message }"[/italic]
+redspace-whispers-radio = [color={ $color }]{ $channel } [bold]{ $name }[/bold] says through static, "{ $message }"[/color]
+redspace-mutation-voice = Your voice sounds like someone else's.
+redspace-mutation-slow = Your body grows heavy and clumsy.
+redspace-mutation-eye = Something opens on your forehead and looks.
+redspace-mutation-gone = The changes in your body fade.
+redspace-gun-jam-start = { CAPITALIZE(THE($gun)) } jams!
+redspace-gun-jammed = The gun is jammed!
+
+redspace-event-fail-target = no target
+redspace-event-fail-not-redspace = the target is not in redspace
+redspace-event-fail-immune = the target is immune
+redspace-event-fail-dead = the target is dead
+redspace-event-fail-suppressed = redspace is suppressed next to the target
+redspace-event-fail-busy = this event is already running or there are too many
+redspace-event-fail-type = unknown event
+redspace-event-fail-not-player = the target is not a player
+redspace-event-fail-no-speech = nothing to whisper: nobody has spoken yet
+
+cmd-redspaceevent-desc = Starts a redspace anomaly event next to a player.
+cmd-redspaceevent-help = redspaceevent <rift|timeloop|doppelganger|bloodrain|mirror|whispers|gravityknot> [target]
+cmd-redspaceevent-usage = Usage: redspaceevent <type> [target]. Types: { $types }
+cmd-redspaceevent-bad-target = Target "{ $target }" not found.
+cmd-redspaceevent-failed = Event { $type } not started: { $reason }.
+cmd-redspaceevent-started = Event { $type } started for { $target } ({ $spawned }).
+cmd-redspaceevent-hint-type = <type>
+cmd-redspaceevent-hint-target = [target]
+cmd-redspacestatus-next-event = Next event in: { $seconds } s.
+cmd-redspacestatus-active-events = Running events ({ $count }): { $events }
+cmd-redspacestatus-immune = You are immune to redspace.
+cmd-redspacestatus-exposure = Exposure: { $seconds } s, mutations: { $mutations }

@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Linq;
 using System.Numerics;
+using Content.Server._CorvaxGoob.Redspace.Anomalies;
 using Content.Server._CorvaxGoob.Redspace.Physics;
+using Content.Shared._CorvaxGoob.Redspace.Anomalies;
 using Content.Server.Administration;
 using Content.Shared._CorvaxGoob.Redspace.Physics;
 using Content.Shared.Administration;
@@ -117,13 +119,16 @@ public sealed class RedspaceMapCommand : LocalizedEntityCommands
 public sealed class RedspaceStatusCommand : LocalizedEntityCommands
 {
     [Dependency] private readonly RedspaceMapSystem _redspace = default!;
+    [Dependency] private readonly RedspaceAnomalyEventSystem _events = default!;
     [Dependency] private readonly SharedTransformSystem _transform = default!;
+    [Dependency] private readonly SharedMapSystem _mapSystem = default!;
 
     public override string Command => "redspacestatus";
 
     public override void Execute(IConsoleShell shell, string argStr, string[] args)
     {
         MapCoordinates coords;
+        EntityUid? who = null;
         if (args.Length == 3
             && int.TryParse(args[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var mapId)
             && float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
@@ -134,6 +139,7 @@ public sealed class RedspaceStatusCommand : LocalizedEntityCommands
         else if (args.Length == 0 && shell.Player?.AttachedEntity is { } player)
         {
             coords = _transform.GetMapCoordinates(player);
+            who = player;
         }
         else
         {
@@ -152,9 +158,51 @@ public sealed class RedspaceStatusCommand : LocalizedEntityCommands
         {
             shell.WriteLine(Loc.GetString("cmd-redspacestatus-suppressed", ("where", where),
                 ("by", by == null ? "?" : EntityManager.ToPrettyString(by.Value).ToString())));
+        }
+        else
+        {
+            shell.WriteLine(Loc.GetString("cmd-redspacestatus-exposed", ("where", where)));
+        }
+
+        WriteAnomalies(shell, coords.MapId, who);
+    }
+
+    /// <summary>Extra lines: next zone event, running events, and the exposure of the checked player.</summary>
+    private void WriteAnomalies(IConsoleShell shell, MapId mapId, EntityUid? who)
+    {
+        if (_mapSystem.TryGetMap(mapId, out var mapUid))
+        {
+            var next = _events.NextEventIn(mapUid.Value);
+            shell.WriteLine(Loc.GetString("cmd-redspacestatus-next-event",
+                ("seconds", next < 0 ? "-" : MathF.Ceiling(next).ToString(CultureInfo.InvariantCulture))));
+        }
+
+        var active = _events.ActiveEvents(mapId);
+        shell.WriteLine(Loc.GetString("cmd-redspacestatus-active-events", ("count", active.Count),
+            ("events", active.Count == 0 ? "-" : string.Join(", ", active.Select(e => $"{e.Kind} {MathF.Ceiling(e.Left)}s")))));
+
+        if (who is not { } uid)
+            return;
+
+        if (_redspace.IsImmune(uid))
+        {
+            shell.WriteLine(Loc.GetString("cmd-redspacestatus-immune"));
             return;
         }
 
-        shell.WriteLine(Loc.GetString("cmd-redspacestatus-exposed", ("where", where)));
+        var exposure = EntityManager.TryGetComponent(uid, out RedspaceAffectedComponent? affected) ? affected.Exposure : 0f;
+        var mutations = new List<string>();
+        if (EntityManager.TryGetComponent(uid, out RedspaceMutationComponent? mutation))
+        {
+            if (mutation.Voice)
+                mutations.Add("voice");
+            if (mutation.Slowdown < 1f)
+                mutations.Add("slow");
+            if (mutation.ExtraEye)
+                mutations.Add("eye");
+        }
+
+        shell.WriteLine(Loc.GetString("cmd-redspacestatus-exposure", ("seconds", MathF.Floor(exposure)),
+            ("mutations", mutations.Count == 0 ? "-" : string.Join(", ", mutations))));
     }
 }

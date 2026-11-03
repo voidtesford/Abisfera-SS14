@@ -274,6 +274,196 @@ public sealed partial class RedspaceSettings
 
     #endregion
 
+    #region Anomaly events
+
+    // Zone events: every AnomalyEventInterval seconds one event is picked by weight (0 = never) and started next to a
+    // random exposed living player. Never inside a suppressed area, never on the immune.
+
+    [DataField]
+    public bool AnomalyEventsEnabled = true;
+
+    [DataField]
+    public float AnomalyEventIntervalMin = 120f;
+
+    [DataField]
+    public float AnomalyEventIntervalMax = 300f;
+
+    /// <summary>Most zone events (rifts, knots, rain, mirror corridors, doppelgangers) alive at once on a map.</summary>
+    [DataField]
+    public int AnomalyEventMax = 3;
+
+    [DataField]
+    public float RiftWeight = 1f;
+
+    [DataField]
+    public float TimeLoopWeight = 1f;
+
+    [DataField]
+    public float DoppelgangerWeight = 1f;
+
+    [DataField]
+    public float BloodRainWeight = 1f;
+
+    [DataField]
+    public float MirrorCorridorWeight = 1f;
+
+    [DataField]
+    public float WhispersWeight = 1.5f;
+
+    [DataField]
+    public float GravityKnotWeight = 1f;
+
+    /// <summary>Rift: open time, seconds.</summary>
+    [DataField]
+    public float RiftDurationMin = 20f;
+
+    [DataField]
+    public float RiftDurationMax = 40f;
+
+    /// <summary>Rift: pull reach, tiles, and pull acceleration, m/s².</summary>
+    [DataField]
+    public float RiftRadius = 6f;
+
+    [DataField]
+    public float RiftPull = 4f;
+
+    /// <summary>Rift: Blunt damage dealt to a mob it swallows and throws out somewhere else.</summary>
+    [DataField]
+    public float RiftDamage = 12f;
+
+    /// <summary>Rift: how far (tiles) a swallowed thing may land.</summary>
+    [DataField]
+    public float RiftThrowMin = 8f;
+
+    [DataField]
+    public float RiftThrowMax = 30f;
+
+    /// <summary>Time loop: seconds until the player is pulled back to the snapshot.</summary>
+    [DataField]
+    public float TimeLoopDelay = 5f;
+
+    /// <summary>Doppelganger: lifetime, seconds; how late it repeats the moves; damage per hit and hit cooldown.</summary>
+    [DataField]
+    public float DoppelgangerLifetime = 60f;
+
+    [DataField]
+    public float DoppelgangerDelay = 1.5f;
+
+    [DataField]
+    public float DoppelgangerDamage = 5f;
+
+    [DataField]
+    public float DoppelgangerHitCooldown = 2.5f;
+
+    /// <summary>Blood rain: radius, tiles; duration, seconds; Blunt damage per second inside; slip chance per second while moving.</summary>
+    [DataField]
+    public float BloodRainRadius = 3f;
+
+    [DataField]
+    public float BloodRainDuration = 30f;
+
+    [DataField]
+    public float BloodRainDamage = 0.3f;
+
+    [DataField]
+    public float BloodRainSlipChance = 0.12f;
+
+    /// <summary>Mirror corridor: duration, seconds; length and width, tiles. Movement input is inverted inside.</summary>
+    [DataField]
+    public float MirrorCorridorDuration = 30f;
+
+    [DataField]
+    public float MirrorCorridorLength = 7f;
+
+    [DataField]
+    public float MirrorCorridorWidth = 3f;
+
+    /// <summary>Whispers: how old (seconds) a remembered phrase may be; chance it comes "over the radio".</summary>
+    [DataField]
+    public float WhispersMemory = 600f;
+
+    [DataField]
+    public float WhispersRadioChance = 0.4f;
+
+    /// <summary>Gravity knot: duration, seconds; reach, tiles; orbit and inward acceleration, m/s².</summary>
+    [DataField]
+    public float GravityKnotDuration = 40f;
+
+    [DataField]
+    public float GravityKnotRadius = 5f;
+
+    [DataField]
+    public float GravityKnotOrbit = 3f;
+
+    [DataField]
+    public float GravityKnotInward = 1.5f;
+
+    #endregion
+
+    #region In-world visuals
+
+    /// <summary>
+    /// Client-only decorations around exposed players: floating debris and dust, flickering "reality patches",
+    /// shadow silhouettes, discharge arcs with afterglow, footprints. Rate multiplies how often they appear (0 = off).
+    /// No screen shaders and no colour tint, only entities, sprites and lights.
+    /// </summary>
+    [DataField]
+    public bool VisualsEnabled = true;
+
+    [DataField]
+    public float VisualsRate = 1f;
+
+    #endregion
+
+    #region Body effects
+
+    /// <summary>Temporary mutations (distorted voice, slowdown, extra eye) after this many seconds of continuous exposure.</summary>
+    [DataField]
+    public bool MutationsEnabled = true;
+
+    [DataField]
+    public float MutationExposure = 120f;
+
+    [DataField]
+    public float MutationChancePerMinute = 1f;
+
+    [DataField]
+    public float MutationDuration = 180f;
+
+    [DataField]
+    public float MutationSlowdown = 0.8f;
+
+    /// <summary>Private hallucinations: fake enemies and footsteps only the player sees and hears.</summary>
+    [DataField]
+    public bool PrivateHallucinationsEnabled = true;
+
+    [DataField]
+    public float PrivateHallucinationIntervalMin = 45f;
+
+    [DataField]
+    public float PrivateHallucinationIntervalMax = 120f;
+
+    /// <summary>Item decay on what exposed players carry: food rots faster, batteries drain, guns jam.</summary>
+    [DataField]
+    public bool ItemDecayEnabled = true;
+
+    /// <summary>Perishable food rots this many times faster.</summary>
+    [DataField]
+    public float FoodRotMultiplier = 4f;
+
+    /// <summary>Share of a battery's capacity lost per minute.</summary>
+    [DataField]
+    public float BatteryDrainPerMinute = 0.05f;
+
+    /// <summary>Chance per minute that a gun held in hand jams, and for how long.</summary>
+    [DataField]
+    public float GunJamChancePerMinute = 0.5f;
+
+    [DataField]
+    public float GunJamDuration = 4f;
+
+    #endregion
+
     #region Ambient
 
     [DataField]

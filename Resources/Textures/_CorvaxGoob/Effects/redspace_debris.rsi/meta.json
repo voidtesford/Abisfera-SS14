@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Made for Abisfera (CorvaxGoob) by Grok Bot; floating debris and dust",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "dust1"
+    },
+    {
+      "name": "dust2"
+    },
+    {
+      "name": "dust3"
+    },
+    {
+      "name": "debris1"
+    },
+    {
+      "name": "debris2"
+    },
+    {
+      "name": "debris3"
+    },
+    {
+      "name": "debris4"
+    }
+  ]
+}

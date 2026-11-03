@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Made for Abisfera (CorvaxGoob) by Grok Bot; third eye mutation overlay",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "eye",
+      "directions": 4,
+      "delays": [
+        [
+          1.6,
+          0.2,
+          1.2,
+          0.15
+        ],
+        [
+          1.6,
+          0.2,
+          1.2,
+          0.15
+        ],
+        [
+          1.6,
+          0.2,
+          1.2,
+          0.15
+        ],
+        [
+          1.6,
+          0.2,
+          1.2,
+          0.15
+        ]
+      ]
+    }
+  ]
+}

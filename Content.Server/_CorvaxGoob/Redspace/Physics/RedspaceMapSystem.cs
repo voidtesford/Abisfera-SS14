@@ -91,6 +91,11 @@ public sealed class RedspaceMapSystem : EntitySystem
     private readonly Dictionary<EntityUid, TimeSpan> _flickering = new();
     private readonly Dictionary<EntityUid, EntityUid> _ambient = new();
     private readonly Stack<List<RedspaceSuppressor>> _listPool = new();
+    private readonly List<EntityUid> _exposed = new();
+    private readonly RedspaceMapSteppedEvent _steppedEvent = new();
+
+    /// <summary>Decorations are placed at most this far from a player, so <see cref="RedspaceAffectedComponent.SafeRadius"/> is capped here.</summary>
+    public const float MaxSafeRadius = 10f;
 
     private static readonly Dictionary<string, FieldInfo> SettingFields = typeof(RedspaceSettings)
         .GetFields(BindingFlags.Public | BindingFlags.Instance)
@@ -199,6 +204,29 @@ public sealed class RedspaceMapSystem : EntitySystem
         var list = new List<RedspaceSuppressor>();
         _suppression.GetSuppressors(coords.MapId, comp.Settings.GateSuppressionRadius, list);
         return RedspaceSuppressionSystem.IsSuppressed(list, coords.Position, out by);
+    }
+
+    /// <summary>
+    /// The enabled redspace map on <paramref name="mapId"/> and its suppressors as of the last <see cref="Step"/>.
+    /// Falls back to a fresh lookup when the map was switched on since.
+    /// </summary>
+    public bool TryGetActive(MapId mapId, out Entity<RedspaceMapComponent> map, out List<RedspaceSuppressor> suppressors)
+    {
+        if (_active.TryGetValue(mapId, out var entry))
+        {
+            map = entry.Map;
+            suppressors = entry.Suppressors;
+            return true;
+        }
+
+        map = default;
+        suppressors = new List<RedspaceSuppressor>();
+        if (!_map.TryGetMap(mapId, out var mapUid) || !TryComp<RedspaceMapComponent>(mapUid, out var comp) || !comp.Enabled)
+            return false;
+
+        _suppression.GetSuppressors(mapId, comp.Settings.GateSuppressionRadius, suppressors);
+        map = (mapUid.Value, comp);
+        return true;
     }
 
     /// <summary>Whether redspace acts on things at <paramref name="coords"/> at all.</summary>
@@ -320,6 +348,7 @@ public sealed class RedspaceMapSystem : EntitySystem
         }
 
         PruneAnomalies(map.Comp, mapId);
+        _exposed.Clear();
         var waveDir = new Angle(_random.NextFloat(0f, MathF.Tau)).ToVec();
 
         foreach (var uid in _onMap)
@@ -339,8 +368,9 @@ public sealed class RedspaceMapSystem : EntitySystem
                 continue;
             }
 
-            var comp = Affect(uid, map, pos);
             var isPlayer = HasComp<ActorComponent>(uid);
+            var comp = Affect(uid, map, pos, isPlayer ? suppressors : null);
+            _exposed.Add(uid);
 
             if (wave && TryComp<PhysicsComponent>(uid, out var body))
             {
@@ -369,10 +399,19 @@ public sealed class RedspaceMapSystem : EntitySystem
             map.Comp.NextAnomaly = Next(s.AnomalyIntervalMin, s.AnomalyIntervalMax);
             SpawnAnomaly(map, mapId, suppressors);
         }
+
+        // Zone events, body effects and the rest (RedspaceAnomalyEventSystem).
+        _steppedEvent.Map = map;
+        _steppedEvent.MapId = mapId;
+        _steppedEvent.Suppressors = suppressors;
+        _steppedEvent.Exposed = _exposed;
+        _steppedEvent.Dt = dt;
+        RaiseLocalEvent(_steppedEvent);
     }
 
     /// <summary>Gives a mob the redspace marker and keeps its values up to date (dirtied only on change).</summary>
-    private RedspaceAffectedComponent Affect(EntityUid uid, Entity<RedspaceMapComponent> map, Vector2 pos)
+    private RedspaceAffectedComponent Affect(EntityUid uid, Entity<RedspaceMapComponent> map, Vector2 pos,
+        List<RedspaceSuppressor>? suppressors)
     {
         var s = map.Comp.Settings;
         var comp = EnsureComp<RedspaceAffectedComponent>(uid);
@@ -402,10 +441,13 @@ public sealed class RedspaceMapSystem : EntitySystem
         drift = new Vector2(MathF.Round(drift.X, 1), MathF.Round(drift.Y, 1));
         var weightless = s.WeightlessEnabled && map.Comp.WeightlessLeft > 0f;
         var doAfter = s.DoAfterMultiplier;
+        var visuals = suppressors != null && s.VisualsEnabled ? s.VisualsRate : 0f;
+        var safe = suppressors != null ? SafeRadius(suppressors, pos) : 0f;
 
         var refresh = !MathHelper.CloseTo(comp.Friction, friction) || !MathHelper.CloseTo(comp.Acceleration, accel)
                       || !MathHelper.CloseTo(comp.Speed, speed);
-        var changed = refresh || comp.Drift != drift || comp.Weightless != weightless || !MathHelper.CloseTo(comp.DoAfter, doAfter);
+        var changed = refresh || comp.Drift != drift || comp.Weightless != weightless || !MathHelper.CloseTo(comp.DoAfter, doAfter)
+                      || !MathHelper.CloseTo(comp.Visuals, visuals) || !MathHelper.CloseTo(comp.SafeRadius, safe);
 
         if (!changed)
             return comp;
@@ -417,6 +459,8 @@ public sealed class RedspaceMapSystem : EntitySystem
         comp.Drift = drift;
         comp.Weightless = weightless;
         comp.DoAfter = doAfter;
+        comp.Visuals = visuals;
+        comp.SafeRadius = safe;
         Dirty(uid, comp);
 
         if (refresh)
@@ -431,6 +475,16 @@ public sealed class RedspaceMapSystem : EntitySystem
         }
 
         return comp;
+    }
+
+    /// <summary>Whole tiles from <paramref name="pos"/> to the edge of the nearest suppressed area, capped at <see cref="MaxSafeRadius"/>.</summary>
+    public static float SafeRadius(List<RedspaceSuppressor> suppressors, Vector2 pos)
+    {
+        var safe = MaxSafeRadius;
+        foreach (var sup in suppressors)
+            safe = Math.Min(safe, (sup.Position - pos).Length() - sup.Radius);
+
+        return Math.Max(0f, MathF.Floor(safe));
     }
 
     /// <summary>Redspace leaves this entity alone (<see cref="RedspaceImmuneComponent"/>).</summary>
@@ -639,7 +693,7 @@ public sealed class RedspaceMapSystem : EntitySystem
     }
 
     /// <summary>Open floor (or plain space on a gridless map) that nothing solid blocks.</summary>
-    private bool IsFree(MapId mapId, Vector2 pos)
+    public bool IsFree(MapId mapId, Vector2 pos)
     {
         if (!_mapManager.TryFindGridAt(mapId, pos, out var gridUid, out var grid))
             return true;
@@ -885,4 +939,17 @@ public sealed class RedspaceMapSystem : EntitySystem
     }
 
     #endregion
+}
+
+/// <summary>
+/// Raised (broadcast) once per redspace step for each enabled map, after the base effects. <see cref="Exposed"/> are the
+/// mobs redspace acts on right now: near a living player, not suppressed, not immune. The instance is reused.
+/// </summary>
+public sealed class RedspaceMapSteppedEvent : EntityEventArgs
+{
+    public Entity<RedspaceMapComponent> Map;
+    public MapId MapId;
+    public List<RedspaceSuppressor> Suppressors = new();
+    public List<EntityUid> Exposed = new();
+    public float Dt;
 }

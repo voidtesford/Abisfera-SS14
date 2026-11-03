@@ -34,6 +34,19 @@
     lightFlickerIntervalMax: 120
     radioStaticIntervalMin: 90
     radioStaticIntervalMax: 200
+    anomalyEventIntervalMin: 300
+    anomalyEventIntervalMax: 600
+    anomalyEventMax: 2
+    riftDurationMin: 15
+    riftDurationMax: 25
+    riftDamage: 8
+    visualsRate: 0.6
+    mutationExposure: 240
+    mutationChancePerMinute: 0.5
+    privateHallucinationIntervalMin: 90
+    privateHallucinationIntervalMax: 200
+    foodRotMultiplier: 2
+    gunJamChancePerMinute: 0.2
 
 # Normal zone: the defaults. Unprotected death in ~5 min (0.5 Cellular + 0.17 Shock per second, 200 damage).
 - type: redspacePreset
@@ -78,6 +91,19 @@
     lightFlickerIntervalMax: 25
     radioStaticIntervalMin: 15
     radioStaticIntervalMax: 45
+    anomalyEventIntervalMin: 60
+    anomalyEventIntervalMax: 150
+    anomalyEventMax: 5
+    riftPull: 6
+    riftDamage: 18
+    visualsRate: 2
+    mutationExposure: 60
+    mutationChancePerMinute: 2
+    privateHallucinationIntervalMin: 20
+    privateHallucinationIntervalMax: 60
+    foodRotMultiplier: 8
+    batteryDrainPerMinute: 0.1
+    gunJamChancePerMinute: 1.2
 
 - type: soundCollection
   id: RedspaceWhispers

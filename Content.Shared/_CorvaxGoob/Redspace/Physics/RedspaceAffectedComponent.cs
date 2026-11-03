@@ -30,6 +30,17 @@ public sealed partial class RedspaceAffectedComponent : Component
     [DataField, AutoNetworkedField]
     public float DoAfter = 1f;
 
+    /// <summary>How often client-side redspace decorations appear around this player (0 = none).</summary>
+    [DataField, AutoNetworkedField]
+    public float Visuals;
+
+    /// <summary>
+    /// Distance in whole tiles to the nearest suppressed area (capped). The client puts decorations only closer than
+    /// this, so nothing shows up inside a collar, beacon or gate zone.
+    /// </summary>
+    [DataField, AutoNetworkedField]
+    public float SafeRadius;
+
     // Server-side timers (seconds left), not networked.
     [ViewVariables] public float DamageAccumulator;
     [ViewVariables] public float NextHallucination = -1f;
@@ -38,6 +49,9 @@ public sealed partial class RedspaceAffectedComponent : Component
     [ViewVariables] public float NextFlicker = -1f;
     [ViewVariables] public float NextStatic = -1f;
     [ViewVariables] public EntityUid? Ambient;
+    /// <summary>Seconds of continuous exposure; resets once the mob is protected (the component goes away).</summary>
+    [ViewVariables] public float Exposure;
+    [ViewVariables] public float NextPrivateHallucination = -1f;
 }
 
 /// <summary>A thrown item sliding on a redspace map: its tile friction is multiplied.</summary>

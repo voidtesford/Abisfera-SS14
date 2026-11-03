@@ -45,6 +45,8 @@ public sealed class ShogkkOperativeV2Test
         ["echoEnabled"] = "false", ["hallucinationsEnabled"] = "false", ["dischargesEnabled"] = "false",
         ["lightFlickerEnabled"] = "false", ["radioStaticEnabled"] = "false", ["ambientEnabled"] = "false",
         ["jitterChance"] = "0", ["vomitChancePerMinute"] = "0",
+        ["anomalyEventsEnabled"] = "false", ["mutationsEnabled"] = "false", ["privateHallucinationsEnabled"] = "false",
+        ["itemDecayEnabled"] = "false", ["visualsEnabled"] = "false",
     };
 
     #region Helpers
