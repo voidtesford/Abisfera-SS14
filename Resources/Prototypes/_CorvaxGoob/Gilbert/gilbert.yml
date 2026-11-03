@@ -48,7 +48,7 @@
   - WeaponShotgunCombatShogkk
 
 - type: entity
-  parent: BaseMobHuman
+  parent: BaseMobShogkkZombified # no breathing, no pressure / cold damage, redspace immune (zombified_shogkk.yml)
   id: MobGilbert
   name: Gilbert
   description: ""
@@ -58,8 +58,6 @@
   - type: GilbertAI
   - type: GilbertBerserk
   - type: GilbertRageAbilities
-  # Zombified SHOGKK: redspace map physics don't touch him (see RedspaceImmuneComponent).
-  - type: RedspaceImmune
   - type: GilbertFractureImmune
   # Appearance (pale skin, black HumanHairBusiness3, red eyes) is applied by GilbertSystem on MapInit:
   # humanoidProfile prototypes overflow the stack in HumanoidCharacterProfile.Equals during prototype load.
@@ -96,16 +94,6 @@
   - type: CombatMode
     combatActivationSound: null
     combatDeactivationSound: null
-  # Cold immunity: temperature damage ignores resistances, so the cold damage itself is removed.
-  - type: Temperature
-    heatDamageThreshold: 325
-    coldDamageThreshold: 0
-    currentTemperature: 310.15
-    specificHeat: 42
-    coldDamage: {}
-    heatDamage:
-      types:
-        Heat: 1.5
   # Triple the default stamina pool (100): stun batons and shoves take three times as long to down him.
   # The animation / stun-modifier thresholds are scaled by the same factor.
   - type: Stamina
@@ -115,8 +103,6 @@
       0: 1
       180: 0.7
       240: 0.5
-  - type: BreathingImmunity
-  - type: PressureImmunity
   - type: MeleeWeapon
     soundHit:
       collection: Punch

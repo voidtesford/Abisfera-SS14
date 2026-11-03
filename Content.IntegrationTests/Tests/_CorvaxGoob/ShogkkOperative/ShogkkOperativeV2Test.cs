@@ -298,7 +298,9 @@ public sealed class ShogkkOperativeV2Test
 
         EntityUid op = default, gun = default;
         await server.WaitPost(() => op = SpawnStill(entMan, map, new Vector2(0.5f, 0.5f), "MobShogkkOperativeAkm"));
-        await server.WaitRunTicks(3);
+        // Give the pathfinder time to chart the fresh floor: a path asked for too early comes back NoPath and the gun
+        // gets blacklisted for 30 s (seen ~1 run in 7).
+        await RunSeconds(pair, 2);
         await server.WaitPost(() =>
         {
             gun = HeldGun(entMan, op);

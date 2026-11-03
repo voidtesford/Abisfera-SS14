@@ -87,7 +87,7 @@
     pocket1: RadioHandheldShogkkOperative
 
 - type: entity
-  parent: BaseMobHuman
+  parent: BaseMobShogkkZombified # like Gilbert: no breathing, no pressure / cold damage, redspace immune (zombified_shogkk.yml)
   id: MobShogkkOperative
   name: SHOGKK operative
   suffix: Random weapon
@@ -95,8 +95,6 @@
   components:
   - type: ShogkkOperative
   - type: ShogkkOperativeAI
-  # Zombified SHOGKK like Gilbert: redspace map physics don't touch him (see RedspaceImmuneComponent).
-  - type: RedspaceImmune
   # The gun in his hands: one of these, at random, with AmmoCount spare magazines / shell boxes in the bag.
   - type: ShogkkOperativeGear
     weapons:
