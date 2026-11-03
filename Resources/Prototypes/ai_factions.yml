@@ -40,6 +40,8 @@
   id: Dragon
   hostile:
     - Gilbert # CorvaxGoob - Gilbert
+    - ShogkkOperative # CorvaxGoob - SHOGKK operatives: hostile to them like to Gilbert
+    - ShogkkZombified # CorvaxGoob - SHOGKK zombified: hostile to them like to Gilbert
     - NanoTrasen
     - Syndicate
     - Xeno
@@ -59,6 +61,8 @@
   id: NanoTrasen
   hostile:
   - Gilbert # CorvaxGoob - Gilbert
+  - ShogkkOperative # CorvaxGoob - SHOGKK operatives: hostile to them like to Gilbert
+  - ShogkkZombified # CorvaxGoob - SHOGKK zombified: hostile to them like to Gilbert
   - SimpleHostile
   - Syndicate
   - Xeno
@@ -101,6 +105,8 @@
   id: SimpleHostile
   hostile:
   - Gilbert # CorvaxGoob - Gilbert
+  - ShogkkOperative # CorvaxGoob - SHOGKK operatives: hostile to them like to Gilbert
+  - ShogkkZombified # CorvaxGoob - SHOGKK zombified: hostile to them like to Gilbert
   - NanoTrasen
   - Syndicate
   - Passive
@@ -127,6 +133,8 @@
   id: Syndicate
   hostile:
   - Gilbert # CorvaxGoob - Gilbert
+  - ShogkkOperative # CorvaxGoob - SHOGKK operatives: hostile to them like to Gilbert
+  - ShogkkZombified # CorvaxGoob - SHOGKK zombified: hostile to them like to Gilbert
   - NanoTrasen
   - SimpleHostile
   - Xeno
@@ -148,6 +156,8 @@
   id: Xeno
   hostile:
   - Gilbert # CorvaxGoob - Gilbert
+  - ShogkkOperative # CorvaxGoob - SHOGKK operatives: hostile to them like to Gilbert
+  - ShogkkZombified # CorvaxGoob - SHOGKK zombified: hostile to them like to Gilbert
   - NanoTrasen
   - Syndicate
   - Passive
@@ -170,6 +180,8 @@
   id: Zombie
   hostile:
   - Gilbert # CorvaxGoob - Gilbert
+  - ShogkkOperative # CorvaxGoob - SHOGKK operatives: hostile to them like to Gilbert
+  - ShogkkZombified # CorvaxGoob - SHOGKK zombified: hostile to them like to Gilbert
   - NanoTrasen
   - SimpleNeutral
   - SimpleHostile
@@ -193,6 +205,8 @@
   id: Revolutionary
   hostile:
   - Gilbert # CorvaxGoob - Gilbert
+  - ShogkkOperative # CorvaxGoob - SHOGKK operatives: hostile to them like to Gilbert
+  - ShogkkZombified # CorvaxGoob - SHOGKK zombified: hostile to them like to Gilbert
   - NanoTrasen
   - Zombie
   - SimpleHostile
@@ -209,6 +223,8 @@
   id: AllHostile
   hostile:
   - Gilbert # CorvaxGoob - Gilbert
+  - ShogkkOperative # CorvaxGoob - SHOGKK operatives: hostile to them like to Gilbert
+  - ShogkkZombified # CorvaxGoob - SHOGKK zombified: hostile to them like to Gilbert
   - NanoTrasen
   - Dragon
   - Mouse
@@ -243,6 +259,8 @@
   id: Xenoborg
   hostile:
   - Gilbert # CorvaxGoob - Gilbert
+  - ShogkkOperative # CorvaxGoob - SHOGKK operatives: hostile to them like to Gilbert
+  - ShogkkZombified # CorvaxGoob - SHOGKK zombified: hostile to them like to Gilbert
   # they have brains
   - NanoTrasen
   - Syndicate
@@ -265,6 +283,8 @@
   id: Wraith # Goobstation
   hostile:
   - Gilbert # CorvaxGoob - Gilbert
+  - ShogkkOperative # CorvaxGoob - SHOGKK operatives: hostile to them like to Gilbert
+  - ShogkkZombified # CorvaxGoob - SHOGKK zombified: hostile to them like to Gilbert
   - NanoTrasen
   - Syndicate
   - Passive
@@ -287,6 +307,8 @@
   id: Lavafauna
   hostile:
   - Gilbert # CorvaxGoob - Gilbert
+  - ShogkkOperative # CorvaxGoob - SHOGKK operatives: hostile to them like to Gilbert
+  - ShogkkZombified # CorvaxGoob - SHOGKK zombified: hostile to them like to Gilbert
   - NanoTrasen
   - Mouse
   - Passive

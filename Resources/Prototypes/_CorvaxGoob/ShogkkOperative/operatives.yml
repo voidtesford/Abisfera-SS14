@@ -97,6 +97,8 @@
   components:
   - type: ShogkkOperative
   - type: ShogkkOperativeAI
+  # No SSDIndicator (removed on map init): an NPC nobody plays would otherwise fall into SSD sleep after 10 minutes.
+  - type: ShogkkNoSsdIndicator
   # The gun in his hands: one of these, at random, with AmmoCount spare magazines / shell boxes in the bag.
   - type: ShogkkOperativeGear
     weapons:

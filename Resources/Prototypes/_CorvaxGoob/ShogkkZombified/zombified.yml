@@ -171,6 +171,8 @@
   components:
   - type: ShogkkZombified
   - type: ShogkkZombifiedAI
+  # No SSDIndicator (removed on map init): an NPC nobody plays would otherwise fall into SSD sleep after 10 minutes.
+  - type: ShogkkNoSsdIndicator
   # Job picked at random, its outfit, sometimes (toolChance) a job tool in hand; random human of either sex with a random
   # Russian name and pale amber-red eyes (ShogkkZombifiedSystem).
   - type: ShogkkZombifiedGear
