@@ -1,4 +1,5 @@
-# Kamerton reactor: central control module (placeholder, non-functional).
+# Kamerton reactor: central control module. Stands in the suppressor ring of a reactor core
+# (see _CorvaxGoob/Kamerton/reactor.yml) and drives it.
 - type: entity
   parent: BaseMachinePowered
   id: KamertonControlModule
@@ -42,9 +43,17 @@
     color: "#7FA8FF"
     enabled: false
   - type: LitOnPowered
-  - type: InteractionPopup
-    interactSuccessString: kamerton-control-module-inert
-    interactDelay: 2
+  - type: KamertonReactorPart
+    kind: Console
+  - type: KamertonControlModule
+  - type: ActivatableUI
+    key: enum.KamertonReactorUiKey.Key
+  - type: ActivatableUIRequiresPower
+  - type: UserInterface
+    interfaces:
+      enum.KamertonReactorUiKey.Key:
+        type: KamertonReactorBoundUserInterface
+  - type: Anchorable
   - type: Damageable
     damageContainer: StructuralInorganic
     damageModifierSet: StructuralMetallicStrong

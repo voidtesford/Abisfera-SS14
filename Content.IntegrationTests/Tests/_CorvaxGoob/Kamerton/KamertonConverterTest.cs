@@ -1,3 +1,4 @@
+#nullable enable
 using System.Linq;
 using Content.Server._CorvaxGoob.Kamerton;
 using Content.Server.Construction.Components;

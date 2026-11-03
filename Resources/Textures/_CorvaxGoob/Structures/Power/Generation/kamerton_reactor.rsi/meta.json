@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Original pixel art for CorvaxGoob Kamerton reactor",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "core"
+    },
+    {
+      "name": "core_on",
+      "delays": [
+        [
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12
+        ]
+      ]
+    },
+    {
+      "name": "core_heat_1"
+    },
+    {
+      "name": "core_heat_2"
+    },
+    {
+      "name": "core_heat_3"
+    },
+    {
+      "name": "array_stable"
+    },
+    {
+      "name": "array_unstable"
+    },
+    {
+      "name": "cells_stable_1"
+    },
+    {
+      "name": "cells_unstable_1"
+    },
+    {
+      "name": "cells_stable_2"
+    },
+    {
+      "name": "cells_unstable_2"
+    },
+    {
+      "name": "cells_stable_3"
+    },
+    {
+      "name": "cells_unstable_3"
+    },
+    {
+      "name": "cells_stable_4"
+    },
+    {
+      "name": "cells_unstable_4"
+    },
+    {
+      "name": "sync"
+    },
+    {
+      "name": "sync_on",
+      "delays": [
+        [
+          0.08,
+          0.08,
+          0.08,
+          0.08
+        ]
+      ]
+    },
+    {
+      "name": "heatsink"
+    },
+    {
+      "name": "heatsink_on",
+      "delays": [
+        [
+          0.15,
+          0.15,
+          0.15,
+          0.15
+        ]
+      ]
+    },
+    {
+      "name": "radiator"
+    },
+    {
+      "name": "radiator_heat_1"
+    },
+    {
+      "name": "radiator_heat_2"
+    },
+    {
+      "name": "radiator_heat_3"
+    },
+    {
+      "name": "suppressor"
+    },
+    {
+      "name": "suppressor_on",
+      "delays": [
+        [
+          0.15,
+          0.15,
+          0.15,
+          0.15
+        ]
+      ]
+    },
+    {
+      "name": "powerunit"
+    },
+    {
+      "name": "powerunit_on",
+      "delays": [
+        [
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ]
+      ]
+    }
+  ]
+}

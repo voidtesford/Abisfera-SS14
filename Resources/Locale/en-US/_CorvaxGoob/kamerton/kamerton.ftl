@@ -1,4 +1,3 @@
-kamerton-control-module-inert = The console does not respond: the Kamerton is not connected yet.
 
 ## Crystal converter
 
@@ -50,3 +49,51 @@ kamerton-converter-window-start = Start
 kamerton-converter-window-charge = Charge cell
 kamerton-converter-window-print = Print crystal
 kamerton-converter-window-eject = Eject
+
+## Kamerton reactor
+
+kamerton-reactor-slot-cell = Cell
+kamerton-reactor-popup-collapsed = The reactor has collapsed.
+kamerton-reactor-popup-scram-locked = Emergency lockout: the reactor cannot be started yet.
+kamerton-reactor-popup-not-assembled = The reactor is not assembled: no synchronizer next to the core.
+kamerton-reactor-popup-scram = EMERGENCY SHUTDOWN OF THE KAMERTON!
+kamerton-reactor-popup-leak = Your skin prickles with a strange red static.
+kamerton-reactor-popup-collapse = The Kamerton reactor collapses!
+kamerton-reactor-examine-temperature = Core temperature: [color=orange]{ $temp } K[/color] (collapse at { $max } K).
+kamerton-reactor-examine-power = Output: [color=#39C6FF]{ $power } kW[/color], active pairs: { $pairs }.
+kamerton-reactor-examine-running = The reactor is [color=lime]running[/color].
+kamerton-reactor-examine-stopped = The reactor is [color=gray]stopped[/color].
+kamerton-reactor-examine-ring-ok = The suppressor ring is [color=lime]complete[/color].
+kamerton-reactor-examine-ring-broken = The suppressor ring is [color=red]broken[/color]: { $missing } segments missing.
+kamerton-reactor-examine-part-linked = It is connected to a reactor core.
+kamerton-reactor-examine-part-unlinked = It is not connected to any reactor core.
+
+kamerton-reactor-window-title = Kamerton reactor control
+kamerton-reactor-window-status = Status:
+kamerton-reactor-window-unlinked = no core
+kamerton-reactor-window-running = running
+kamerton-reactor-window-stopped = stopped
+kamerton-reactor-window-scrammed = emergency lockout ({ $seconds } s)
+kamerton-reactor-window-not-assembled = not assembled
+kamerton-reactor-window-temperature = Core temperature:
+kamerton-reactor-window-power = Total power:
+kamerton-reactor-window-pairs = Active pairs:
+kamerton-reactor-window-pairs-value = { $pairs } (synchronizers: { $syncs })
+kamerton-reactor-window-output = HV output:
+kamerton-reactor-window-output-value = { $kw } kW supplied
+kamerton-reactor-window-output-none = no power unit in the ring
+kamerton-reactor-window-ring = Suppressor ring:
+kamerton-reactor-window-ring-ok = complete
+kamerton-reactor-window-ring-broken = broken, { $missing } missing
+kamerton-reactor-window-arrays = Fuel arrays
+kamerton-reactor-window-array-stable = Stable: { $charged }/{ $slots } charged, { $empty } empty, lowest { $minutes } min
+kamerton-reactor-window-array-unstable = Unstable: { $charged }/{ $slots } charged, { $empty } empty, lowest { $minutes } min
+kamerton-reactor-window-cooling = Cooling (radiators: { $radiators })
+kamerton-reactor-window-sink = Heat sink { $index }: { $flow } mol/s, { $tin } K → { $tout } K, { $kw } kW
+kamerton-reactor-window-no-sinks = No heat sinks in the corners.
+kamerton-reactor-window-hint-unlinked = Place the console in the suppressor ring of a reactor core.
+kamerton-reactor-window-hint-hot = Danger: the core is close to collapse!
+kamerton-reactor-window-hint-ring = The ring is broken: redspace is leaking around the reactor.
+kamerton-reactor-window-start = Start
+kamerton-reactor-window-stop = Stop
+kamerton-reactor-window-scram = SCRAM

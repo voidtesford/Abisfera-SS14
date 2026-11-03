@@ -1,0 +1,489 @@
+# Kamerton reactor. Layout (5x5 block around the core, suppressor ring on the 7x7 perimeter):
+#   H  A+ Y  A- H
+#   A- R  R  R  A+
+#   Y  R  C  R  Y
+#   A+ R  R  R  A-
+#   H  A- Y  A+ H
+# C core, Y synchronizer, A+/A- stable/unstable fuel array, H heat sink (corners only), R radiator.
+# The console and the power unit stand in the ring in place of suppressors.
+
+- type: entity
+  abstract: true
+  parent: BaseStructure
+  id: KamertonReactorPartBase
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_reactor.rsi
+    snapCardinals: true
+    noRot: true
+  - type: Transform
+    anchored: true
+    noRot: true
+  - type: Anchorable
+  - type: Appearance
+  - type: Damageable
+    damageContainer: StructuralInorganic
+    damageModifierSet: StructuralMetallicStrong
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 400
+      behaviors:
+      - !type:PlaySoundBehavior
+        sound:
+          collection: MetalBreak
+      - !type:SpawnEntitiesBehavior
+        spawn:
+          SheetSteel1:
+            min: 2
+            max: 4
+      - !type:DoActsBehavior
+        acts: [ "Destruction" ]
+  - type: StaticPrice
+    price: 2000
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonReactorCore
+  name: Kamerton reactor core
+  description: The heart of the Kamerton reactor. Everything else is assembled around it.
+  components:
+  - type: Sprite
+    layers:
+    - state: core
+    - state: core_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
+      shader: unshaded
+      visible: false
+    - state: core_heat_1
+      map: [ "enum.KamertonReactorVisualLayers.Heat" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.On:
+        enum.KamertonReactorVisualLayers.On:
+          True: { visible: true }
+          False: { visible: false }
+      enum.KamertonReactorVisuals.Heat:
+        enum.KamertonReactorVisualLayers.Heat:
+          0: { visible: false }
+          1: { visible: true, state: core_heat_1 }
+          2: { visible: true, state: core_heat_2 }
+          3: { visible: true, state: core_heat_3 }
+  - type: PointLight
+    radius: 2.5
+    energy: 1.5
+    color: "#8FB0FF"
+    enabled: false
+  - type: KamertonReactorPart
+    kind: Core
+  - type: KamertonReactorCore
+    leakDamage:
+      types:
+        Cellular: 0.2
+  - type: StaticPrice
+    price: 10000
+
+- type: entity
+  abstract: true
+  parent: KamertonReactorPartBase
+  id: KamertonFuelArrayBase
+  components:
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.Cells:
+        enum.KamertonReactorVisualLayers.Cells:
+          0: { visible: false }
+          1: { visible: true }
+          2: { visible: true }
+          3: { visible: true }
+          4: { visible: true }
+  - type: ContainerContainer
+    containers:
+      cell_1: !type:ContainerSlot
+      cell_2: !type:ContainerSlot
+      cell_3: !type:ContainerSlot
+      cell_4: !type:ContainerSlot
+
+- type: entity
+  parent: KamertonFuelArrayBase
+  id: KamertonStableFuelArray
+  name: Kamerton stable fuel array
+  description: Holds up to four super-energy cells for the Kamerton reactor.
+  components:
+  - type: Sprite
+    layers:
+    - state: array_stable
+    - state: cells_stable_1
+      map: [ "enum.KamertonReactorVisualLayers.Cells" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.Cells:
+        enum.KamertonReactorVisualLayers.Cells:
+          0: { visible: false }
+          1: { visible: true, state: cells_stable_1 }
+          2: { visible: true, state: cells_stable_2 }
+          3: { visible: true, state: cells_stable_3 }
+          4: { visible: true, state: cells_stable_4 }
+  - type: ItemSlots
+    slots:
+      cell_1: &stableSlot
+        name: kamerton-reactor-slot-cell
+        whitelist:
+          tags:
+          - KamertonStableCell
+      cell_2: *stableSlot
+      cell_3: *stableSlot
+      cell_4: *stableSlot
+  - type: KamertonReactorPart
+    kind: StableArray
+  - type: KamertonFuelArray
+    kind: Stable
+
+- type: entity
+  parent: KamertonFuelArrayBase
+  id: KamertonUnstableFuelArray
+  name: Kamerton unstable fuel array
+  description: Holds up to four unstable super-energy cells for the Kamerton reactor.
+  components:
+  - type: Sprite
+    layers:
+    - state: array_unstable
+    - state: cells_unstable_1
+      map: [ "enum.KamertonReactorVisualLayers.Cells" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.Cells:
+        enum.KamertonReactorVisualLayers.Cells:
+          0: { visible: false }
+          1: { visible: true, state: cells_unstable_1 }
+          2: { visible: true, state: cells_unstable_2 }
+          3: { visible: true, state: cells_unstable_3 }
+          4: { visible: true, state: cells_unstable_4 }
+  - type: ItemSlots
+    slots:
+      cell_1: &unstableSlot
+        name: kamerton-reactor-slot-cell
+        whitelist:
+          tags:
+          - KamertonUnstableCell
+      cell_2: *unstableSlot
+      cell_3: *unstableSlot
+      cell_4: *unstableSlot
+  - type: KamertonReactorPart
+    kind: UnstableArray
+  - type: KamertonFuelArray
+    kind: Unstable
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonSynchronizer
+  name: Kamerton synchronizer
+  description: Tunes stable and unstable cells to one frequency. Each tuned pair gives 50 kW, up to four pairs.
+  components:
+  - type: Sprite
+    layers:
+    - state: sync
+    - state: sync_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.On:
+        enum.KamertonReactorVisualLayers.On:
+          True: { visible: true }
+          False: { visible: false }
+  - type: PointLight
+    radius: 1.5
+    energy: 1
+    color: "#B07FFF"
+    enabled: false
+  - type: KamertonReactorPart
+    kind: Synchronizer
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonHeatSink
+  name: Kamerton heat sink
+  description: Pumps gas from its inlet pipe to its outlet pipe and dumps the reactor heat into it. Works only in a corner of the reactor.
+  components:
+  - type: Sprite
+    noRot: false
+    snapCardinals: false
+    layers:
+    - state: heatsink
+    - state: heatsink_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
+      shader: unshaded
+      visible: false
+  - type: Transform
+    noRot: false
+  - type: Rotatable
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.On:
+        enum.KamertonReactorVisualLayers.On:
+          True: { visible: true }
+          False: { visible: false }
+  - type: NodeContainer
+    nodes:
+      inlet:
+        !type:PipeNode
+        nodeGroupID: Pipe
+        pipeDirection: North
+      outlet:
+        !type:PipeNode
+        nodeGroupID: Pipe
+        pipeDirection: South
+  - type: KamertonReactorPart
+    kind: HeatSink
+  - type: KamertonHeatSink
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonRadiator
+  name: Kamerton radiator
+  description: Soaks up reactor heat and slowly hands it to the gas in its pipe.
+  components:
+  - type: Sprite
+    noRot: false
+    snapCardinals: false
+    layers:
+    - state: radiator
+    - state: radiator_heat_1
+      map: [ "enum.KamertonReactorVisualLayers.Heat" ]
+      shader: unshaded
+      visible: false
+  - type: Transform
+    noRot: false
+  - type: Rotatable
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.Heat:
+        enum.KamertonReactorVisualLayers.Heat:
+          0: { visible: false }
+          1: { visible: true, state: radiator_heat_1 }
+          2: { visible: true, state: radiator_heat_2 }
+          3: { visible: true, state: radiator_heat_3 }
+  - type: NodeContainer
+    nodes:
+      pipe:
+        !type:PipeNode
+        nodeGroupID: Pipe
+        pipeDirection: Longitudinal
+  - type: KamertonReactorPart
+    kind: Radiator
+  - type: KamertonRadiator
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonSuppressor
+  name: Kamerton suppressor
+  description: One segment of the suppressor ring around the Kamerton reactor. A broken ring leaks redspace.
+  components:
+  - type: Sprite
+    layers:
+    - state: suppressor
+    - state: suppressor_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.On:
+        enum.KamertonReactorVisualLayers.On:
+          True: { visible: true }
+          False: { visible: false }
+  - type: PointLight
+    radius: 1.2
+    energy: 0.8
+    color: "#39C6FF"
+    enabled: false
+  - type: KamertonReactorPart
+    kind: Suppressor
+  - type: StaticPrice
+    price: 500
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonPowerUnit
+  name: Kamerton power unit
+  description: Feeds the reactor output into the high-voltage network. Stands in the suppressor ring on an HV cable.
+  components:
+  - type: Sprite
+    layers:
+    - state: powerunit
+    - state: powerunit_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.On:
+        enum.KamertonReactorVisualLayers.On:
+          True: { visible: true }
+          False: { visible: false }
+  - type: PointLight
+    radius: 1.5
+    energy: 1
+    color: "#39C6FF"
+    enabled: false
+  - type: NodeContainer
+    examinable: true
+    nodes:
+      output:
+        !type:CableDeviceNode
+        nodeGroupID: HVPower
+  - type: PowerMonitoringDevice
+    group: Generator
+    loadNode: output
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_reactor.rsi
+    state: powerunit
+  - type: PowerSupplier
+    supplyRate: 0
+    # Ramps up to the full 800 kW in a few seconds.
+    supplyRampRate: 200000
+    supplyRampTolerance: 50000
+  - type: KamertonReactorPart
+    kind: PowerUnit
+  - type: KamertonPowerUnit
+
+# Flatpacks (multitool to unpack, like the AME flatpack).
+
+- type: entity
+  abstract: true
+  parent: BaseFlatpack
+  id: KamertonFlatpackBase
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Devices/kamerton_flatpack.rsi
+    layers:
+    - state: base
+    - state: icon-core
+      map: [ "icon" ]
+  - type: StaticPrice
+    price: 500
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonReactorCoreFlatpack
+  name: Kamerton reactor core flatpack
+  description: A flatpack used for constructing a Kamerton reactor core.
+  components:
+  - type: Flatpack
+    entity: KamertonReactorCore
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-core
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonStableFuelArrayFlatpack
+  name: Kamerton stable fuel array flatpack
+  description: A flatpack used for constructing a Kamerton stable fuel array.
+  components:
+  - type: Flatpack
+    entity: KamertonStableFuelArray
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-stable
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonUnstableFuelArrayFlatpack
+  name: Kamerton unstable fuel array flatpack
+  description: A flatpack used for constructing a Kamerton unstable fuel array.
+  components:
+  - type: Flatpack
+    entity: KamertonUnstableFuelArray
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-unstable
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonSynchronizerFlatpack
+  name: Kamerton synchronizer flatpack
+  description: A flatpack used for constructing a Kamerton synchronizer.
+  components:
+  - type: Flatpack
+    entity: KamertonSynchronizer
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-sync
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonHeatSinkFlatpack
+  name: Kamerton heat sink flatpack
+  description: A flatpack used for constructing a Kamerton heat sink.
+  components:
+  - type: Flatpack
+    entity: KamertonHeatSink
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-heatsink
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonRadiatorFlatpack
+  name: Kamerton radiator flatpack
+  description: A flatpack used for constructing a Kamerton radiator.
+  components:
+  - type: Flatpack
+    entity: KamertonRadiator
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-radiator
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonSuppressorFlatpack
+  name: Kamerton suppressor flatpack
+  description: A flatpack used for constructing a Kamerton suppressor ring segment.
+  components:
+  - type: Flatpack
+    entity: KamertonSuppressor
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-suppressor
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonPowerUnitFlatpack
+  name: Kamerton power unit flatpack
+  description: A flatpack used for constructing a Kamerton power unit.
+  components:
+  - type: Flatpack
+    entity: KamertonPowerUnit
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-powerunit
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonControlModuleFlatpack
+  name: Kamerton control module flatpack
+  description: A flatpack used for constructing a Kamerton central control module.
+  components:
+  - type: Flatpack
+    entity: KamertonControlModule
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-console
