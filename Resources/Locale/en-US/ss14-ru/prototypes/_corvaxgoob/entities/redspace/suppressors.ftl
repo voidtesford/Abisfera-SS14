@@ -1,0 +1,14 @@
+ent-ClothingNeckRedspaceSuppressorCollar = suppressor collar
+    .desc = A collar with a bluespace frame. While a bluespace crystal burns in it, it shields the wearer and everyone within 1 tile from redspace. One crystal lasts 30 minutes.
+ent-RedspaceSuppressorBeacon = suppressor beacon
+    .desc = Suppresses any effect of redspace.
+ent-RedspaceSuppressorBeaconFlatpack = suppressor beacon flatpack
+    .desc = A folded suppressor beacon. Use a multitool on it to unfold the beacon.
+ent-RedspaceSuperEnergyCell = super-energy cell
+    .desc = Pure high-energy bluespace fuel.
+ent-RedspaceEcho = echo
+    .desc = A delayed echo of someone's movements.
+ent-RedspaceAnomalyPatch = spatial distortion
+    .desc = Space stretches here like rubber.
+ent-RedspaceDischargeEffect = redspace discharge
+    .desc = { "" }
