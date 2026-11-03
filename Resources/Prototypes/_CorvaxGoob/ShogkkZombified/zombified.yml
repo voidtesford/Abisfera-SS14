@@ -1,0 +1,429 @@
+# Ordinary SHOGKK zombified: crew taken by the red space. Plain humans (man or woman, random Russian name) in what
+# they wore at work, a dim pale amber-red glow in the eyes, no gun ever. They roam the place at random looking for
+# victims (anyone alive and human-shaped who is neither an operative nor one of them: players, crew, Gilbert), chase
+# and beat them with fists or, now and then, a job tool in hand, groan to call the others around and drift into loose
+# hordes. Neutral to the SHOGKK operatives (and they to them), hostile to Gilbert both ways. No ghost role, no radio.
+# Code: Content.Server/_CorvaxGoob/ShogkkOperative/ShogkkZombified*.cs.
+
+- type: npcFaction
+  id: ShogkkZombified
+  friendly:
+  - ShogkkOperative
+  hostile:
+  - Gilbert
+  - NanoTrasen
+  - Syndicate
+  - PirateFaction
+  - Revolutionary
+  - Heretic
+  - Changeling
+  - DevilFaction
+  - Shadowling
+  - Zombie
+  - Xeno
+  - SimpleHostile
+  - AllHostile
+  - Dragon
+  - Blob
+  - Xenoborg
+  - Wizard
+  - Wraith
+  - Lavafauna
+
+# Work clothes by job (no ID card, no radio, no weapons; the job tool in hand is ShogkkZombifiedGear's).
+- type: startingGear
+  id: ShogkkZombifiedGearAssistant
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitColorGrey
+    shoes: ClothingShoesColorBlack
+
+- type: startingGear
+  id: ShogkkZombifiedGearAssistantGloves
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitColorGrey
+    shoes: ClothingShoesColorBlack
+    gloves: ClothingHandsGlovesColorBlack
+    belt: ClothingBeltUtility
+
+- type: startingGear
+  id: ShogkkZombifiedGearEngineerHardhat
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitEngineering
+    shoes: ClothingShoesBootsWork
+    head: ClothingHeadHatHardhatYellow
+    gloves: ClothingHandsGlovesColorYellow
+    belt: ClothingBeltUtility
+
+- type: startingGear
+  id: ShogkkZombifiedGearEngineerVest
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitEngineering
+    shoes: ClothingShoesBootsWork
+    outerClothing: ClothingOuterVestHazard
+
+- type: startingGear
+  id: ShogkkZombifiedGearEngineerFull
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitEngineering
+    shoes: ClothingShoesBootsWork
+    head: ClothingHeadHatHardhatYellow
+    outerClothing: ClothingOuterVestHazard
+    eyes: ClothingEyesGlassesMeson
+
+- type: startingGear
+  id: ShogkkZombifiedGearScientist
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitScientist
+    shoes: ClothingShoesColorWhite
+    outerClothing: ClothingOuterCoatRnd
+
+- type: startingGear
+  id: ShogkkZombifiedGearScientistGloves
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitScientist
+    shoes: ClothingShoesColorWhite
+    outerClothing: ClothingOuterCoatLab
+    gloves: ClothingHandsGlovesLatex
+
+- type: startingGear
+  id: ShogkkZombifiedGearMedic
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitMedicalDoctor
+    shoes: ClothingShoesColorWhite
+    outerClothing: ClothingOuterCoatLab
+    gloves: ClothingHandsGlovesNitrile
+
+- type: startingGear
+  id: ShogkkZombifiedGearMedicSurgeon
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitMedicalDoctor
+    shoes: ClothingShoesColorWhite
+    head: ClothingHeadHatSurgcapBlue
+    mask: ClothingMaskSterile
+    gloves: ClothingHandsGlovesLatex
+
+- type: startingGear
+  id: ShogkkZombifiedGearMedicParamedic
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitParamedic
+    shoes: ClothingShoesColorWhite
+    gloves: ClothingHandsGlovesNitrile
+
+- type: startingGear
+  id: ShogkkZombifiedGearSecurity
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitSec
+    shoes: ClothingShoesBootsJack
+    head: ClothingHeadHelmetBasic
+    outerClothing: ClothingOuterArmorBasic
+    gloves: ClothingHandsGlovesColorBlack
+
+- type: startingGear
+  id: ShogkkZombifiedGearSecurityNoHelmet
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitSec
+    shoes: ClothingShoesBootsJack
+    outerClothing: ClothingOuterArmorBasic
+
+- type: startingGear
+  id: ShogkkZombifiedGearCargo
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitCargo
+    shoes: ClothingShoesColorBlack
+    head: ClothingHeadHatCargosoft
+
+- type: startingGear
+  id: ShogkkZombifiedGearSalvage
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitSalvageSpecialist
+    shoes: ClothingShoesBootsSalvage
+    gloves: ClothingHandsGlovesColorBlack
+
+- type: startingGear
+  id: ShogkkZombifiedGearChef
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitChef
+    shoes: ClothingShoesColorBlack
+    head: ClothingHeadHatChef
+    outerClothing: ClothingOuterApronChef
+
+- type: startingGear
+  id: ShogkkZombifiedGearBotanist
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitHydroponics
+    shoes: ClothingShoesColorBrown
+    outerClothing: ClothingOuterApronBotanist
+    gloves: ClothingHandsGlovesLeather
+
+- type: startingGear
+  id: ShogkkZombifiedGearJanitor
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitJanitor
+    shoes: ClothingShoesGaloshes
+    head: ClothingHeadHatPurplesoft
+
+- type: entity
+  parent: BaseMobShogkkZombified
+  id: MobShogkkZombified
+  name: SHOGKK zombified
+  suffix: Random job
+  description: ""
+  components:
+  - type: ShogkkZombified
+  - type: ShogkkZombifiedAI
+  # Job picked at random, its outfit, sometimes (toolChance) a job tool in hand; random human of either sex with a random
+  # Russian name and pale amber-red eyes (ShogkkZombifiedSystem).
+  - type: ShogkkZombifiedGear
+    toolChance: 0.15
+    jobs:
+    - id: assistant
+      gear:
+      - ShogkkZombifiedGearAssistant
+      - ShogkkZombifiedGearAssistantGloves
+      tools:
+      - Crowbar
+      - Wrench
+    - id: engineer
+      gear:
+      - ShogkkZombifiedGearEngineerHardhat
+      - ShogkkZombifiedGearEngineerVest
+      - ShogkkZombifiedGearEngineerFull
+      tools:
+      - Wrench
+      - Crowbar
+    - id: scientist
+      gear:
+      - ShogkkZombifiedGearScientist
+      - ShogkkZombifiedGearScientistGloves
+      tools:
+      - FireExtinguisher
+      - Crowbar
+    - id: medic
+      gear:
+      - ShogkkZombifiedGearMedic
+      - ShogkkZombifiedGearMedicSurgeon
+      - ShogkkZombifiedGearMedicParamedic
+      tools:
+      - Scalpel
+    - id: security
+      gear:
+      - ShogkkZombifiedGearSecurity
+      - ShogkkZombifiedGearSecurityNoHelmet
+      tools:
+      - Stunbaton
+      - Truncheon
+    - id: cargo
+      gear:
+      - ShogkkZombifiedGearCargo
+      - ShogkkZombifiedGearSalvage
+      tools:
+      - Crowbar
+      - Pickaxe
+    - id: chef
+      gear:
+      - ShogkkZombifiedGearChef
+      tools:
+      - KitchenKnife
+      - RollingPin
+    - id: botanist
+      gear:
+      - ShogkkZombifiedGearBotanist
+      tools:
+      - HydroponicsToolHatchet
+      - HydroponicsToolMiniHoe
+    - id: janitor
+      gear:
+      - ShogkkZombifiedGearJanitor
+      tools:
+      - MopItem
+  - type: HumanoidAppearance
+    species: Human
+  # NPC: no combat-mode UI toggle sounds (the default paths are missing in this repo and would add linter errors).
+  - type: CombatMode
+    combatActivationSound: null
+    combatDeactivationSound: null
+  # A faint pale amber-red glow of the eyes, dimmer than the operatives' (the eye layers are drawn by the client
+  # visualizer). Off on death.
+  - type: PointLight
+    color: "#ff9a7a"
+    radius: 1.2
+    energy: 0.4
+    softness: 1
+    offset: 0, -0.2
+    castShadows: false
+  - type: NpcFactionMember
+    factions:
+    - ShogkkZombified
+  - type: InputMover
+  - type: MobMover
+
+- type: entity
+  parent: MobShogkkZombified
+  id: MobShogkkZombifiedAssistant
+  suffix: Assistant
+  components:
+  - type: ShogkkZombifiedGear
+    jobs:
+    - id: assistant
+      gear:
+      - ShogkkZombifiedGearAssistant
+      - ShogkkZombifiedGearAssistantGloves
+      tools:
+      - Crowbar
+      - Wrench
+
+- type: entity
+  parent: MobShogkkZombified
+  id: MobShogkkZombifiedEngineer
+  suffix: Engineer
+  components:
+  - type: ShogkkZombifiedGear
+    jobs:
+    - id: engineer
+      gear:
+      - ShogkkZombifiedGearEngineerHardhat
+      - ShogkkZombifiedGearEngineerVest
+      - ShogkkZombifiedGearEngineerFull
+      tools:
+      - Wrench
+      - Crowbar
+
+- type: entity
+  parent: MobShogkkZombified
+  id: MobShogkkZombifiedScientist
+  suffix: Scientist
+  components:
+  - type: ShogkkZombifiedGear
+    jobs:
+    - id: scientist
+      gear:
+      - ShogkkZombifiedGearScientist
+      - ShogkkZombifiedGearScientistGloves
+      tools:
+      - FireExtinguisher
+      - Crowbar
+
+- type: entity
+  parent: MobShogkkZombified
+  id: MobShogkkZombifiedMedic
+  suffix: Medic
+  components:
+  - type: ShogkkZombifiedGear
+    jobs:
+    - id: medic
+      gear:
+      - ShogkkZombifiedGearMedic
+      - ShogkkZombifiedGearMedicSurgeon
+      - ShogkkZombifiedGearMedicParamedic
+      tools:
+      - Scalpel
+
+- type: entity
+  parent: MobShogkkZombified
+  id: MobShogkkZombifiedSecurity
+  suffix: Security
+  components:
+  - type: ShogkkZombifiedGear
+    jobs:
+    - id: security
+      gear:
+      - ShogkkZombifiedGearSecurity
+      - ShogkkZombifiedGearSecurityNoHelmet
+      tools:
+      - Stunbaton
+      - Truncheon
+
+- type: entity
+  parent: MobShogkkZombified
+  id: MobShogkkZombifiedCargo
+  suffix: Cargo
+  components:
+  - type: ShogkkZombifiedGear
+    jobs:
+    - id: cargo
+      gear:
+      - ShogkkZombifiedGearCargo
+      - ShogkkZombifiedGearSalvage
+      tools:
+      - Crowbar
+      - Pickaxe
+
+- type: entity
+  parent: MobShogkkZombified
+  id: MobShogkkZombifiedChef
+  suffix: Chef
+  components:
+  - type: ShogkkZombifiedGear
+    jobs:
+    - id: chef
+      gear:
+      - ShogkkZombifiedGearChef
+      tools:
+      - KitchenKnife
+      - RollingPin
+
+- type: entity
+  parent: MobShogkkZombified
+  id: MobShogkkZombifiedBotanist
+  suffix: Botanist
+  components:
+  - type: ShogkkZombifiedGear
+    jobs:
+    - id: botanist
+      gear:
+      - ShogkkZombifiedGearBotanist
+      tools:
+      - HydroponicsToolHatchet
+      - HydroponicsToolMiniHoe
+
+- type: entity
+  parent: MobShogkkZombified
+  id: MobShogkkZombifiedJanitor
+  suffix: Janitor
+  components:
+  - type: ShogkkZombifiedGear
+    jobs:
+    - id: janitor
+      gear:
+      - ShogkkZombifiedGearJanitor
+      tools:
+      - MopItem
+
+- type: entity
+  parent: MobShogkkZombified
+  id: MobShogkkZombifiedService
+  suffix: Service
+  components:
+  - type: ShogkkZombifiedGear
+    jobs:
+    - id: chef
+      gear:
+      - ShogkkZombifiedGearChef
+      tools:
+      - KitchenKnife
+      - RollingPin
+    - id: botanist
+      gear:
+      - ShogkkZombifiedGearBotanist
+      tools:
+      - HydroponicsToolHatchet
+      - HydroponicsToolMiniHoe
+    - id: janitor
+      gear:
+      - ShogkkZombifiedGearJanitor
+      tools:
+      - MopItem
+
+- type: entity
+  parent: MarkerBase
+  id: SpawnMobShogkkZombified
+  name: SHOGKK zombified spawner
+  suffix: Random job
+  components:
+  - type: Sprite
+    layers:
+    - state: red
+    - state: ai
+  - type: ConditionalSpawner
+    prototypes:
+    - MobShogkkZombified

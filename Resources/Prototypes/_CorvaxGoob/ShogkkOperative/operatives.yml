@@ -5,6 +5,8 @@
 
 - type: npcFaction
   id: ShogkkOperative
+  friendly:
+  - ShogkkZombified # the ordinary zombified (_CorvaxGoob/ShogkkZombified): neutral both ways
   hostile:
   - Gilbert
   - NanoTrasen

@@ -505,8 +505,9 @@ public sealed partial class GilbertAISystem : EntitySystem
         var comp = ent.Comp;
 
         // An armed target gets no warning, nor does a cuffed one who ignored his punch, nor an operative (Corvax: they
-        // are enemies on sight, even with only a knife left).
-        if (IsArmed(target) || comp.ForcedHostile.Contains(target) || HasComp<ShogkkOperativeComponent>(target))
+        // are enemies on sight, even with only a knife left), nor an ordinary zombified.
+        if (IsArmed(target) || comp.ForcedHostile.Contains(target) || HasComp<ShogkkOperativeComponent>(target)
+            || HasComp<ShogkkZombifiedComponent>(target))
         {
             EnterCombat(ent, target, "found");
             return;

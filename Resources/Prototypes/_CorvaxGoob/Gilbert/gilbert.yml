@@ -23,6 +23,7 @@
   - Wraith
   - Lavafauna
   - ShogkkOperative # the rank-and-file operatives (_CorvaxGoob/ShogkkOperative): mutual enemies
+  - ShogkkZombified # the ordinary zombified (_CorvaxGoob/ShogkkZombified): mutual enemies too
 
 - type: damageModifierSet
   id: GilbertModifiers

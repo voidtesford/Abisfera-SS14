@@ -124,6 +124,7 @@ public sealed partial class ShogkkOperativeAISystem : EntitySystem
 
         // Shot or hit from somewhere: whoever did it is the target now (unless he's already fighting someone in view).
         if (args.Origin is not { } origin || origin == ent.Owner || HasComp<ShogkkOperativeComponent>(origin)
+            || HasComp<ShogkkZombifiedComponent>(origin)
             || !HasComp<MobStateComponent>(origin) || !_mobState.IsAlive(origin))
             return;
 
@@ -225,11 +226,13 @@ public sealed partial class ShogkkOperativeAISystem : EntitySystem
 
     /// <summary>
     /// The targets: everyone Gilbert goes for in his first phase (alive, uncuffed humanoids) and Gilbert himself
-    /// (<see cref="GilbertAISystem.IsEnemy"/> leaves him out only because he is Gilbert), but no other operative.
+    /// (<see cref="GilbertAISystem.IsEnemy"/> leaves him out only because he is Gilbert), but no other operative and
+    /// no ordinary zombified (they leave each other alone).
     /// </summary>
     public bool IsEnemy(EntityUid uid)
     {
-        if (TerminatingOrDeleted(uid) || !HasComp<HumanoidAppearanceComponent>(uid) || HasComp<ShogkkOperativeComponent>(uid))
+        if (TerminatingOrDeleted(uid) || !HasComp<HumanoidAppearanceComponent>(uid) || HasComp<ShogkkOperativeComponent>(uid)
+            || HasComp<ShogkkZombifiedComponent>(uid))
             return false;
 
         if (!TryComp<MobStateComponent>(uid, out var state) || !_mobState.IsAlive(uid, state))

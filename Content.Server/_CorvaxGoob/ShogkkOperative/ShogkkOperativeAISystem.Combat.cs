@@ -13,6 +13,7 @@ using Content.Shared.Weapons.Ranged.Components;
 using Content.Shared.Weapons.Ranged.Events;
 using Content.Shared.Wieldable.Components;
 using Robust.Shared.Map;
+using Robust.Shared.Physics.Components;
 
 namespace Content.Server._CorvaxGoob.ShogkkOperative;
 
@@ -111,8 +112,9 @@ public sealed partial class ShogkkOperativeAISystem
         if (TryGetHeldGun(ent, out var held))
             EnsureWielded(ent, held);
 
-        // An ally in the line of fire: hold fire and sidestep.
-        if (visible && AllyInLineOfFire(ent, tgt, xform, out var sidestep))
+        // An ally in the line of fire: hold fire and sidestep. Checked even when the target is out of his view cone for a
+        // moment (just turned after a sidestep): the gun fires at the target all the same.
+        if (AllyInLineOfFire(ent, tgt, xform, out var sidestep))
         {
             RemComp<NPCRangedCombatComponent>(ent);
             SteerTo(ent, sidestep, 0.3f);
@@ -132,9 +134,28 @@ public sealed partial class ShogkkOperativeAISystem
             SteerTo(ent, comp.LastKnownPosition ?? tgtCoords, comp.RangedKeepDistance - 0.5f);
     }
 
+    private readonly List<EntityUid> _friendlyScratch = new();
+
+    /// <summary>Extra time (bullets in flight) a moving friend's path is looked ahead for, on top of one think.</summary>
+    private const float AllyLeadTime = 0.25f;
+
+    /// <summary>A point (relative to the shooter) inside the spread cone along <paramref name="dir"/> (at least a body width), up to a little behind the target.</summary>
+    private static bool InFireCone(Vector2 rel, Vector2 dir, float dist, float spread, out float across)
+    {
+        across = dir.X * rel.Y - dir.Y * rel.X;
+        var along = Vector2.Dot(rel, dir);
+        if (along <= 0.2f || along >= dist + BehindTargetMargin)
+            return false;
+
+        return MathF.Abs(across) <= 0.55f + along * MathF.Tan(spread);
+    }
+
+    /// <summary>How far behind the target a friend still counts as in the line of fire (misses and spread fly on).</summary>
+    private const float BehindTargetMargin = 1.5f;
+
     /// <summary>
-    /// True when another operative stands between him and the target, inside the spread cone of the gun (at least a
-    /// body width). <paramref name="sidestep"/> is a spot 1.5 tiles to the side away from that ally.
+    /// True when another operative (or a zombified) stands between him and the target, or just behind the target where a miss would
+    /// land (a zombified mauling the victim), inside the spread cone of the gun (at least a body width). <paramref name="sidestep"/> is a spot 1.5 tiles to the side away from that ally.
     /// </summary>
     private bool AllyInLineOfFire(Entity<ShogkkOperativeAIComponent> ent, EntityUid target, TransformComponent xform, out EntityCoordinates sidestep)
     {
@@ -150,19 +171,24 @@ public sealed partial class ShogkkOperativeAISystem
             ? (float) gunComp.MaxAngle.Theta / 2f
             : 0f;
 
-        foreach (var ally in _lookup.GetEntitiesInRange<ShogkkOperativeComponent>(xform.Coordinates, dist + 0.5f))
+        // Friendly fire is avoided for the other operatives and for the zombified (neutral to them) alike.
+        _friendlyScratch.Clear();
+        foreach (var ally in _lookup.GetEntitiesInRange<ShogkkOperativeComponent>(xform.Coordinates, dist + BehindTargetMargin + 0.5f))
+            _friendlyScratch.Add(ally);
+        foreach (var zombified in _lookup.GetEntitiesInRange<ShogkkZombifiedComponent>(xform.Coordinates, dist + BehindTargetMargin + 0.5f))
+            _friendlyScratch.Add(zombified);
+
+        foreach (var ally in _friendlyScratch)
         {
-            if (ally.Owner == ent.Owner || _mobState.IsDead(ally))
+            if (ally == ent.Owner || _mobState.IsDead(ally))
                 continue;
 
-            var rel = _transform.GetWorldPosition(ally) - from;
-            var along = Vector2.Dot(rel, dir);
-            if (along <= 0.2f || along >= dist + 0.3f)
-                continue;
-
-            var across = dir.X * rel.Y - dir.Y * rel.X;
-            var halfWidth = 0.55f + along * MathF.Tan(spread);
-            if (MathF.Abs(across) > halfWidth)
+            // Where he is now and where he will be by the next look (a zombified running at the victim walks into the burst).
+            var pos = _transform.GetWorldPosition(ally);
+            var lead = TryComp<PhysicsComponent>(ally, out var body)
+                ? body.LinearVelocity * ((float) ent.Comp.ThinkInterval.TotalSeconds + AllyLeadTime)
+                : Vector2.Zero;
+            if (!InFireCone(pos - from, dir, dist, spread, out var across) && !InFireCone(pos + lead - from, dir, dist, spread, out across))
                 continue;
 
             var side = across >= 0 ? -1f : 1f;
