@@ -8,6 +8,7 @@ using Content.Server.NPC.Pathfinding;
 using Content.Server.NPC.Systems;
 using Content.Server.Weapons.Ranged.Systems;
 using Content.Shared._CorvaxGoob.Gilbert;
+using Content.Shared._CorvaxGoob.ShogkkOperative;
 using Content.Shared._CorvaxGoob.TTS;
 using Content.Shared._Shitmed.Medical.Surgery.Tools;
 using Content.Shared.Chat;
@@ -503,8 +504,9 @@ public sealed partial class GilbertAISystem : EntitySystem
     {
         var comp = ent.Comp;
 
-        // An armed target gets no warning, nor does a cuffed one who ignored his punch.
-        if (IsArmed(target) || comp.ForcedHostile.Contains(target))
+        // An armed target gets no warning, nor does a cuffed one who ignored his punch, nor an operative (Corvax: they
+        // are enemies on sight, even with only a knife left).
+        if (IsArmed(target) || comp.ForcedHostile.Contains(target) || HasComp<ShogkkOperativeComponent>(target))
         {
             EnterCombat(ent, target, "found");
             return;
