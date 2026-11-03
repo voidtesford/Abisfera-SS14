@@ -52,7 +52,8 @@ public sealed partial class RedspaceJammedComponent : Component
 }
 
 /// <summary>Distorted copy of <see cref="Source"/>; the client copies its sprite and adds a glitch layer.</summary>
-[RegisterComponent, NetworkedComponent, AutoGenerateComponentState]
+/// <remarks>Raises <see cref="AfterAutoHandleStateEvent"/> so the client can dress the copy as soon as the source arrives.</remarks>
+[RegisterComponent, NetworkedComponent, AutoGenerateComponentState(true)]
 public sealed partial class RedspaceDoppelgangerComponent : Component
 {
     [DataField, AutoNetworkedField]

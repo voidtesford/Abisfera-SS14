@@ -26,7 +26,10 @@ using Robust.Shared.Console;
 using Robust.Shared.GameObjects;
 using Robust.Shared.Map;
 using Robust.Shared.Maths;
+using Content.Shared.Physics;
+using Robust.Shared.Physics;
 using Robust.Shared.Physics.Components;
+using Robust.Shared.Physics.Systems;
 using Robust.Shared.Player;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Spawners;
@@ -362,6 +365,90 @@ public sealed class RedspaceAnomaliesTest
             Assert.That(ctx.EntMan.IsQueuedForDeletion(second!.Value) || ctx.EntMan.Deleted(second.Value), Is.False, "still there");
             ctx.Step(2f, 1f);
             Assert.That(ctx.EntMan.Deleted(second.Value) || ctx.EntMan.IsQueuedForDeletion(second.Value), Is.True, "vanishes after a minute");
+        });
+    }
+
+    /// <summary>
+    /// Regression: the doppelganger was invisible in game (its sprite started hidden and the client never got the
+    /// state event that dressed it) and bullets flew through it (soft fixture).
+    /// </summary>
+    [Test]
+    public async Task DoppelgangerIsVisibleToClientsAndHittable()
+    {
+        await using var pair = await PoolManager.GetServerClient(new PoolSettings { Connected = true, Dirty = true });
+        var ctx = await Setup(pair, ("doppelgangerHitCooldown", "1000"));
+        var server = pair.Server;
+        var client = pair.Client;
+        EntityUid dopp = default;
+        NetEntity netDopp = default;
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(ctx.Events.TryTriggerEvent(RedspaceAnomalyEvent.Doppelganger, ctx.Player, out var spawned, out _), Is.True);
+            dopp = spawned!.Value;
+            netDopp = ctx.EntMan.GetNetEntity(dopp);
+
+            var fixtures = ctx.EntMan.GetComponent<FixturesComponent>(dopp);
+            Assert.That(fixtures.Fixtures.Values.Any(f => f.Hard && (f.CollisionLayer & (int) CollisionGroup.BulletImpassable) != 0),
+                "hard fixture that bullets collide with");
+            Assert.That(ctx.EntMan.GetComponent<PhysicsComponent>(dopp).CanCollide, Is.True);
+        });
+
+        await pair.RunTicksSync(20);
+
+        await client.WaitAssertion(() =>
+        {
+            // The prototype itself is visible with a layer, so it can never be an invisible attacker.
+            var proto = client.ProtoMan.Index<EntityPrototype>(RedspaceAnomalyEventSystem.DoppelgangerPrototype);
+            Assert.That(proto.TryGetComponent<SpriteComponent>(out var protoSprite, client.EntMan.ComponentFactory), Is.True);
+            Assert.That(protoSprite!.Visible, Is.True, "prototype sprite visible");
+
+            var clientDopp = client.EntMan.GetEntity(netDopp);
+            Assert.That(client.EntMan.EntityExists(clientDopp), Is.True, "doppelganger reaches the client");
+            var sprite = client.EntMan.GetComponent<SpriteComponent>(clientDopp);
+            Assert.That(sprite.Visible, Is.True, "client sprite visible");
+            Assert.That(sprite.Color.A, Is.GreaterThan(0.5f), "not drawn transparent");
+            Assert.That(sprite.Color.R, Is.LessThanOrEqualTo(sprite.Color.B), "no red tint");
+
+            // It wears the player's look: all of the player's layers plus the glitch overlay.
+            var clientPlayer = client.EntMan.GetEntity(server.EntMan.GetNetEntity(ctx.Player));
+            var playerLayers = client.EntMan.GetComponent<SpriteComponent>(clientPlayer).AllLayers.Count();
+            var visibleLayers = sprite.AllLayers.Count(l => l.Visible);
+            Assert.That(client.System<RedspaceAnomalyVisualSystem>().IsDressed(clientDopp), Is.True, "copied the player's sprite");
+            Assert.That(sprite.AllLayers.Count(), Is.EqualTo(playerLayers + 1), "player layers + glitch");
+            Assert.That(visibleLayers, Is.GreaterThan(1), "has visible layers");
+        });
+
+        Vector2 origin = default, dir = default;
+        await server.WaitAssertion(() =>
+        {
+            // Hitscan: a bullet ray finds it.
+            var at = ctx.Pos(dopp);
+            var away = at - ctx.Pos(ctx.Player);
+            dir = Vector2.Normalize(new Vector2(-away.Y, away.X));
+            origin = at - dir * 2f;
+            var physics = server.System<SharedPhysicsSystem>();
+            var hits = physics.IntersectRay(ctx.Map.MapId,
+                new CollisionRay(origin, dir, (int) CollisionGroup.BulletImpassable), 4f, returnOnFirstHit: true).ToList();
+            Assert.That(hits.Select(h => h.HitEntity), Does.Contain(dopp), "hitscan ray hits it");
+
+            // A real bullet flies at it.
+            var bullet = ctx.EntMan.SpawnEntity("BulletPistol", new MapCoordinates(origin, ctx.Map.MapId));
+            physics.SetLinearVelocity(bullet, dir * 15f);
+        });
+
+        await pair.RunTicksSync(30);
+
+        await server.WaitAssertion(() =>
+        {
+            Assert.That(ctx.EntMan.Deleted(dopp) || ctx.EntMan.IsQueuedForDeletion(dopp), Is.True, "shot doppelganger vanishes");
+        });
+
+        await pair.RunTicksSync(5);
+        await client.WaitAssertion(() =>
+        {
+            Assert.That(client.EntMan.TryGetEntity(netDopp, out var gone) && client.EntMan.EntityExists(gone), Is.False,
+                "gone on the client too");
         });
     }
 

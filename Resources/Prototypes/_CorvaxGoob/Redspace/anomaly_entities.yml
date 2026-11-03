@@ -112,7 +112,8 @@
     - state: ring
       shader: unshaded
 
-# Distorted copy of a player that repeats their moves with a delay. The client copies the sprite of the source.
+# Distorted copy of a player that repeats their moves with a delay. The client copies the sprite of the source;
+# until it can (source not streamed in yet) the glitch silhouette below is shown, so it is never invisible.
 - type: entity
   id: RedspaceDoppelganger
   name: doppelganger
@@ -121,7 +122,10 @@
   components:
   - type: Sprite
     drawdepth: Mobs
-    visible: false
+    noRot: true
+    sprite: _CorvaxGoob/Effects/redspace_doppelganger.rsi
+    layers:
+    - state: glitch
   - type: RedspaceDoppelganger
   - type: Clickable
   - type: InteractionOutline
@@ -135,9 +139,13 @@
         shape:
           !type:PhysShapeCircle
           radius: 0.35
-        hard: false
+        # Hard: bullets, hitscan and thrown things only hit hard fixtures.
+        hard: true
+        density: 100
         layer:
         - MobLayer
+        mask:
+        - MobMask
 
 # ---------- client-only decorations (RedspaceAmbientVisualsSystem / hallucinations) ----------
 
