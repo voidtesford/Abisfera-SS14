@@ -1,0 +1,85 @@
+# Kamerton fuel cells. Charged stable cell = RedspaceSuperEnergyCell (physics_entities.yml).
+# Charged <-> empty are separate prototypes (KamertonCell.swap); only the charged stable cell has
+# RedspaceFuelCell, so the suppressor beacon keeps rejecting empty and unstable cells.
+
+- type: Tag
+  id: KamertonStableCell
+
+- type: Tag
+  id: KamertonUnstableCell
+
+- type: entity
+  parent: BaseItem
+  id: RedspaceSuperEnergyCellEmpty
+  name: empty super-energy cell
+  description: A drained super-energy cell. Charge it with stable energy in a crystal converter.
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Power/redspace_super_cell.rsi
+    layers:
+    - state: icon
+    - state: empty
+  - type: Item
+    sprite: _CorvaxGoob/Objects/Power/redspace_super_cell.rsi
+    size: Small
+  - type: KamertonCell
+    kind: Stable
+    charged: false
+    swap: RedspaceSuperEnergyCell
+  - type: Tag
+    tags:
+    - KamertonStableCell
+  - type: StaticPrice
+    price: 150
+
+- type: entity
+  parent: BaseItem
+  id: KamertonUnstableEnergyCell
+  name: unstable super-energy cell
+  description: A power cage brimming with crackling redspace energy. The liquid inside does not sit still.
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Power/kamerton_unstable_cell.rsi
+    layers:
+    - state: icon
+    - state: glow
+      shader: unshaded
+  - type: Item
+    sprite: _CorvaxGoob/Objects/Power/kamerton_unstable_cell.rsi
+    size: Small
+  - type: PointLight
+    radius: 1.2
+    energy: 1
+    color: "#E0304A"
+  - type: KamertonCell
+    kind: Unstable
+    swap: KamertonUnstableEnergyCellEmpty
+  - type: Tag
+    tags:
+    - KamertonUnstableCell
+  - type: StaticPrice
+    price: 1000
+
+- type: entity
+  parent: BaseItem
+  id: KamertonUnstableEnergyCellEmpty
+  name: empty unstable super-energy cell
+  description: A drained unstable super-energy cell. Charge it with unstable energy in a crystal converter.
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Power/kamerton_unstable_cell.rsi
+    layers:
+    - state: icon
+    - state: empty
+  - type: Item
+    sprite: _CorvaxGoob/Objects/Power/kamerton_unstable_cell.rsi
+    size: Small
+  - type: KamertonCell
+    kind: Unstable
+    charged: false
+    swap: KamertonUnstableEnergyCell
+  - type: Tag
+    tags:
+    - KamertonUnstableCell
+  - type: StaticPrice
+    price: 150

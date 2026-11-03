@@ -212,5 +212,11 @@
     energy: 1
     color: "#39C6FF"
   - type: RedspaceFuelCell
+  - type: KamertonCell
+    kind: Stable
+    swap: RedspaceSuperEnergyCellEmpty
+  - type: Tag
+    tags:
+    - KamertonStableCell
   - type: StaticPrice
     price: 750

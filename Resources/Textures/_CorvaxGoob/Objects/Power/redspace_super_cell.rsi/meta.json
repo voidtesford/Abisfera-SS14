@@ -1,7 +1,7 @@
 {
   "version": 1,
   "license": "CC-BY-SA-3.0",
-  "copyright": "Made for Abisfera (CorvaxGoob) by Grok Bot; recoloured to bluespace style from power_cages.rsi (high, o2, inhands) created by TheShuEd (github) for Space Station 14",
+  "copyright": "Made for Abisfera (CorvaxGoob) by Grok Bot; recoloured to bluespace style from power_cages.rsi (high, o2, inhands) created by TheShuEd (github) for Space Station 14; empty state by Grok Bot",
   "size": {
     "x": 32,
     "y": 32
@@ -12,6 +12,9 @@
     },
     {
       "name": "glow"
+    },
+    {
+      "name": "empty"
     },
     {
       "name": "inhand-left",

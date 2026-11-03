@@ -1,0 +1,106 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Made for Abisfera (CorvaxGoob) by Grok Bot: original Kamerton crystal converter (silhouette reworked from the ChemMaster, electrolysis unit and desktop centrifuge ideas)",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "base"
+    },
+    {
+      "name": "fill_0"
+    },
+    {
+      "name": "fill_1"
+    },
+    {
+      "name": "fill_2"
+    },
+    {
+      "name": "fill_3"
+    },
+    {
+      "name": "fill_4"
+    },
+    {
+      "name": "fill_5"
+    },
+    {
+      "name": "fill_6"
+    },
+    {
+      "name": "fill_7"
+    },
+    {
+      "name": "fill_8"
+    },
+    {
+      "name": "fill_9"
+    },
+    {
+      "name": "fill_10"
+    },
+    {
+      "name": "screen_create"
+    },
+    {
+      "name": "screen_destroy"
+    },
+    {
+      "name": "powered"
+    },
+    {
+      "name": "panel_open"
+    },
+    {
+      "name": "working_create",
+      "delays": [
+        [
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12
+        ]
+      ]
+    },
+    {
+      "name": "working_destroy",
+      "delays": [
+        [
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ]
+      ]
+    },
+    {
+      "name": "working_print",
+      "delays": [
+        [
+          0.15,
+          0.15,
+          0.15,
+          0.15,
+          0.15,
+          0.15,
+          0.15,
+          0.15
+        ]
+      ]
+    }
+  ]
+}

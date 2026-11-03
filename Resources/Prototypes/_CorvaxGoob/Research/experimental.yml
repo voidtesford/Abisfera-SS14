@@ -42,6 +42,7 @@
   recipeUnlocks:
   - MachineBluespaceHarvesterCircuitboard
   - MachineBluespaceTransitorCircuitboard
+  - KamertonConverterCircuitboard
   # Goobstation R&D Console rework start
   position: -5,-2
   technologyPrerequisites:

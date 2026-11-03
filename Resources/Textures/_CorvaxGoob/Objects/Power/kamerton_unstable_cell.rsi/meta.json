@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Made for Abisfera (CorvaxGoob) by Grok Bot; recoloured to unstable redspace style from redspace_super_cell.rsi, itself based on power_cages.rsi (high, o2, inhands) created by TheShuEd (github) for Space Station 14",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "icon"
+    },
+    {
+      "name": "glow"
+    },
+    {
+      "name": "empty"
+    },
+    {
+      "name": "inhand-left",
+      "directions": 4
+    },
+    {
+      "name": "inhand-right",
+      "directions": 4
+    }
+  ]
+}
