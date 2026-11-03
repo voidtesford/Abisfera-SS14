@@ -192,6 +192,13 @@ public sealed partial class ShogkkOperativeAISystem : EntitySystem
             EnterCombat(ent, seen.Value);
         }
 
+        // Weapon in order (racked, the gun rather than the knife), or off to a weapon on the floor.
+        if (UpdateArmament(ent, xform, now))
+        {
+            OpenDoorsAhead(ent, xform);
+            return;
+        }
+
         switch (comp.State)
         {
             case ShogkkOperativeAIState.Combat:
@@ -367,7 +374,7 @@ public sealed partial class ShogkkOperativeAISystem : EntitySystem
     {
         var now = _timing.CurTime;
         var comp = ent.Comp;
-        if (comp.State == ShogkkOperativeAIState.Combat || comp.Task == ShogkkOperativeTask.Reload)
+        if (comp.State == ShogkkOperativeAIState.Combat || comp.Task is ShogkkOperativeTask.Reload or ShogkkOperativeTask.PickupWeapon)
             return;
 
         if (comp.Task == ShogkkOperativeTask.Heal)

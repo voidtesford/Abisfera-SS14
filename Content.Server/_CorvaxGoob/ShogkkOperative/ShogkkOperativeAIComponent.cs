@@ -23,6 +23,8 @@ public enum ShogkkOperativeTask : byte
     None,
     Reload,
     Heal,
+    /// <summary>Walking over to a weapon on the floor (his own dropped gun, or anything when unarmed) and picking it up.</summary>
+    PickupWeapon,
 }
 
 public enum ShogkkOperativeWeaponMode : byte
@@ -123,6 +125,40 @@ public sealed partial class ShogkkOperativeAIComponent : Component
 
     [ViewVariables]
     public TimeSpan LastDamaged = TimeSpan.Zero;
+
+    /// <summary>Earliest time for the next rack / pump / bolt-close (a hand action takes a moment).</summary>
+    [DataField]
+    public TimeSpan RackDelay = TimeSpan.FromSeconds(0.45);
+
+    [ViewVariables]
+    public TimeSpan NextRack;
+
+    /// <summary>Racks in a row that did not make the gun ready (a jammed / odd gun): he stops trying after a few.</summary>
+    [ViewVariables]
+    public int FailedRacks;
+
+    /// <summary>Racks / pumps / bolt-closes done, for tests / admins.</summary>
+    [ViewVariables]
+    public int Racks;
+
+    /// <summary>How often he checks his weapons outside the fight (rack, re-arm, a gun on the floor).</summary>
+    [DataField]
+    public TimeSpan WeaponCheckInterval = TimeSpan.FromSeconds(0.7);
+
+    [ViewVariables]
+    public TimeSpan NextWeaponCheck;
+
+    /// <summary>How long he keeps trying to reach a weapon on the floor before giving it up.</summary>
+    [DataField]
+    public TimeSpan PickupTimeout = TimeSpan.FromSeconds(15);
+
+    /// <summary>Floor weapons he failed to reach, ignored until the time stored.</summary>
+    [ViewVariables]
+    public Dictionary<EntityUid, TimeSpan> PickupBlacklist = new();
+
+    /// <summary>Weapons picked up from the floor, for tests / admins.</summary>
+    [ViewVariables]
+    public int Pickups;
 
     #endregion
 

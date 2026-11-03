@@ -107,6 +107,8 @@ public sealed class RedspaceMapSystem : EntitySystem
         SubscribeLocalEvent<RedspaceMapComponent, ComponentStartup>(OnMapStartup);
         SubscribeLocalEvent<RedspaceMapComponent, ComponentShutdown>(OnMapShutdown);
         SubscribeLocalEvent<ThrownEvent>(OnThrown);
+        // Becoming immune (e.g. zombified) drops whatever redspace was doing to the mob right away.
+        SubscribeLocalEvent<RedspaceImmuneComponent, ComponentStartup>((uid, _, _) => Unaffect(uid));
     }
 
     #region Settings
@@ -322,6 +324,14 @@ public sealed class RedspaceMapSystem : EntitySystem
 
         foreach (var uid in _onMap)
         {
+            // Zombified SHOGKK (Gilbert, the operatives) are not touched at all; dropping them from _affectedNow
+            // also strips any leftover marker, so drift, wrap-around and echoes skip them too.
+            if (IsImmune(uid))
+            {
+                _affectedNow.Remove(uid);
+                continue;
+            }
+
             var pos = _transform.GetWorldPosition(uid);
             if (RedspaceSuppressionSystem.IsSuppressed(suppressors, pos, out _))
             {
@@ -421,6 +431,12 @@ public sealed class RedspaceMapSystem : EntitySystem
         }
 
         return comp;
+    }
+
+    /// <summary>Redspace leaves this entity alone (<see cref="RedspaceImmuneComponent"/>).</summary>
+    public bool IsImmune(EntityUid uid)
+    {
+        return HasComp<RedspaceImmuneComponent>(uid);
     }
 
     private void Unaffect(EntityUid uid)
@@ -535,7 +551,7 @@ public sealed class RedspaceMapSystem : EntitySystem
         _lookup.GetEntitiesInRange(new MapCoordinates(pos, mapId), s.DischargeShockRadius, _mobs);
         foreach (var mob in _mobs)
         {
-            if (RedspaceSuppressionSystem.IsSuppressed(suppressors, _transform.GetWorldPosition(mob), out _))
+            if (IsImmune(mob) || RedspaceSuppressionSystem.IsSuppressed(suppressors, _transform.GetWorldPosition(mob), out _))
                 continue;
 
             _electrocution.TryDoElectrocution(mob, fx, s.DischargeShockDamage, TimeSpan.FromSeconds(s.DischargeStun), true);
@@ -723,9 +739,13 @@ public sealed class RedspaceMapSystem : EntitySystem
         }
 
         var projectiles = EntityQueryEnumerator<ProjectileComponent, PhysicsComponent, TransformComponent>();
-        while (projectiles.MoveNext(out var uid, out _, out var body, out var xform))
+        while (projectiles.MoveNext(out var uid, out var projectile, out var body, out var xform))
         {
             if (!_active.TryGetValue(xform.MapID, out var entry))
+                continue;
+
+            // Bullets of the immune fly straight.
+            if (projectile.Shooter is { } shooter && IsImmune(shooter))
                 continue;
 
             var s = entry.Map.Comp.Settings;
@@ -810,6 +830,9 @@ public sealed class RedspaceMapSystem : EntitySystem
     {
         var thrown = args.Thrown;
         if (!_active.TryGetValue(Transform(thrown).MapID, out var entry))
+            return;
+
+        if (IsImmune(thrown) || args.User is { } user && IsImmune(user))
             return;
 
         var s = entry.Map.Comp.Settings;

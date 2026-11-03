@@ -604,8 +604,10 @@ public sealed class ShogkkOperativeTest
                                       $"damage {Total(entMan, human)} / {Total(entMan, human2)}");
             Assert.That(AI(entMan, rifle).Reloads, Is.GreaterThanOrEqualTo(1), "rifle reloaded");
             Assert.That(gun.Valid, "the rifle back in his hands");
-            Assert.That(slots.GetItemOrNull(gun, "gun_magazine"), Is.Not.Null, "a magazine in the rifle");
-            Assert.That(BagContents(entMan, rifle).Count(e => Proto(entMan, e) == "MagazineRifle"), Is.EqualTo(1), "one spare left");
+            // Racking right after the swap, he can empty the new one too and be mid-way through the next swap.
+            var midSwap = server.System<SharedHandsSystem>().EnumerateHeld(rifle).Any(e => Proto(entMan, e) == "MagazineRifle");
+            Assert.That(slots.GetItemOrNull(gun, "gun_magazine") != null || midSwap, "a magazine in the rifle (or going in)");
+            Assert.That(BagContents(entMan, rifle).Count(e => Proto(entMan, e) == "MagazineRifle"), Is.LessThanOrEqualTo(1), "a spare used");
             Assert.That(Total(entMan, human), Is.GreaterThan(FixedPoint2.Zero), "and shoots");
 
             Assert.That(AI(entMan, shotgun).Reloads, Is.GreaterThanOrEqualTo(1), "shotgun reloaded from the shell box");
@@ -617,9 +619,9 @@ public sealed class ShogkkOperativeTest
         await server.WaitPost(() =>
         {
             var gun = HeldGun(entMan, rifle);
-            foreach (var item in ai.EnumerateStored(rifle).ToList())
+            foreach (var item in ai.EnumerateStored(rifle).Concat(server.System<SharedHandsSystem>().EnumerateHeld(rifle)).ToList())
             {
-                if (entMan.HasComponent<BallisticAmmoProviderComponent>(item))
+                if (entMan.HasComponent<BallisticAmmoProviderComponent>(item) && !entMan.HasComponent<GunComponent>(item))
                     entMan.DeleteEntity(item);
             }
             if (slots.TryEject(gun, "gun_magazine", null, out var mag))

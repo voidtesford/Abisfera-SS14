@@ -58,6 +58,8 @@
   - type: GilbertAI
   - type: GilbertBerserk
   - type: GilbertRageAbilities
+  # Zombified SHOGKK: redspace map physics don't touch him (see RedspaceImmuneComponent).
+  - type: RedspaceImmune
   - type: GilbertFractureImmune
   # Appearance (pale skin, black HumanHairBusiness3, red eyes) is applied by GilbertSystem on MapInit:
   # humanoidProfile prototypes overflow the stack in HumanoidCharacterProfile.Equals during prototype load.

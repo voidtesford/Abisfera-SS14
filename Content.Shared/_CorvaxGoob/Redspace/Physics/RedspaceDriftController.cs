@@ -26,7 +26,7 @@ public sealed class RedspaceDriftController : VirtualController
         var query = EntityQueryEnumerator<RedspaceAffectedComponent, PhysicsComponent>();
         while (query.MoveNext(out var uid, out var affected, out var body))
         {
-            if (affected.Drift == default)
+            if (affected.Drift == default || HasComp<RedspaceImmuneComponent>(uid))
                 continue;
 
             if (prediction && !body.Predict)

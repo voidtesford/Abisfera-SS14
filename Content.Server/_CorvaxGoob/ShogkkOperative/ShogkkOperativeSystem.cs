@@ -20,7 +20,7 @@ namespace Content.Server._CorvaxGoob.ShogkkOperative;
 
 /// <summary>
 /// Spawn setup and the (only) look of a SHOGKK operative: random Russian full name on him and on his dog tag, a random
-/// male human with glowing yellow eyes (light off on death), and a random weapon from his list with two spare
+/// male human with glowing scarlet eyes (light off on death), and a random weapon from his list with two spare
 /// magazines / shell boxes in the bag.
 /// </summary>
 public sealed class ShogkkOperativeSystem : EntitySystem

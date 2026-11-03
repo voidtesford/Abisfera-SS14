@@ -20,7 +20,7 @@ public sealed partial class ShogkkOperativeWeapon
 
 /// <summary>
 /// Spawn setup of a SHOGKK operative (ShogkkOperativeSystem, MapInit after the loadout): random Russian full name (also
-/// on his dog tag), random male human look with yellow eyes, and a weapon picked from <see cref="Weapons"/>.
+/// on his dog tag), random male human look with scarlet eyes, and a weapon picked from <see cref="Weapons"/>.
 /// </summary>
 [RegisterComponent]
 public sealed partial class ShogkkOperativeGearComponent : Component
@@ -35,7 +35,7 @@ public sealed partial class ShogkkOperativeGearComponent : Component
     public ProtoId<LocalizedDatasetPrototype> LastNames = "NamesShogkkOperativeLast";
 
     [DataField]
-    public Color EyeColor = Color.FromHex("#ffc21a");
+    public Color EyeColor = Color.FromHex("#ff4a1a");
 
     /// <summary>The issued weapon, once spawned.</summary>
     [ViewVariables]

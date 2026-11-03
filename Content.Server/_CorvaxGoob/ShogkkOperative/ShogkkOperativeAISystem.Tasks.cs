@@ -16,6 +16,9 @@ public sealed partial class ShogkkOperativeAISystem
         var comp = ent.Comp;
         if (now >= comp.TaskTimeout)
         {
+            if (comp.Task == ShogkkOperativeTask.PickupWeapon && comp.TaskItem is { } unreached)
+                comp.PickupBlacklist[unreached] = now + TimeSpan.FromSeconds(30);
+
             AbortTask(ent);
             return;
         }
@@ -48,6 +51,9 @@ public sealed partial class ShogkkOperativeAISystem
                 break;
             case ShogkkOperativeTask.Heal:
                 UpdateHeal(ent, now);
+                break;
+            case ShogkkOperativeTask.PickupWeapon:
+                UpdatePickup(ent, now);
                 break;
         }
     }

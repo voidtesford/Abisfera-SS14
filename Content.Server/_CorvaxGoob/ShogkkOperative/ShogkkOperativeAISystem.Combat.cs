@@ -63,15 +63,18 @@ public sealed partial class ShogkkOperativeAISystem
 
         if (comp.WeaponMode == ShogkkOperativeWeaponMode.Ranged)
         {
-            if (!TryGetHeldGun(ent, out var gun))
+            if (!TryGetHeldGun(ent, out var gun) && !TryRearm(ent))
             {
                 SwitchToMelee(ent);
             }
-            else
+            else if (TryGetHeldGun(ent, out gun))
             {
-                // Pump-action: rack the spent shell out.
-                if (TryComp<BallisticAmmoProviderComponent>(gun, out var ballistic) && ChamberedIsSpent(ballistic))
-                    _interaction.UseInHandInteraction(ent, gun, checkCanInteract: false, checkUseDelay: false);
+                // Bolt open / empty chamber / spent shell in a pump gun: rack it first, like a player; no shot this moment.
+                if (RackIfNeeded(ent, gun, now))
+                {
+                    RemComp<NPCRangedCombatComponent>(ent);
+                    return;
+                }
 
                 if (LoadedAmmo(gun) == 0)
                 {
@@ -85,6 +88,14 @@ public sealed partial class ShogkkOperativeAISystem
                     SwitchToMelee(ent);
                 }
             }
+        }
+
+        // Knife in hand but a usable gun on him again (ammo found, a gun picked up): back to the gun.
+        if (comp.WeaponMode == ShogkkOperativeWeaponMode.Melee && now >= comp.NextWeaponCheck)
+        {
+            comp.NextWeaponCheck = now + comp.WeaponCheckInterval;
+            if (TryRearm(ent))
+                return;
         }
 
         if (comp.WeaponMode == ShogkkOperativeWeaponMode.Melee)
@@ -222,12 +233,20 @@ public sealed partial class ShogkkOperativeAISystem
         if (TryComp<BallisticAmmoProviderComponent>(gun, out var ballistic))
             return CountLiveShells(ballistic);
 
+        // Chamber + magazine: live rounds only (a spent case in the chamber is no shot, an open bolt only needs racking).
+        if (HasComp<ChamberMagazineAmmoProviderComponent>(gun))
+        {
+            var chambered = _gun.GetChamberEntity(gun) is { } round && !IsSpent(round) ? 1 : 0;
+            var mag = _gun.GetMagazineEntity(gun) is { } magEnt ? AmmoIn(magEnt) : 0;
+            return chambered + mag;
+        }
+
         var ev = new GetAmmoCountEvent();
         RaiseLocalEvent(gun, ref ev);
         return ev.Count;
     }
 
-    private int AmmoIn(EntityUid item)
+    public int AmmoIn(EntityUid item)
     {
         if (TryComp<BallisticAmmoProviderComponent>(item, out var ballistic))
             return CountLiveShells(ballistic);
@@ -255,7 +274,7 @@ public sealed partial class ShogkkOperativeAISystem
 
             var fits = false;
             if (magazineGun)
-                fits = HasComp<BallisticAmmoProviderComponent>(item) && _itemSlots.CanInsert(gun, item, uid, magSlot!);
+                fits = HasComp<BallisticAmmoProviderComponent>(item) && _itemSlots.CanInsert(gun, item, uid, magSlot!, swap: true);
             else if (gunBallistic != null && TryComp<BallisticAmmoProviderComponent>(item, out var box) && box.MayTransfer)
                 fits = box.Proto == gunBallistic.Proto || box.Entities.Count > 0 && RoundFits(gunBallistic, box.Entities[0]);
 
@@ -387,14 +406,11 @@ public sealed partial class ShogkkOperativeAISystem
                     return;
                 }
 
-                // Chamber a round from the new magazine.
-                if (_gun.GetChamberEntity(gun) == null)
-                {
-                    _hands.TrySelect(ent, gun);
-                    _interaction.UseInHandInteraction(ent, gun, checkCanInteract: false, checkUseDelay: false);
-                }
-
+                // Chamber a round from the new magazine: rack (or close the bolt), with the gun back in both hands.
                 FinishReload(ent, gun);
+                ent.Comp.NextRack = TimeSpan.Zero;
+                ent.Comp.FailedRacks = 0;
+                RackIfNeeded(ent, gun, now);
                 return;
         }
     }
@@ -412,11 +428,11 @@ public sealed partial class ShogkkOperativeAISystem
         switch (comp.TaskStep)
         {
             case 0:
-                if (ballistic.Entities.Count > 0 && ChamberedIsSpent(ballistic))
+                // Spent shell out first (pump).
+                if (NeedsRack(gun) && comp.FailedRacks < 4)
                 {
-                    _hands.TrySelect(ent, gun);
-                    _interaction.UseInHandInteraction(ent, gun, checkCanInteract: false, checkUseDelay: false);
-                    comp.TaskNextStep = now + TimeSpan.FromSeconds(0.3);
+                    TryRack(ent, gun, now);
+                    comp.TaskNextStep = now + comp.RackDelay;
                     return;
                 }
 
@@ -461,10 +477,11 @@ public sealed partial class ShogkkOperativeAISystem
                     return;
                 }
 
-                // Chamber the first shell.
-                _hands.TrySelect(ent, gun);
-                _interaction.UseInHandInteraction(ent, gun, checkCanInteract: false, checkUseDelay: false);
+                // Loaded shells go straight under the hammer (the last one in is fired first): rack only if needed.
                 FinishReload(ent, gun);
+                ent.Comp.NextRack = TimeSpan.Zero;
+                ent.Comp.FailedRacks = 0;
+                RackIfNeeded(ent, gun, now);
                 return;
             }
         }

@@ -95,6 +95,8 @@
   components:
   - type: ShogkkOperative
   - type: ShogkkOperativeAI
+  # Zombified SHOGKK like Gilbert: redspace map physics don't touch him (see RedspaceImmuneComponent).
+  - type: RedspaceImmune
   # The gun in his hands: one of these, at random, with AmmoCount spare magazines / shell boxes in the bag.
   - type: ShogkkOperativeGear
     weapons:
@@ -106,7 +108,7 @@
       ammo: BoxLethalshot
     - weapon: WeaponRifleAk
       ammo: MagazineLightRifle
-  # Appearance (random male human, yellow eyes) and the random Russian name are applied by ShogkkOperativeSystem.
+  # Appearance (random male human, scarlet eyes) and the random Russian name are applied by ShogkkOperativeSystem.
   - type: HumanoidAppearance
     species: Human
     hideLayersOnEquip:
@@ -116,9 +118,9 @@
   - type: CombatMode
     combatActivationSound: null
     combatDeactivationSound: null
-  # Faint yellow glow of his eyes (the glowing eye layers are drawn by the client visualizer). Off on death.
+  # Faint scarlet glow of his eyes (redder than before, still warmer than Gilbert's crimson) (the glowing eye layers are drawn by the client visualizer). Off on death.
   - type: PointLight
-    color: "#ffc21a"
+    color: "#ff4a1a"
     radius: 1.6
     energy: 0.7
     softness: 1

@@ -5,7 +5,7 @@ using Robust.Shared.Utility;
 namespace Content.Client._CorvaxGoob.ShogkkOperative;
 
 /// <summary>
-/// The only effect a SHOGKK operative has: glowing (unshaded, flickering) yellowish eyes with a faint halo, drawn over
+/// The only effect a SHOGKK operative has: glowing (unshaded, flickering) scarlet eyes with a faint halo, drawn over
 /// the helmet and gas mask like Gilbert's red ones. They go dark when he dies.
 /// </summary>
 public sealed class ShogkkOperativeVisualizerSystem : VisualizerSystem<ShogkkOperativeComponent>
