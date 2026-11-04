@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Made for Abisfera (CorvaxGoob) by Grok Bot; flickering reality patches",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "wall"
+    },
+    {
+      "name": "chasm"
+    },
+    {
+      "name": "floor_wood"
+    },
+    {
+      "name": "floor_white"
+    },
+    {
+      "name": "lattice"
+    }
+  ]
+}

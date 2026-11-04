@@ -1,0 +1,195 @@
+# SHOGKK operatives: rank-and-file zombified soldiers of Gilbert's assault group. Ordinary humans with a brain
+# (ShogkkOperativeAI, see Content.Server/_CorvaxGoob/ShogkkOperative), Gilbert's clothing but a plain black security
+# vest, a dog tag with their own name, a radio on the SHOGKK net and one of four guns. Hostile to everyone Gilbert's
+# faction is hostile to, and to Gilbert himself (and he to them); allies to each other. No ghost role.
+
+- type: npcFaction
+  id: ShogkkOperative
+  friendly:
+  - ShogkkZombified # the ordinary zombified (_CorvaxGoob/ShogkkZombified): neutral both ways
+  hostile:
+  - Gilbert
+  - NanoTrasen
+  - Syndicate
+  - PirateFaction
+  - Revolutionary
+  - Heretic
+  - Changeling
+  - DevilFaction
+  - Shadowling
+  - Zombie
+  - Xeno
+  - SimpleHostile
+  - AllHostile
+  - Dragon
+  - Blob
+  - Xenoborg
+  - Wizard
+  - Wraith
+  - Lavafauna
+
+# Handheld SHOGKK radio without any of the effects of Gilbert's one (no crackle, no glow), redrawn without the red.
+# The operatives call into it from code (RadioSystem.SendRadioMessage); the speaker plays the net.
+- type: entity
+  parent: RadioHandheld
+  id: RadioHandheldShogkkOperative
+  name: SHOGKK operative radio
+  description: A battered handheld radio tuned to 1910.
+  components:
+  - type: RadioMicrophone
+    broadcastChannel: GilbertShogkk
+    listenRange: 2
+    enabled: false
+  - type: RadioSpeaker
+    channels:
+    - GilbertShogkk
+    enabled: true
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Devices/shogkk_radio_plain.rsi
+    layers:
+    - state: walkietalkie
+    - state: walkietalkie-on
+    state: walkietalkie
+  - type: Item
+    sprite: _CorvaxGoob/Objects/Devices/shogkk_radio_plain.rsi
+    heldPrefix: walkietalkie
+
+# The description ("<full name>, private. ...") is written by ShogkkOperativeSystem when the operative is named.
+- type: entity
+  parent: ClothingNeckDogtagShogkk
+  id: ClothingNeckDogtagShogkkOperative
+  name: SHOGKK operative dog tag
+  description: A tag issued to the Red Space assault operations group.
+
+# Army duffel: one first-aid kit and a combat knife. The two magazines / shell boxes for his gun are added by
+# ShogkkOperativeSystem together with the gun.
+- type: entity
+  parent: ClothingBackpackDuffelMilitary
+  id: ClothingBackpackDuffelMilitaryShogkkOperativeFilled
+  suffix: SHOGKK operative, Filled
+  components:
+  - type: StorageFill
+    contents:
+    - id: MedkitFilled
+    - id: CombatKnife
+
+- type: startingGear
+  id: ShogkkOperativeGear
+  equipment:
+    jumpsuit: ClothingUniformJumpsuitShogkk
+    shoes: ClothingShoesBootsShogkk
+    head: ClothingHeadHelmetShogkk
+    mask: ClothingMaskGasSwat
+    neck: ClothingNeckDogtagShogkkOperative
+    gloves: ClothingHandsGlovesCombat
+    outerClothing: ClothingOuterArmorBasic # the black security vest instead of Gilbert's bulletproof one
+    belt: ClothingBeltShogkkWebbing
+    back: ClothingBackpackDuffelMilitaryShogkkOperativeFilled
+    id: ShogkkIDCard
+    pocket1: RadioHandheldShogkkOperative
+
+- type: entity
+  parent: BaseMobShogkkZombified # like Gilbert: no breathing, no pressure / cold damage, redspace immune (zombified_shogkk.yml)
+  id: MobShogkkOperative
+  name: SHOGKK operative
+  suffix: Random weapon
+  description: ""
+  components:
+  - type: ShogkkOperative
+  - type: ShogkkOperativeAI
+  # No SSDIndicator (removed on map init): an NPC nobody plays would otherwise fall into SSD sleep after 10 minutes.
+  - type: ShogkkNoSsdIndicator
+  # The gun in his hands: one of these, at random, with AmmoCount spare magazines / shell boxes in the bag.
+  - type: ShogkkOperativeGear
+    weapons:
+    - weapon: WeaponRifleLecter
+      ammo: MagazineRifle
+    - weapon: WeaponSubMachineGunDrozd
+      ammo: MagazinePistolSubMachineGun
+    - weapon: WeaponShotgunKammerer
+      ammo: BoxLethalshot
+    - weapon: WeaponRifleAk
+      ammo: MagazineLightRifle
+  # Appearance (random male human, scarlet eyes) and the random Russian name are applied by ShogkkOperativeSystem.
+  - type: HumanoidAppearance
+    species: Human
+    hideLayersOnEquip:
+    - Hair
+    - Snout
+  # NPC: no combat-mode UI toggle sounds (the default paths are missing in this repo and would add linter errors).
+  - type: CombatMode
+    combatActivationSound: null
+    combatDeactivationSound: null
+  # Faint scarlet glow of his eyes (redder than before, still warmer than Gilbert's crimson) (the glowing eye layers are drawn by the client visualizer). Off on death.
+  - type: PointLight
+    color: "#ff4a1a"
+    radius: 1.6
+    energy: 0.7
+    softness: 1
+    offset: 0, -0.2
+    castShadows: false
+  - type: NpcFactionMember
+    factions:
+    - ShogkkOperative
+  - type: Loadout
+    prototypes:
+    - ShogkkOperativeGear
+  - type: InputMover
+  - type: MobMover
+
+- type: entity
+  parent: MobShogkkOperative
+  id: MobShogkkOperativeLecter
+  suffix: Lecter
+  components:
+  - type: ShogkkOperativeGear
+    weapons:
+    - weapon: WeaponRifleLecter
+      ammo: MagazineRifle
+
+- type: entity
+  parent: MobShogkkOperative
+  id: MobShogkkOperativeDrozd
+  suffix: Drozd
+  components:
+  - type: ShogkkOperativeGear
+    weapons:
+    - weapon: WeaponSubMachineGunDrozd
+      ammo: MagazinePistolSubMachineGun
+
+- type: entity
+  parent: MobShogkkOperative
+  id: MobShogkkOperativeKammerer
+  suffix: Kammerer
+  components:
+  - type: ShogkkOperativeGear
+    weapons:
+    - weapon: WeaponShotgunKammerer
+      ammo: BoxLethalshot
+
+- type: entity
+  parent: MobShogkkOperative
+  id: MobShogkkOperativeAkm
+  suffix: AKM
+  components:
+  - type: ShogkkOperativeGear
+    weapons:
+    - weapon: WeaponRifleAk
+      ammo: MagazineLightRifle
+
+- type: entity
+  parent: MarkerBase
+  id: SpawnMobShogkkOperative
+  name: SHOGKK operative spawner
+  suffix: Random weapon
+  components:
+  - type: Sprite
+    layers:
+    - state: red
+    - state: ai
+  - type: ConditionalSpawner
+    prototypes:
+    - MobShogkkOperativeLecter
+    - MobShogkkOperativeDrozd
+    - MobShogkkOperativeKammerer
+    - MobShogkkOperativeAkm

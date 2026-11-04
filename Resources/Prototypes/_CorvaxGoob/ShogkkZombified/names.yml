@@ -1,0 +1,7 @@
+# Female first names of the ordinary SHOGKK zombified (men use the operatives' NamesShogkkOperativeFirst; surnames are
+# the operatives' NamesShogkkOperativeLast, put in the female form by "shogkk-zombified-full-name-female").
+- type: localizedDataset
+  id: NamesShogkkZombifiedFirstFemale
+  values:
+    prefix: names-shogkk-zombified-first-female-dataset-
+    count: 30

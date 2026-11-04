@@ -1,0 +1,12 @@
+# Random Russian full names of the SHOGKK operatives (ShogkkOperativeGearComponent picks one first + one last name).
+- type: localizedDataset
+  id: NamesShogkkOperativeFirst
+  values:
+    prefix: names-shogkk-operative-first-dataset-
+    count: 42
+
+- type: localizedDataset
+  id: NamesShogkkOperativeLast
+  values:
+    prefix: names-shogkk-operative-last-dataset-
+    count: 50

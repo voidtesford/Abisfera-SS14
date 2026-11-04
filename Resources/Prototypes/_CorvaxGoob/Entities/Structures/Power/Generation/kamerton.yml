@@ -1,0 +1,102 @@
+# Kamerton reactor: central control module. Stands in the suppressor ring of a reactor core
+# (see _CorvaxGoob/Kamerton/reactor.yml) and drives it.
+- type: entity
+  parent: BaseMachinePowered
+  id: KamertonControlModule
+  name: Kamerton central control module
+  description: Controls incomprehensible forms of energy.
+  placement:
+    mode: SnapgridCenter
+  components:
+  - type: Sprite
+    snapCardinals: true
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_control.rsi
+    layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - state: off
+    - state: on
+      map: [ "enum.PowerDeviceVisualLayers.Powered" ]
+      shader: unshaded
+      visible: false
+    - state: panel_open
+      map: [ "enum.WiresVisualLayers.MaintenancePanel" ]
+      visible: false
+  - type: Transform
+    anchored: true
+    noRot: true
+  - type: ApcPowerReceiver
+    powerLoad: 200
+  - type: Appearance
+  - type: GenericVisualizer
+    visuals:
+      enum.PowerDeviceVisuals.Powered:
+        enum.PowerDeviceVisualLayers.Powered:
+          True: { visible: true }
+          False: { visible: false }
+      enum.WiresVisuals.MaintenancePanelState:
+        enum.WiresVisualLayers.MaintenancePanel:
+          True: { visible: true }
+          False: { visible: false }
+  - type: WiresPanel
+  - type: PointLight
+    radius: 1.5
+    energy: 0.8
+    color: "#7FA8FF"
+    enabled: false
+  - type: LitOnPowered
+  - type: KamertonReactorPart
+    kind: Console
+  - type: KamertonControlModule
+  - type: ActivatableUI
+    key: enum.KamertonReactorUiKey.Key
+  - type: ActivatableUIRequiresPower
+  - type: UserInterface
+    interfaces:
+      enum.KamertonReactorUiKey.Key:
+        type: KamertonReactorBoundUserInterface
+  - type: Anchorable
+  - type: Damageable
+    damageContainer: StructuralInorganic
+    damageModifierSet: StructuralMetallicStrong
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 300
+      behaviors:
+      - !type:DoActsBehavior
+        acts: [ "Destruction" ]
+    - trigger:
+        !type:DamageTrigger
+        damage: 150
+      behaviors:
+      - !type:PlaySoundBehavior
+        sound:
+          collection: MetalBreak
+      - !type:SpawnEntitiesBehavior
+        spawn:
+          SheetSteel1:
+            min: 2
+            max: 4
+      - !type:DoActsBehavior
+        acts: [ "Destruction" ]
+  - type: StaticPrice
+    price: 1500
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
+

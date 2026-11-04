@@ -110,7 +110,9 @@ public sealed partial class FlatpackCreatorMenu : FancyWindow
         else if (_currentBoard != null)
         {
             Dictionary<string, int> cost;
-            if (_entityManager.TryGetComponent<MachineBoardComponent>(_currentBoard, out var machineBoardComp))
+            if (_flatpack.TryGetKamertonBoard(_currentBoard.Value, out _, out var kamertonCost)) // CorvaxGoob-Kamerton
+                cost = kamertonCost;
+            else if (_entityManager.TryGetComponent<MachineBoardComponent>(_currentBoard, out var machineBoardComp))
                 cost = _flatpack.GetFlatpackCreationCost((_owner, flatpacker), (_currentBoard.Value, machineBoardComp));
             else
                 cost = _flatpack.GetFlatpackCreationCost((_owner, flatpacker), null);
@@ -130,7 +132,12 @@ public sealed partial class FlatpackCreatorMenu : FancyWindow
             string? prototype = null;
             Dictionary<string, int>? cost = null;
 
-            if (_entityManager.TryGetComponent<MachineBoardComponent>(_currentBoard, out var newMachineBoardComp))
+            if (_flatpack.TryGetKamertonBoard(_currentBoard.Value, out var kamerton, out var kamertonCost)) // CorvaxGoob-Kamerton
+            {
+                prototype = kamerton!.Entity;
+                cost = kamertonCost;
+            }
+            else if (_entityManager.TryGetComponent<MachineBoardComponent>(_currentBoard, out var newMachineBoardComp))
             {
                 prototype = newMachineBoardComp.Prototype;
                 cost = _flatpack.GetFlatpackCreationCost((_owner, flatpacker), (_currentBoard.Value, newMachineBoardComp));

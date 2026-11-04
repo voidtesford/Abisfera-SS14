@@ -607,6 +607,7 @@
     # CorvaxGoob Packs
     - BluespaceTechnologyBoards # BluespaceHarvester
     - BluespaceHarvesterBoards # BluespaceHarvester
+    - KamertonBoards # CorvaxGoob - Kamerton crystal converter
     - Cloning # Cloning
   - type: MaterialStorage
     whitelist:

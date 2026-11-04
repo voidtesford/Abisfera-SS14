@@ -17,3 +17,4 @@ bluespace-harvester-category-Biological = Биологическая
 bluespace-harvester-category-Destruction = Разрушительная
 research-technology-bluespace = Блюспейс
 research-technology-bluespace-mining = Блюспейс Добыча
+research-technology-kamerton = Камертон

@@ -1,0 +1,74 @@
+<controls:FancyWindow xmlns="https://spacestation14.io"
+                      xmlns:controls="clr-namespace:Content.Client.UserInterface.Controls"
+                      Title="{Loc 'kamerton-reactor-window-title'}"
+                      MinSize="480 680">
+    <BoxContainer Orientation="Vertical" Margin="8" SeparationOverride="6">
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-status'}" MinWidth="190"/>
+            <Label Name="StatusLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-temperature'}" MinWidth="190"/>
+            <ProgressBar Name="TempBar" HorizontalExpand="True" MinValue="0" MaxValue="1" SetHeight="18"/>
+            <Label Name="TempLabel" Margin="6 0 0 0" MinWidth="110"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-power'}" MinWidth="190"/>
+            <ProgressBar Name="PowerBar" HorizontalExpand="True" MinValue="0" MaxValue="1" SetHeight="18"/>
+            <Label Name="PowerLabel" Margin="6 0 0 0" MinWidth="110"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-pairs'}" MinWidth="190"/>
+            <Label Name="PairsLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-output'}" MinWidth="190"/>
+            <Label Name="OutputLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-ring'}" MinWidth="190"/>
+            <Label Name="RingLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+
+        <controls:HLine Color="#39C6FF" Thickness="1"/>
+        <Label Text="{Loc 'kamerton-reactor-window-arrays'}" FontColorOverride="#8C98B0"/>
+        <BoxContainer Name="ArraysBox" Orientation="Vertical"/>
+
+        <controls:HLine Color="#39C6FF" Thickness="1"/>
+        <Label Name="CoolingHeader" FontColorOverride="#8C98B0"/>
+        <BoxContainer Name="SinksBox" Orientation="Vertical"/>
+
+        <controls:HLine Color="#39C6FF" Thickness="1"/>
+        <Label Text="{Loc 'kamerton-reactor-window-szk'}" FontColorOverride="#8C98B0"/>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-szk-status'}" MinWidth="190"/>
+            <Label Name="SzkStatusLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-szk-carriage'}" MinWidth="190"/>
+            <Label Name="SzkCarriageLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-storage'}" MinWidth="190"/>
+            <Label Name="StorageLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-slots'}" MinWidth="190"/>
+            <Label Name="SlotsLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal" SeparationOverride="4">
+            <Button Name="SzkLoadButton" Text="{Loc 'kamerton-reactor-window-szk-load'}" HorizontalExpand="True" StyleClasses="OpenRight"/>
+            <Button Name="SzkUnloadButton" Text="{Loc 'kamerton-reactor-window-szk-unload'}" HorizontalExpand="True" StyleClasses="OpenBoth"/>
+            <Button Name="SzkStopButton" Text="{Loc 'kamerton-reactor-window-szk-stop'}" HorizontalExpand="True" StyleClasses="OpenLeft"/>
+        </BoxContainer>
+        <CheckBox Name="SzkAutoCheck" Text="{Loc 'kamerton-reactor-window-szk-auto'}"/>
+
+        <Label Name="HintLabel" FontColorOverride="#E0304A"/>
+
+        <BoxContainer Orientation="Horizontal" SeparationOverride="4" VerticalExpand="True" VerticalAlignment="Bottom">
+            <Button Name="StartButton" Text="{Loc 'kamerton-reactor-window-start'}" HorizontalExpand="True" StyleClasses="OpenRight"/>
+            <Button Name="StopButton" Text="{Loc 'kamerton-reactor-window-stop'}" HorizontalExpand="True" StyleClasses="OpenBoth"/>
+            <Button Name="ScramButton" Text="{Loc 'kamerton-reactor-window-scram'}" HorizontalExpand="True" StyleClasses="OpenLeft"/>
+        </BoxContainer>
+    </BoxContainer>
+</controls:FancyWindow>

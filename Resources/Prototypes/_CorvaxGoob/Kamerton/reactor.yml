@@ -1,0 +1,1292 @@
+# Kamerton reactor. Parts link up like the AME shielding: every part has an AdjacentNode on the
+# KamertonReactor node group, so anchored parts side by side (N/E/S/W) form one reactor around its core.
+# Any shape works as long as every inner part (core, arrays, synchronizers, radiators) has all 8 neighbours
+# taken by reactor parts, i.e. the inner parts are walled in by shell parts: suppressors, the console, the
+# power unit and the heat sinks. Each fuel array pairs with a synchronizer next to it.
+# Heat path: core/arrays -> radiators -> heat sinks -> gas. A radiator only carries heat away when a chain
+# of radiators links it to a heat sink (heat pipes); unlinked radiators only buffer heat.
+# The standard layout: two parallel lines on each side, radiators inside, heat sinks on the edge. The heat
+# sink columns are pipes (inlet north, outlet south) that leave the reactor at the top and bottom.
+#   H  Q  F  K  Q  Q  H
+#   H  R  A+ Y  A- R  H
+#   H  R  A- Y  A+ R  H
+#   H  R  R  C  R  R  H
+#   H  R  A+ Y  A- R  H
+#   H  R  A- Y  A+ R  H
+#   H  Q  Q  P  Q  Q  H
+# C core, Y synchronizer, A+/A- stable/unstable fuel array, H heat sink, R radiator,
+# Q suppressor, K control module, P power unit, F fuel storage (a shell part next to the console).
+# Add an SZK anywhere in the shell (for example in place of a suppressor next to the storage): its carriage
+# refuels the arrays from the storage; without it the walled-in arrays cannot be refuelled.
+
+- type: entity
+  abstract: true
+  parent: BaseStructure
+  id: KamertonReactorPartBase
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_reactor.rsi
+    drawdepth: Objects
+    snapCardinals: true
+    noRot: true
+  - type: Transform
+    anchored: true
+    noRot: true
+  - type: Anchorable
+  - type: Appearance
+  - type: Damageable
+    damageContainer: StructuralInorganic
+    damageModifierSet: StructuralMetallicStrong
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 400
+      behaviors:
+      - !type:PlaySoundBehavior
+        sound:
+          collection: MetalBreak
+      - !type:SpawnEntitiesBehavior
+        spawn:
+          SheetSteel1:
+            min: 2
+            max: 4
+      - !type:DoActsBehavior
+        acts: [ "Destruction" ]
+  - type: StaticPrice
+    price: 2000
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonReactorCore
+  name: Kamerton reactor core
+  description: The heart of the Kamerton reactor. Everything else is assembled around it.
+  components:
+  - type: Sprite
+    layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - state: core
+    - state: core_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
+      shader: unshaded
+      visible: false
+    - state: core_heat_1
+      map: [ "enum.KamertonReactorVisualLayers.Heat" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.On:
+        enum.KamertonReactorVisualLayers.On:
+          True: { visible: true }
+          False: { visible: false }
+      enum.KamertonReactorVisuals.Heat:
+        enum.KamertonReactorVisualLayers.Heat:
+          0: { visible: false }
+          1: { visible: true, state: core_heat_1 }
+          2: { visible: true, state: core_heat_2 }
+          3: { visible: true, state: core_heat_3 }
+  - type: PointLight
+    radius: 2.5
+    energy: 1.5
+    color: "#8FB0FF"
+    enabled: false
+  - type: KamertonReactorPart
+    kind: Core
+  - type: KamertonReactorCore
+    leakDamage:
+      types:
+        Cellular: 0.2
+    arcDamage:
+      types:
+        Shock: 2
+  - type: StaticPrice
+    price: 10000
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
+
+- type: entity
+  abstract: true
+  parent: KamertonReactorPartBase
+  id: KamertonFuelArrayBase
+  components:
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.Cells:
+        enum.KamertonReactorVisualLayers.Cells:
+          0: { visible: false }
+          1: { visible: true }
+          2: { visible: true }
+          3: { visible: true }
+          4: { visible: true }
+  - type: ContainerContainer
+    containers:
+      cell_1: !type:ContainerSlot
+      cell_2: !type:ContainerSlot
+      cell_3: !type:ContainerSlot
+      cell_4: !type:ContainerSlot
+
+- type: entity
+  parent: KamertonFuelArrayBase
+  id: KamertonStableFuelArray
+  name: Kamerton stable fuel array
+  description: A cradle for super-energy cells. The cells hum quietly inside it.
+  components:
+  - type: Sprite
+    layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - state: array_stable
+    - state: cells_stable_1
+      map: [ "enum.KamertonReactorVisualLayers.Cells" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.Cells:
+        enum.KamertonReactorVisualLayers.Cells:
+          0: { visible: false }
+          1: { visible: true, state: cells_stable_1 }
+          2: { visible: true, state: cells_stable_2 }
+          3: { visible: true, state: cells_stable_3 }
+          4: { visible: true, state: cells_stable_4 }
+  - type: ItemSlots
+    slots:
+      cell_1: &stableSlot
+        name: kamerton-reactor-slot-cell
+        whitelist:
+          tags:
+          - KamertonStableCell
+      cell_2: *stableSlot
+      cell_3: *stableSlot
+      cell_4: *stableSlot
+  - type: KamertonReactorPart
+    kind: StableArray
+  - type: KamertonFuelArray
+    kind: Stable
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
+
+- type: entity
+  parent: KamertonFuelArrayBase
+  id: KamertonUnstableFuelArray
+  name: Kamerton unstable fuel array
+  description: A cradle for unstable super-energy cells. Red light flickers between its contacts.
+  components:
+  - type: Sprite
+    layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - state: array_unstable
+    - state: cells_unstable_1
+      map: [ "enum.KamertonReactorVisualLayers.Cells" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.Cells:
+        enum.KamertonReactorVisualLayers.Cells:
+          0: { visible: false }
+          1: { visible: true, state: cells_unstable_1 }
+          2: { visible: true, state: cells_unstable_2 }
+          3: { visible: true, state: cells_unstable_3 }
+          4: { visible: true, state: cells_unstable_4 }
+  - type: ItemSlots
+    slots:
+      cell_1: &unstableSlot
+        name: kamerton-reactor-slot-cell
+        whitelist:
+          tags:
+          - KamertonUnstableCell
+      cell_2: *unstableSlot
+      cell_3: *unstableSlot
+      cell_4: *unstableSlot
+  - type: KamertonReactorPart
+    kind: UnstableArray
+  - type: KamertonFuelArray
+    kind: Unstable
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonSynchronizer
+  name: Kamerton synchronizer
+  description: Tunes stable and unstable cells to one frequency, so they ring together like a tuning fork.
+  components:
+  - type: Sprite
+    layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - state: sync
+    - state: sync_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.On:
+        enum.KamertonReactorVisualLayers.On:
+          True: { visible: true }
+          False: { visible: false }
+  - type: PointLight
+    radius: 1.5
+    energy: 1
+    color: "#B07FFF"
+    enabled: false
+  - type: KamertonReactorPart
+    kind: Synchronizer
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonHeatSink
+  name: Kamerton heat sink
+  description: A heavy finned pipe running through the reactor shell. Gas flowing through it carries the reactor heat away.
+  components:
+  - type: Sprite
+    noRot: true
+    snapCardinals: true
+    layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: heat_0
+      map: [ "enum.KamertonReactorVisualLayers.HeatLink" ]
+      visible: false
+    - state: heatsink
+    - state: heatsink_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
+      shader: unshaded
+      visible: false
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: sinklink_0
+      map: [ "enum.KamertonReactorVisualLayers.SinkLink" ]
+      visible: false
+  - type: Transform
+    noRot: false
+  - type: Rotatable
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.On:
+        enum.KamertonReactorVisualLayers.On:
+          True: { visible: true }
+          False: { visible: false }
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+      pipe:
+        !type:PipeNode
+        nodeGroupID: Pipe
+        pipeDirection: Longitudinal
+  - type: KamertonReactorPart
+    kind: HeatSink
+  - type: KamertonHeatSink
+  - type: KamertonLinkVisuals
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonRadiator
+  name: Kamerton radiator
+  description: A dense heat block that soaks up reactor heat and hands it on to its neighbours.
+  components:
+  - type: Sprite
+    noRot: true
+    snapCardinals: true
+    layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: heat_0
+      map: [ "enum.KamertonReactorVisualLayers.HeatLink" ]
+      visible: false
+    - state: radiator
+    - state: radiator_heat_1
+      map: [ "enum.KamertonReactorVisualLayers.Heat" ]
+      shader: unshaded
+      visible: false
+  - type: Transform
+    noRot: false
+  - type: Rotatable
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.Heat:
+        enum.KamertonReactorVisualLayers.Heat:
+          0: { visible: false }
+          1: { visible: true, state: radiator_heat_1 }
+          2: { visible: true, state: radiator_heat_2 }
+          3: { visible: true, state: radiator_heat_3 }
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonReactorPart
+    kind: Radiator
+  - type: KamertonRadiator
+  - type: KamertonLinkVisuals
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonSuppressor
+  name: Kamerton suppressor
+  description: A segment of the suppressor ring that keeps redspace inside the reactor.
+  components:
+  - type: Sprite
+    layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - state: suppressor
+    - state: suppressor_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.On:
+        enum.KamertonReactorVisualLayers.On:
+          True: { visible: true }
+          False: { visible: false }
+  - type: PointLight
+    radius: 1.2
+    energy: 0.8
+    color: "#39C6FF"
+    enabled: false
+  - type: KamertonReactorPart
+    kind: Suppressor
+  - type: StaticPrice
+    price: 500
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonPowerUnit
+  name: Kamerton power unit
+  description: Feeds the reactor output into the high-voltage network.
+  components:
+  - type: Sprite
+    layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - state: powerunit
+    - state: powerunit_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.On:
+        enum.KamertonReactorVisualLayers.On:
+          True: { visible: true }
+          False: { visible: false }
+  - type: PointLight
+    radius: 1.5
+    energy: 1
+    color: "#39C6FF"
+    enabled: false
+  - type: NodeContainer
+    examinable: true
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+      output:
+        !type:CableDeviceNode
+        nodeGroupID: HVPower
+  - type: PowerMonitoringDevice
+    group: Generator
+    loadNode: output
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_reactor.rsi
+    state: powerunit
+  - type: PowerSupplier
+    supplyRate: 0
+    # Ramps up to the full 800 kW in a few seconds.
+    supplyRampRate: 200000
+    supplyRampTolerance: 50000
+  - type: KamertonReactorPart
+    kind: PowerUnit
+  - type: KamertonPowerUnit
+  # Without this the hull corners never get the neighbour mask: the power unit stood out as a framed box.
+  - type: KamertonLinkVisuals
+
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonFuelStorage
+  name: Kamerton fuel storage
+  description: A shielded rack for spare super-energy cells, built into the reactor shell.
+  components:
+  - type: Sprite
+    layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - state: storage
+    - state: storage_stable_1
+      map: [ "enum.KamertonReactorVisualLayers.StorageStable" ]
+      shader: unshaded
+      visible: false
+    - state: storage_unstable_1
+      map: [ "enum.KamertonReactorVisualLayers.StorageUnstable" ]
+      shader: unshaded
+      visible: false
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.StorageStable:
+        enum.KamertonReactorVisualLayers.StorageStable:
+          0: { visible: false }
+          1: { visible: true, state: storage_stable_1 }
+          2: { visible: true, state: storage_stable_2 }
+          3: { visible: true, state: storage_stable_3 }
+          4: { visible: true, state: storage_stable_4 }
+          5: { visible: true, state: storage_stable_5 }
+      enum.KamertonReactorVisuals.StorageUnstable:
+        enum.KamertonReactorVisualLayers.StorageUnstable:
+          0: { visible: false }
+          1: { visible: true, state: storage_unstable_1 }
+          2: { visible: true, state: storage_unstable_2 }
+          3: { visible: true, state: storage_unstable_3 }
+          4: { visible: true, state: storage_unstable_4 }
+          5: { visible: true, state: storage_unstable_5 }
+  - type: ContainerContainer
+    containers:
+      stable_cells: !type:Container
+      unstable_cells: !type:Container
+  - type: KamertonFuelStorage
+  - type: KamertonReactorPart
+    kind: FuelStorage
+  - type: StaticPrice
+    price: 800
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
+
+# SZK («СЗК», Kamerton refuelling system): a shell part. Anchored in the shell of an assembled reactor it lays
+# a rail lattice over the whole reactor and runs a manipulator carriage on it between the fuel storage and the
+# arrays. The arrays are walled in, so a reactor without an SZK cannot be refuelled.
+- type: entity
+  parent: KamertonReactorPartBase
+  id: KamertonSzk
+  name: SZK
+  description: The Kamerton refuelling system. Built into the reactor shell, it lays a rail lattice over the reactor; a manipulator carriage carries cells between the fuel storage and the arrays.
+  components:
+  - type: Sprite
+    layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - state: szk
+    - state: szk_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
+      shader: unshaded
+      visible: false
+  - type: ContainerContainer
+    containers:
+      szk_carriage: !type:ContainerSlot
+  - type: KamertonSzk
+  - type: KamertonReactorPart
+    kind: Szk
+  - type: StaticPrice
+    price: 1500
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
+
+- type: entity
+  id: KamertonSzkRail
+  name: SZK rails
+  description: The rail lattice of the Kamerton refuelling system, above the reactor modules.
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Transform
+    noRot: true
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_szk.rsi
+    drawdepth: LargeObjects
+    noRot: true
+    layers:
+    - state: rail_0
+      map: [ "enum.KamertonReactorVisualLayers.Rails" ]
+  - type: Appearance
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.Rails:
+        enum.KamertonReactorVisualLayers.Rails:
+          0: { state: rail_0 }
+          1: { state: rail_1 }
+          2: { state: rail_2 }
+          3: { state: rail_3 }
+          4: { state: rail_4 }
+          5: { state: rail_5 }
+          6: { state: rail_6 }
+          7: { state: rail_7 }
+          8: { state: rail_8 }
+          9: { state: rail_9 }
+          10: { state: rail_10 }
+          11: { state: rail_11 }
+          12: { state: rail_12 }
+          13: { state: rail_13 }
+          14: { state: rail_14 }
+          15: { state: rail_15 }
+  - type: KamertonSzkRail
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+- type: entity
+  id: KamertonSzkCarriage
+  name: SZK carriage
+  description: The manipulator carriage of the Kamerton refuelling system. It rides the rails and swaps the cells in the arrays.
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Transform
+    noRot: true
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_szk.rsi
+    drawdepth: BelowMobs
+    noRot: true
+    layers:
+    - state: carriage
+    - state: load_stable
+      map: [ "enum.KamertonReactorVisualLayers.Load" ]
+      shader: unshaded
+      visible: false
+    - state: carriage_lights
+      shader: unshaded
+  - type: Appearance
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.Carriage:
+        enum.KamertonReactorVisualLayers.Load:
+          0: { visible: false }
+          1: { visible: true, state: load_stable }
+          2: { visible: true, state: load_unstable }
+          3: { visible: true, state: load_spent }
+  - type: PointLight
+    radius: 1.2
+    energy: 0.6
+    color: "#39C6FF"
+  - type: KamertonSzkCarriage
+
+- type: entity
+  id: KamertonSzkPickupEffect
+  name: cell pickup
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_szk.rsi
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - state: fx_pickup
+      shader: unshaded
+  - type: TimedDespawn
+    lifetime: 0.4
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+- type: entity
+  id: KamertonSzkInsertEffect
+  name: manipulator zap
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_szk.rsi
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - state: fx_zap
+      shader: unshaded
+  - type: TimedDespawn
+    lifetime: 0.4
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Flatpacks (multitool to unpack, like the AME flatpack).
+
+- type: entity
+  abstract: true
+  parent: BaseFlatpack
+  id: KamertonFlatpackBase
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Devices/kamerton_flatpack.rsi
+    layers:
+    - state: base
+    - state: icon-core
+      map: [ "icon" ]
+  - type: StaticPrice
+    price: 500
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonReactorCoreFlatpack
+  name: Kamerton reactor core flatpack
+  description: A flatpack used for constructing a Kamerton reactor core.
+  components:
+  - type: Flatpack
+    entity: KamertonReactorCore
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-core
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonStableFuelArrayFlatpack
+  name: Kamerton stable fuel array flatpack
+  description: A flatpack used for constructing a Kamerton stable fuel array.
+  components:
+  - type: Flatpack
+    entity: KamertonStableFuelArray
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-stable
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonUnstableFuelArrayFlatpack
+  name: Kamerton unstable fuel array flatpack
+  description: A flatpack used for constructing a Kamerton unstable fuel array.
+  components:
+  - type: Flatpack
+    entity: KamertonUnstableFuelArray
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-unstable
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonSynchronizerFlatpack
+  name: Kamerton synchronizer flatpack
+  description: A flatpack used for constructing a Kamerton synchronizer.
+  components:
+  - type: Flatpack
+    entity: KamertonSynchronizer
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-sync
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonHeatSinkFlatpack
+  name: Kamerton heat sink flatpack
+  description: A flatpack used for constructing a Kamerton heat sink.
+  components:
+  - type: Flatpack
+    entity: KamertonHeatSink
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-heatsink
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonRadiatorFlatpack
+  name: Kamerton radiator flatpack
+  description: A flatpack used for constructing a Kamerton radiator.
+  components:
+  - type: Flatpack
+    entity: KamertonRadiator
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-radiator
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonSuppressorFlatpack
+  name: Kamerton suppressor flatpack
+  description: A flatpack used for constructing a Kamerton suppressor ring segment.
+  components:
+  - type: Flatpack
+    entity: KamertonSuppressor
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-suppressor
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonPowerUnitFlatpack
+  name: Kamerton power unit flatpack
+  description: A flatpack used for constructing a Kamerton power unit.
+  components:
+  - type: Flatpack
+    entity: KamertonPowerUnit
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-powerunit
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonControlModuleFlatpack
+  name: Kamerton control module flatpack
+  description: A flatpack used for constructing a Kamerton central control module.
+  components:
+  - type: Flatpack
+    entity: KamertonControlModule
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-console
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonFuelStorageFlatpack
+  name: Kamerton fuel storage flatpack
+  description: A flatpack used for constructing a Kamerton fuel storage.
+  components:
+  - type: Flatpack
+    entity: KamertonFuelStorage
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-storage
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonSzkFlatpack
+  name: SZK flatpack
+  description: A flatpack used for constructing the Kamerton refuelling system.
+  components:
+  - type: Flatpack
+    entity: KamertonSzk
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-szk
+
+# Meltdown arcs: thin red and blue lightning running from the core, drawn like Gilbert's phase-2 bolts.
+- type: entity
+  id: KamertonArcFxBase
+  abstract: true
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/kamerton_arc.rsi
+    drawdepth: Effects
+    noRot: false
+  - type: TimedDespawn
+    lifetime: 0.16
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+- type: entity
+  id: KamertonArcSegmentRed
+  parent: KamertonArcFxBase
+  name: red arc
+  components:
+  - type: Sprite
+    layers:
+    - state: bolt_red
+      shader: unshaded
+
+- type: entity
+  id: KamertonArcSegmentBlue
+  parent: KamertonArcFxBase
+  name: blue arc
+  components:
+  - type: Sprite
+    layers:
+    - state: bolt_blue
+      shader: unshaded
+
+- type: entity
+  id: KamertonArcCrawlRed
+  parent: KamertonArcFxBase
+  name: red crackle
+  components:
+  - type: Sprite
+    noRot: true
+    layers:
+    - state: crawl_red
+      shader: unshaded
+  - type: PointLight
+    color: "#ff4040"
+    radius: 1.4
+    energy: 1.4
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.3
+
+- type: entity
+  id: KamertonArcCrawlBlue
+  parent: KamertonArcFxBase
+  name: blue crackle
+  components:
+  - type: Sprite
+    noRot: true
+    layers:
+    - state: crawl_blue
+      shader: unshaded
+  - type: PointLight
+    color: "#4080ff"
+    radius: 1.4
+    energy: 1.4
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.3
+
+# Flatpacker boards («упаковщик 1001»). Printed at the circuit imprinter after the «Камертон» research;
+# the flatpacker turns each one into the ready flatpack. Costs are material units (100 per sheet).
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonReactorCoreFlatpackBoard
+  name: Kamerton reactor core flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton reactor core; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonReactorCoreFlatpack
+    entity: KamertonReactorCore
+    cost:
+      Steel: 3000
+      Plasteel: 2500
+      Gold: 1500
+      Plasma: 1000
+      Silver: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonStableFuelArrayFlatpackBoard
+  name: Kamerton stable fuel array flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton stable fuel array; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonStableFuelArrayFlatpack
+    entity: KamertonStableFuelArray
+    cost:
+      Steel: 1500
+      Plasteel: 1500
+      Silver: 1000
+      Gold: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonUnstableFuelArrayFlatpackBoard
+  name: Kamerton unstable fuel array flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton unstable fuel array; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonUnstableFuelArrayFlatpack
+    entity: KamertonUnstableFuelArray
+    cost:
+      Steel: 1500
+      Plasteel: 1500
+      Plasma: 500
+      Uranium: 500
+      Gold: 500
+      Silver: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonSynchronizerFlatpackBoard
+  name: Kamerton synchronizer flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton synchronizer; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonSynchronizerFlatpack
+    entity: KamertonSynchronizer
+    cost:
+      Steel: 1000
+      Glass: 500
+      Gold: 1000
+      Plasteel: 1000
+      Silver: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonHeatSinkFlatpackBoard
+  name: Kamerton heat sink flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton heat sink; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonHeatSinkFlatpack
+    entity: KamertonHeatSink
+    cost:
+      Steel: 1000
+      Plasteel: 1500
+      Gold: 500
+      Silver: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonRadiatorFlatpackBoard
+  name: Kamerton radiator flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton radiator; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonRadiatorFlatpack
+    entity: KamertonRadiator
+    cost:
+      Steel: 1000
+      Glass: 1000
+      Plasteel: 1000
+      Gold: 500
+      Silver: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonSuppressorFlatpackBoard
+  name: Kamerton suppressor flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton suppressor; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonSuppressorFlatpack
+    entity: KamertonSuppressor
+    cost:
+      Steel: 1500
+      Plasteel: 2000
+      Gold: 500
+      Silver: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonPowerUnitFlatpackBoard
+  name: Kamerton power unit flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton power unit; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonPowerUnitFlatpack
+    entity: KamertonPowerUnit
+    cost:
+      Steel: 1500
+      Gold: 1000
+      Silver: 1000
+      Plasteel: 1000
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonControlModuleFlatpackBoard
+  name: Kamerton control module flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton control module; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonControlModuleFlatpack
+    entity: KamertonControlModule
+    cost:
+      Steel: 1000
+      Glass: 1000
+      Gold: 1000
+      Plasteel: 1000
+      Silver: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonFuelStorageFlatpackBoard
+  name: Kamerton fuel storage flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton fuel storage; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonFuelStorageFlatpack
+    entity: KamertonFuelStorage
+    cost:
+      Steel: 1500
+      Plasteel: 1500
+      Gold: 500
+      Silver: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonSzkFlatpackBoard
+  name: SZK flatpack board
+  description: A circuit board for the flatpacker. It packs the Kamerton refuelling system; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonSzkFlatpack
+    entity: KamertonSzk
+    cost:
+      Steel: 2000
+      Plasteel: 1500
+      Gold: 700
+      Silver: 500
+  - type: StaticPrice
+    price: 300
+
+- type: latheRecipe
+  id: KamertonReactorCoreFlatpackBoard
+  result: KamertonReactorCoreFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonStableFuelArrayFlatpackBoard
+  result: KamertonStableFuelArrayFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonUnstableFuelArrayFlatpackBoard
+  result: KamertonUnstableFuelArrayFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonSynchronizerFlatpackBoard
+  result: KamertonSynchronizerFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonHeatSinkFlatpackBoard
+  result: KamertonHeatSinkFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonRadiatorFlatpackBoard
+  result: KamertonRadiatorFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonSuppressorFlatpackBoard
+  result: KamertonSuppressorFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonPowerUnitFlatpackBoard
+  result: KamertonPowerUnitFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonControlModuleFlatpackBoard
+  result: KamertonControlModuleFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonFuelStorageFlatpackBoard
+  result: KamertonFuelStorageFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonSzkFlatpackBoard
+  result: KamertonSzkFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300

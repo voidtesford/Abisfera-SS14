@@ -80,6 +80,7 @@
           components:
           - MachineBoard
           - ComputerBoard
+          - KamertonFlatpackBoard # CorvaxGoob-Kamerton
   - type: AutomationSlots # Goobstation
     slots:
     - !type:AutomatedItemSlot

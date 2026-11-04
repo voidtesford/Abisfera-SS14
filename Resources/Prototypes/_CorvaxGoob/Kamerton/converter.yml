@@ -1,0 +1,179 @@
+# Kamerton crystal converter (stage 1).
+
+- type: entity
+  id: KamertonConverter
+  parent: [ BaseMachinePowered, ConstructibleMachine ]
+  name: crystal converter
+  description: Kamerton-line crystal converter. Turns bluespace crystals into redspace ones, grinds crystals into raw energy and charges super-energy cells.
+  placement:
+    mode: SnapgridCenter
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Machines/kamerton_converter.rsi
+    snapCardinals: true
+    layers:
+    - state: base
+    - state: fill_0
+      map: [ "enum.KamertonConverterVisualLayers.Fill" ]
+    - state: screen_create
+      map: [ "enum.KamertonConverterVisualLayers.Mode" ]
+      shader: unshaded
+    - state: working_create
+      map: [ "enum.KamertonConverterVisualLayers.Work" ]
+      shader: unshaded
+      visible: false
+    - state: powered
+      map: [ "enum.PowerDeviceVisualLayers.Powered" ]
+      shader: unshaded
+    - state: panel_open
+      map: [ "enum.WiresVisualLayers.MaintenancePanel" ]
+      visible: false
+  - type: Icon
+    sprite: _CorvaxGoob/Structures/Machines/kamerton_converter.rsi
+    state: base
+  - type: Appearance
+  - type: GenericVisualizer
+    visuals:
+      enum.PowerDeviceVisuals.Powered:
+        enum.PowerDeviceVisualLayers.Powered:
+          True: { visible: true }
+          False: { visible: false }
+      enum.WiresVisuals.MaintenancePanelState:
+        enum.WiresVisualLayers.MaintenancePanel:
+          True: { visible: true }
+          False: { visible: false }
+      enum.KamertonConverterVisuals.Mode:
+        enum.KamertonConverterVisualLayers.Mode:
+          Create: { state: screen_create }
+          Destroy: { state: screen_destroy }
+      enum.KamertonConverterVisuals.Work:
+        enum.KamertonConverterVisualLayers.Work:
+          Idle: { visible: false }
+          Creating: { visible: true, state: working_create }
+          Grinding: { visible: true, state: working_destroy }
+          Printing: { visible: true, state: working_print }
+      enum.KamertonConverterVisuals.Fill:
+        enum.KamertonConverterVisualLayers.Fill:
+          0: { state: fill_0 }
+          1: { state: fill_1 }
+          2: { state: fill_2 }
+          3: { state: fill_3 }
+          4: { state: fill_4 }
+          5: { state: fill_5 }
+          6: { state: fill_6 }
+          7: { state: fill_7 }
+          8: { state: fill_8 }
+          9: { state: fill_9 }
+          10: { state: fill_10 }
+  - type: KamertonConverter
+  - type: PointLight
+    radius: 2
+    energy: 1.6
+    color: "#E0304A"
+    enabled: false
+  - type: Physics
+    bodyType: Static
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.4,-0.45,0.4,0.4"
+        density: 190
+        mask:
+        - MachineMask
+        layer:
+        - MachineLayer
+  - type: ActivatableUI
+    key: enum.KamertonConverterUiKey.Key
+  - type: ActivatableUIRequiresPower
+  - type: UserInterface
+    interfaces:
+      enum.KamertonConverterUiKey.Key:
+        type: KamertonConverterBoundUserInterface
+  - type: ApcPowerReceiver
+    powerLoad: 1500
+  - type: MaterialStorage
+    whitelist:
+      tags:
+      - Sheet
+    materialWhiteList: [ Plasma, Uranium ]
+  - type: WiresPanel
+  - type: Machine
+    board: KamertonConverterCircuitboard
+  - type: ContainerContainer
+    containers:
+      cell: !type:ContainerSlot
+      machine_board: !type:Container
+      machine_parts: !type:Container
+  - type: ItemSlots
+    slots:
+      cell:
+        name: kamerton-converter-cell-slot
+        whitelist:
+          tags:
+          - KamertonStableCell
+          - KamertonUnstableCell
+  - type: Damageable
+    damageContainer: StructuralInorganic
+    damageModifierSet: StructuralMetallic
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 200
+      behaviors:
+      - !type:PlaySoundBehavior
+        sound:
+          collection: MetalGlassBreak
+      - !type:ChangeConstructionNodeBehavior
+        node: machineFrame
+      - !type:DoActsBehavior
+        acts: [ "Destruction" ]
+  - type: StaticPrice
+    price: 2000
+
+- type: entity
+  parent: BaseMachineCircuitboard
+  id: KamertonConverterCircuitboard
+  name: crystal converter machine board
+  description: A machine printed circuit board for a Kamerton crystal converter.
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Bluespace/module.rsi
+    state: bluespace
+  - type: MachineBoard
+    prototype: KamertonConverter
+    # 3 manipulators + 3 matter bins + 3 capacitors. This fork merged every stock part into one
+    # "modular machine part" (stack Manipulator), so all nine are that part.
+    stackRequirements:
+      Manipulator: 9
+      PlasmaGlass: 1
+  - type: Item
+    size: Normal
+
+# Science circuit imprinter: 5 steel, 10 gold, 5 silver sheets (100 units per sheet).
+- type: latheRecipe
+  id: KamertonConverterCircuitboard
+  result: KamertonConverterCircuitboard
+  completetime: 4
+  materials:
+    Steel: 500
+    Gold: 1000
+    Silver: 500
+
+- type: latheRecipePack
+  id: KamertonBoards
+  recipes:
+  - KamertonConverterCircuitboard
+  - KamertonReactorCoreFlatpackBoard
+  - KamertonStableFuelArrayFlatpackBoard
+  - KamertonUnstableFuelArrayFlatpackBoard
+  - KamertonSynchronizerFlatpackBoard
+  - KamertonHeatSinkFlatpackBoard
+  - KamertonRadiatorFlatpackBoard
+  - KamertonSuppressorFlatpackBoard
+  - KamertonPowerUnitFlatpackBoard
+  - KamertonControlModuleFlatpackBoard
+  - KamertonFuelStorageFlatpackBoard
+  - KamertonSzkFlatpackBoard

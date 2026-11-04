@@ -78,7 +78,9 @@ public sealed class FlatpackSystem : SharedFlatpackSystem
             return;
 
         Dictionary<string, int> cost;
-        if (TryComp<MachineBoardComponent>(board, out var machine))
+        if (TryGetKamertonBoard(board, out _, out var kamertonCost)) // CorvaxGoob-Kamerton
+            cost = kamertonCost;
+        else if (TryComp<MachineBoardComponent>(board, out var machine))
             cost = GetFlatpackCreationCost(ent, (board, machine));
         else if (TryComp<ComputerBoardComponent>(board, out var computer) && computer.Prototype != null)
             cost = GetFlatpackCreationCost(ent, null);
@@ -121,6 +123,18 @@ public sealed class FlatpackSystem : SharedFlatpackSystem
 
         if (!_itemSlots.TryGetSlot(uid, comp.SlotId, out var itemSlot) || itemSlot.Item is not { } board)
             return;
+
+        // CorvaxGoob-Kamerton-Start: the board names a ready flatpack (with its own sprite).
+        if (TryGetKamertonBoard(board, out var kamerton, out var kamertonCost))
+        {
+            if (!MaterialStorage.TryChangeMaterialAmount((ent, null), kamertonCost))
+                return;
+
+            Spawn(kamerton!.Flatpack, Transform(ent).Coordinates);
+            Del(board);
+            return;
+        }
+        // CorvaxGoob-Kamerton-End
 
         Dictionary<string, int> cost;
         EntProtoId proto;

@@ -3,6 +3,8 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+using System.Globalization;
+using Content.Server._CorvaxGoob.Shuttles; // CorvaxGoob
 using Content.Server.Administration;
 using Content.Shared.Administration;
 using Content.Shared.Hands.Components;
@@ -61,6 +63,28 @@ public sealed class FTLDiskCommand : LocalizedCommands
         var labelSystem = _entSystemManager.GetEntitySystem<LabelSystem>();
         var mapSystem = _entSystemManager.GetEntitySystem<SharedMapSystem>();
         var storageSystem = _entSystemManager.GetEntitySystem<SharedStorageSystem>();
+
+        // CorvaxGoob: ftldisk <map> <x> <y> <direction> - the shuttle console arrives exactly at x y facing direction.
+        (System.Numerics.Vector2 Position, Direction Direction)? exact = null;
+        if (args.Length == 4 && FTLDiskExactTargetSystem.TryParseDirection(args[3], out var exactDir))
+        {
+            if (!float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out var x) ||
+                !float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out var y))
+            {
+                shell.WriteError(Loc.GetString("cmd-ftldisk-bad-coordinates", ("x", args[1]), ("y", args[2])));
+                return;
+            }
+
+            exact = (new System.Numerics.Vector2(x, y), exactDir);
+            args = new[] { args[0] };
+        }
+        else if (args.Length == 4 && float.TryParse(args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+                 && float.TryParse(args[2], NumberStyles.Float, CultureInfo.InvariantCulture, out _)
+                 && !_entManager.TryParseNetEntity(args[3], out _))
+        {
+            shell.WriteError(Loc.GetString("cmd-ftldisk-bad-direction", ("direction", args[3])));
+            return;
+        }
 
         foreach (var destinations in args)
         {
@@ -140,14 +164,27 @@ public sealed class FTLDiskCommand : LocalizedCommands
                 cd.Destination = dest;
                 _entManager.Dirty(cdUid, cd);
 
+                // CorvaxGoob: exact console position and facing
+                if (exact is { } target)
+                {
+                    _entSystemManager.GetEntitySystem<FTLDiskExactTargetSystem>().SetTarget(cdUid, dest, target.Position, target.Direction);
+                    shell.WriteLine(Loc.GetString("cmd-ftldisk-exact",
+                        ("map", dest), ("x", target.Position.X), ("y", target.Position.Y),
+                        ("direction", Loc.GetString($"cmd-ftldisk-direction-{target.Direction.ToString().ToLowerInvariant()}"))));
+                }
+
                 // create disk case
                 EntityUid cdCaseUid = _entManager.SpawnEntity(DiskCase, coords);
 
                 // apply labels
                 if (_entManager.TryGetComponent<MetaDataComponent>(dest, out var meta) && meta != null && meta.EntityName != null)
                 {
-                    labelSystem.Label(cdUid, meta.EntityName);
-                    labelSystem.Label(cdCaseUid, meta.EntityName);
+                    // CorvaxGoob: exact disks also carry the point in their label
+                    var label = exact is { } l
+                        ? $"{meta.EntityName} ({l.Position.X.ToString(CultureInfo.InvariantCulture)}, {l.Position.Y.ToString(CultureInfo.InvariantCulture)})"
+                        : meta.EntityName;
+                    labelSystem.Label(cdUid, label);
+                    labelSystem.Label(cdCaseUid, label);
                 }
 
                 // if the case has a storage, try to place the disk in there and then the case inhand
@@ -178,8 +215,27 @@ public sealed class FTLDiskCommand : LocalizedCommands
 
     public override CompletionResult GetCompletion(IConsoleShell shell, string[] args)
     {
-        if (args.Length >= 1)
-            return CompletionResult.FromHintOptions(CompletionHelper.MapUids(_entManager), Loc.GetString("cmd-ftldisk-hint"));
+        // CorvaxGoob: ftldisk <map> [x y direction]; several maps without coordinates still work as before.
+        switch (args.Length)
+        {
+            case 1:
+                return CompletionResult.FromHintOptions(CompletionHelper.MapUids(_entManager), Loc.GetString("cmd-ftldisk-hint"));
+            case 2:
+                return CompletionResult.FromHintOptions(CompletionHelper.MapUids(_entManager), Loc.GetString("cmd-ftldisk-hint-x"));
+            case 3:
+                return CompletionResult.FromHint(Loc.GetString("cmd-ftldisk-hint-y"));
+            case 4:
+                return CompletionResult.FromHintOptions(new[]
+                {
+                    new CompletionOption("north", Loc.GetString("cmd-ftldisk-direction-north")),
+                    new CompletionOption("south", Loc.GetString("cmd-ftldisk-direction-south")),
+                    new CompletionOption("east", Loc.GetString("cmd-ftldisk-direction-east")),
+                    new CompletionOption("west", Loc.GetString("cmd-ftldisk-direction-west")),
+                }, Loc.GetString("cmd-ftldisk-hint-direction"));
+            case > 4:
+                return CompletionResult.FromHintOptions(CompletionHelper.MapUids(_entManager), Loc.GetString("cmd-ftldisk-hint"));
+        }
+
         return CompletionResult.Empty;
     }
 }

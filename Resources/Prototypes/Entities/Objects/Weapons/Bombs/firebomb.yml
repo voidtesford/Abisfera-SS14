@@ -48,6 +48,8 @@
     maxIntensity: 3
     canCreateVacuum: false
   - type: ExplodeOnTrigger
+  - type: SpawnOnTrigger
+    proto: FireNRFHELL  
   - type: Appearance
   - type: AnimationPlayer
   - type: TimerTriggerVisuals

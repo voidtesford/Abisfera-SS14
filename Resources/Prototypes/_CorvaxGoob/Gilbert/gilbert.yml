@@ -22,6 +22,8 @@
   - Wizard
   - Wraith
   - Lavafauna
+  - ShogkkOperative # the rank-and-file operatives (_CorvaxGoob/ShogkkOperative): mutual enemies
+  - ShogkkZombified # the ordinary zombified (_CorvaxGoob/ShogkkZombified): mutual enemies too
 
 - type: damageModifierSet
   id: GilbertModifiers
@@ -47,7 +49,7 @@
   - WeaponShotgunCombatShogkk
 
 - type: entity
-  parent: BaseMobHuman
+  parent: BaseMobShogkkZombified # no breathing, no pressure / cold damage, redspace immune (zombified_shogkk.yml)
   id: MobGilbert
   name: Gilbert
   description: ""
@@ -93,16 +95,6 @@
   - type: CombatMode
     combatActivationSound: null
     combatDeactivationSound: null
-  # Cold immunity: temperature damage ignores resistances, so the cold damage itself is removed.
-  - type: Temperature
-    heatDamageThreshold: 325
-    coldDamageThreshold: 0
-    currentTemperature: 310.15
-    specificHeat: 42
-    coldDamage: {}
-    heatDamage:
-      types:
-        Heat: 1.5
   # Triple the default stamina pool (100): stun batons and shoves take three times as long to down him.
   # The animation / stun-modifier thresholds are scaled by the same factor.
   - type: Stamina
@@ -112,8 +104,6 @@
       0: 1
       180: 0.7
       240: 0.5
-  - type: BreathingImmunity
-  - type: PressureImmunity
   - type: MeleeWeapon
     soundHit:
       collection: Punch

@@ -1,0 +1,117 @@
+# Redspace map physics presets (RedspaceMapComponent.preset). Any field of RedspaceSettings may be set here;
+# fields left out keep the C# defaults, which equal the "normal" preset. See /workspace/redspace-physics-README.md.
+
+# Calm zone: weak currents, rare events, unprotected death in ~10 min.
+- type: redspacePreset
+  id: RedspaceCalm
+  settings:
+    mobFriction: 0.6
+    mobAcceleration: 0.8
+    thrownFriction: 0.35
+    projectileDrift: 0.8
+    currentStrength: 0.5
+    waveIntervalMin: 90
+    waveIntervalMax: 180
+    waveStrength: 2.5
+    weightlessEnabled: false
+    blinkChancePerMinute: 0.15
+    anomalyIntervalMin: 60
+    anomalyIntervalMax: 120
+    anomalyMax: 3
+    doAfterMultiplier: 1.25
+    echoIntervalMin: 120
+    echoIntervalMax: 300
+    cellularPerSecond: 0.25
+    shockPerSecond: 0.085
+    jitterChance: 0.1
+    vomitChancePerMinute: 0.05
+    hallucinationIntervalMin: 60
+    hallucinationIntervalMax: 140
+    dischargeIntervalMin: 40
+    dischargeIntervalMax: 90
+    dischargeShockChance: 0.15
+    lightFlickerIntervalMin: 45
+    lightFlickerIntervalMax: 120
+    radioStaticIntervalMin: 90
+    radioStaticIntervalMax: 200
+    anomalyEventIntervalMin: 300
+    anomalyEventIntervalMax: 600
+    anomalyEventMax: 2
+    riftDurationMin: 15
+    riftDurationMax: 25
+    riftDamage: 8
+    visualsRate: 0.6
+    mutationExposure: 240
+    mutationChancePerMinute: 0.5
+    privateHallucinationIntervalMin: 90
+    privateHallucinationIntervalMax: 200
+    foodRotMultiplier: 2
+    gunJamChancePerMinute: 0.2
+
+# Normal zone: the defaults. Unprotected death in ~5 min (0.5 Cellular + 0.17 Shock per second, 200 damage).
+- type: redspacePreset
+  id: RedspaceNormal
+  settings: {}
+
+# Storm: everything strong and frequent, unprotected death in ~2.5 min.
+- type: redspacePreset
+  id: RedspaceStorm
+  settings:
+    mobFriction: 0.2
+    mobAcceleration: 0.45
+    thrownFriction: 0.05
+    projectileDrift: 4
+    currentStrength: 2.2
+    currentTurnRate: 45
+    waveIntervalMin: 20
+    waveIntervalMax: 45
+    waveStrength: 6
+    weightlessIntervalMin: 45
+    weightlessIntervalMax: 90
+    weightlessDuration: 12
+    blinkChancePerMinute: 1.2
+    anomalyIntervalMin: 15
+    anomalyIntervalMax: 30
+    anomalyMax: 10
+    anomalySpeed: 0.45
+    doAfterMultiplier: 2
+    echoIntervalMin: 30
+    echoIntervalMax: 80
+    cellularPerSecond: 1
+    shockPerSecond: 0.34
+    jitterChance: 0.5
+    vomitChancePerMinute: 0.5
+    hallucinationIntervalMin: 12
+    hallucinationIntervalMax: 35
+    dischargeIntervalMin: 6
+    dischargeIntervalMax: 18
+    dischargeShockChance: 0.6
+    dischargeShockDamage: 12
+    lightFlickerIntervalMin: 8
+    lightFlickerIntervalMax: 25
+    radioStaticIntervalMin: 15
+    radioStaticIntervalMax: 45
+    anomalyEventIntervalMin: 60
+    anomalyEventIntervalMax: 150
+    anomalyEventMax: 5
+    riftPull: 6
+    riftDamage: 18
+    visualsRate: 2
+    mutationExposure: 60
+    mutationChancePerMinute: 2
+    privateHallucinationIntervalMin: 20
+    privateHallucinationIntervalMax: 60
+    foodRotMultiplier: 8
+    batteryDrainPerMinute: 0.1
+    gunJamChancePerMinute: 1.2
+
+- type: soundCollection
+  id: RedspaceWhispers
+  files:
+  - /Audio/_Goobstation/Wraith/wraithwhisper1.ogg
+  - /Audio/_Goobstation/Wraith/wraithwhisper2.ogg
+  - /Audio/_Goobstation/Wraith/wraithwhisper3.ogg
+  - /Audio/_Goobstation/Wraith/wraithwhisper4.ogg
+  - /Audio/_Goobstation/Wraith/Mobs/shade/creepywhisper_1.ogg
+  - /Audio/_Goobstation/Wraith/Mobs/shade/creepywhisper_2.ogg
+  - /Audio/_Goobstation/Wraith/Mobs/shade/creepywhisper_3.ogg

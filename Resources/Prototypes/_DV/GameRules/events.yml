@@ -11,7 +11,7 @@
   components:
   - type: StationEvent
     earliestStart: 15
-    minimumPlayers: 15
+    minimumPlayers: 5
     weight: 4
     duration: 30
     eventType: Neutral

@@ -1,0 +1,10 @@
+ent-RedspaceSuperEnergyCellEmpty = empty super-energy cell
+    .desc = A drained super-energy cell. Charge it with stable energy in a crystal converter.
+ent-KamertonUnstableEnergyCell = unstable super-energy cell
+    .desc = A power cage brimming with crackling redspace energy. The liquid inside never sits still.
+ent-KamertonUnstableEnergyCellEmpty = empty unstable super-energy cell
+    .desc = A drained unstable super-energy cell. Charge it with unstable energy in a crystal converter.
+ent-KamertonConverter = crystal converter
+    .desc = Kamerton-line crystal converter. Turns bluespace crystals into redspace ones, grinds crystals into raw energy and charges super-energy cells.
+ent-KamertonConverterCircuitboard = crystal converter machine board
+    .desc = A machine printed circuit board for a Kamerton crystal converter.

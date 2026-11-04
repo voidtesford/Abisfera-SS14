@@ -1,6 +1,6 @@
 # FTLdiskburner
 cmd-ftldisk-desc = Creates an FTL coordinates disk to sail to the map the given EntityID is/on
-cmd-ftldisk-help = ftldisk [EntityID]
+cmd-ftldisk-help = ftldisk <EntityID> [EntityID...] или ftldisk <EntityID карты> <x> <y> <north|south|east|west> — во втором случае шаттл прилетит так, что его консоль встанет ровно в x y и будет смотреть в указанную сторону.
 cmd-ftldisk-no-transform = Entity { $destination } has no Transform Component!
 cmd-ftldisk-no-map = Entity { $destination } has no map!
 cmd-ftldisk-no-map-comp = Entity { $destination } is somehow on map { $map } with no map component.

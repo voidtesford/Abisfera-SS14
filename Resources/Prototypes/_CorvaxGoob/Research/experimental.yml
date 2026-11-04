@@ -47,3 +47,30 @@
   technologyPrerequisites:
     - BluespaceTheory
   # Goobstation R&D Console rework end
+
+# CorvaxGoob-Kamerton: the reactor line and its crystal converter come after bluespace mining.
+- type: technology
+  id: KamertonTech
+  name: research-technology-kamerton
+  icon:
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_reactor.rsi
+    state: core
+  discipline: Experimental
+  tier: 3
+  cost: 50000
+  recipeUnlocks:
+  - KamertonConverterCircuitboard
+  - KamertonReactorCoreFlatpackBoard
+  - KamertonStableFuelArrayFlatpackBoard
+  - KamertonUnstableFuelArrayFlatpackBoard
+  - KamertonSynchronizerFlatpackBoard
+  - KamertonHeatSinkFlatpackBoard
+  - KamertonRadiatorFlatpackBoard
+  - KamertonSuppressorFlatpackBoard
+  - KamertonPowerUnitFlatpackBoard
+  - KamertonControlModuleFlatpackBoard
+  - KamertonFuelStorageFlatpackBoard
+  - KamertonSzkFlatpackBoard
+  position: -6,-2
+  technologyPrerequisites:
+    - BluespaceMining

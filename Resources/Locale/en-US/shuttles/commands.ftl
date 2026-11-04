@@ -6,7 +6,7 @@
 
 # FTLdiskburner
 cmd-ftldisk-desc = Creates an FTL coordinates disk to sail to the map the given EntityID is/on
-cmd-ftldisk-help = ftldisk [EntityID]
+cmd-ftldisk-help = ftldisk <EntityID> [EntityID...] or ftldisk <map EntityID> <x> <y> <north|south|east|west> - with coordinates the shuttle arrives with its console exactly at x y, facing the given direction.
 
 cmd-ftldisk-no-transform = Entity {$destination} has no Transform Component!
 cmd-ftldisk-no-map = Entity {$destination} has no map!

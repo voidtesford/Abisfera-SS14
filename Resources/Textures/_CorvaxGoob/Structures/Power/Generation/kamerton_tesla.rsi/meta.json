@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Recoloured scarlet for the Kamerton tesla from tgstation energy_ball.dmi, https://github.com/tgstation/tgstation/blob/master/icons/obj/machines/engine/energy_ball.dmi",
+  "size": {
+    "x": 96,
+    "y": 96
+  },
+  "states": [
+    {
+      "name": "energy_ball",
+      "delays": [
+        [
+          0.120000005,
+          0.04,
+          0.120000005,
+          0.08,
+          0.04,
+          0.120000005,
+          0.04,
+          0.120000005,
+          0.08,
+          0.04,
+          0.120000005,
+          0.04
+        ]
+      ]
+    }
+  ]
+}

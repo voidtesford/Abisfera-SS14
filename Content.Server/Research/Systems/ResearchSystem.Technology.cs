@@ -192,6 +192,10 @@ public sealed partial class ResearchSystem
         if (!IsTechnologyAvailable(database, technology))
             return false;
 
+        // CorvaxGoob: event-locked technologies cannot be unlocked while closed
+        if (IsTechnologyHidden(technology.ID))
+            return false;
+
         if (technology.Cost > serverComp.Points)
             return false;
 

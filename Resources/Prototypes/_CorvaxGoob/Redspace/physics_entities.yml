@@ -1,0 +1,222 @@
+# Redspace map physics: in-world effects and the suppressors (collar, beacon, flatpack, fuel cell).
+
+# ---------- effects (server-spawned, hidden from the spawn menu) ----------
+
+- type: entity
+  id: RedspaceDischargeEffect
+  name: redspace discharge
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: TimedDespawn
+    lifetime: 0.9
+  - type: Sprite
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - sprite: _CorvaxGoob/Effects/redspace_crackle.rsi
+      state: crackle
+      shader: unshaded
+  - type: PointLight
+    radius: 2.5
+    energy: 2
+    color: "#E0203A"
+  - type: EmitSoundOnSpawn
+    sound:
+      collection: sparks
+      params:
+        volume: -4
+        maxDistance: 8
+        variation: 0.15
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+- type: entity
+  id: RedspaceAnomalyPatch
+  name: spatial distortion
+  description: Space stretches here like rubber.
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: FloorObjects
+    noRot: true
+    layers:
+    - sprite: _CorvaxGoob/Effects/redspace_crackle.rsi
+      state: crackle
+      shader: unshaded
+      color: "#ff334455"
+      scale: 1.6, 1.6
+  - type: RedspaceAnomalyPatch
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# Translucent copy of a player that replays their movement a few seconds late.
+- type: entity
+  id: RedspaceEcho
+  name: echo
+  description: A delayed echo of someone's movements.
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    drawdepth: Mobs
+    visible: false
+  - type: RedspaceEcho
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+# ---------- suppressor collar ----------
+
+- type: entity
+  parent: ClothingNeckBase
+  id: ClothingNeckRedspaceSuppressorCollar
+  name: suppressor collar
+  description: A collar with a bluespace frame. While a bluespace crystal burns in it, it shields the wearer and everyone within 1 tile from redspace. One crystal lasts 30 minutes.
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Clothing/Neck/Misc/redspace_suppressor_collar.rsi
+    layers:
+    - state: icon
+    - state: icon-glow
+      shader: unshaded
+      visible: false
+      map: ["enum.RedspaceSuppressorLayers.Lights"]
+  - type: Clothing
+    sprite: _CorvaxGoob/Clothing/Neck/Misc/redspace_suppressor_collar.rsi
+  - type: Item
+    sprite: _CorvaxGoob/Clothing/Neck/Misc/redspace_suppressor_collar.rsi
+  - type: Appearance
+  - type: GenericVisualizer
+    visuals:
+      enum.RedspaceSuppressorVisuals.Active:
+        enum.RedspaceSuppressorLayers.Lights:
+          True: { visible: true }
+          False: { visible: false }
+  - type: RedspaceSuppressor
+    radius: 1.5
+    active: false
+  - type: RedspaceCollar
+  - type: StaticPrice
+    price: 1500
+
+# ---------- suppressor beacon ----------
+
+- type: entity
+  parent: BaseStructure
+  id: RedspaceSuppressorBeacon
+  name: suppressor beacon
+  description: Suppresses any effect of redspace.
+  placement:
+    mode: AlignTileAny
+  components:
+  - type: Transform
+    anchored: true
+    noRot: true
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Machines/redspace_suppressor_beacon.rsi
+    noRot: true
+    layers:
+    - state: base
+    - state: off
+      shader: unshaded
+      map: ["enum.RedspaceSuppressorLayers.Lights"]
+  - type: Appearance
+  - type: GenericVisualizer
+    visuals:
+      enum.RedspaceSuppressorVisuals.Active:
+        enum.RedspaceSuppressorLayers.Lights:
+          True: { state: on }
+          False: { state: off }
+  - type: PointLight
+    enabled: false
+    radius: 4
+    energy: 2
+    color: "#39C6FF"
+  - type: AmbientSound
+    enabled: false
+    range: 5
+    volume: -6
+    sound:
+      path: /Audio/Ambience/Objects/gravity_gen_hum.ogg
+  - type: Physics
+    bodyType: Static
+  - type: Fixtures
+    fixtures:
+      fix1:
+        shape:
+          !type:PhysShapeAabb
+          bounds: "-0.7,-0.7,0.7,0.7"
+        density: 190
+        mask:
+        - MachineMask
+        layer:
+        - MachineLayer
+  - type: Anchorable
+  - type: InteractionOutline
+  - type: RedspaceSuppressor
+    radius: 80
+    active: false
+  - type: RedspaceBeacon
+  - type: Damageable
+    damageContainer: StructuralInorganic
+    damageModifierSet: StructuralMetallicStrong
+  - type: Destructible
+    thresholds:
+    - trigger:
+        !type:DamageTrigger
+        damage: 600
+      behaviors:
+      - !type:DoActsBehavior
+        acts: [ "Destruction" ]
+      - !type:PlaySoundBehavior
+        sound:
+          collection: MetalBreak
+  - type: StaticPrice
+    price: 10000
+
+- type: entity
+  parent: BaseFlatpack
+  id: RedspaceSuppressorBeaconFlatpack
+  name: suppressor beacon flatpack
+  description: A folded suppressor beacon. Use a multitool on it to unfold the beacon.
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Devices/redspace_suppressor_beacon_flatpack.rsi
+    layers:
+    - state: icon
+  - type: Flatpack
+    entity: RedspaceSuppressorBeacon
+  - type: StaticPrice
+    price: 2500
+
+# ---------- fuel ----------
+
+- type: entity
+  parent: BaseItem
+  id: RedspaceSuperEnergyCell
+  name: super-energy cell
+  description: Pure high-energy bluespace fuel.
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Objects/Power/redspace_super_cell.rsi
+    layers:
+    - state: icon
+    - state: glow
+      shader: unshaded
+  - type: Item
+    sprite: _CorvaxGoob/Objects/Power/redspace_super_cell.rsi
+    size: Small
+  - type: PointLight
+    radius: 1.2
+    energy: 1
+    color: "#39C6FF"
+  - type: RedspaceFuelCell
+  - type: KamertonCell
+    kind: Stable
+    swap: RedspaceSuperEnergyCellEmpty
+  - type: Tag
+    tags:
+    - KamertonStableCell
+  - type: StaticPrice
+    price: 750
