@@ -14,6 +14,7 @@ using Content.Shared.Atmos;
 using Content.Shared.Construction.Components;
 using Content.Shared.Containers.ItemSlots;
 using Content.Shared.Damage;
+using Content.Shared.Interaction;
 using Robust.Client.ResourceManagement;
 using Robust.Shared.GameObjects;
 using Robust.Shared.Map;
@@ -203,7 +204,10 @@ public sealed class KamertonReactorTest
             Assert.That(core.TryGetComponent<KamertonReactorCoreComponent>(out var c, factory), Is.True);
             Assert.That(c!.PowerPerPair, Is.EqualTo(50000f));
             Assert.That(c.MaxPairsPerSynchronizer, Is.EqualTo(4));
-            Assert.That(c.CollapseTemperature, Is.EqualTo(2000f));
+            Assert.That(c.BaseMaxHeat, Is.EqualTo(500f));
+            Assert.That(c.MaxHeatPerRadiator, Is.EqualTo(250f));
+            Assert.That(c.MeltdownFraction, Is.EqualTo(0.75f));
+            Assert.That(c.PassiveCooling, Is.EqualTo(2f));
             Assert.That(c.LeakRange, Is.EqualTo(20f));
             Assert.That(c.CollapseRange, Is.EqualTo(120f));
             Assert.That(c.CollapseSingularities, Is.EqualTo(5));
@@ -315,7 +319,7 @@ public sealed class KamertonReactorTest
             Assert.That(c.TotalPower, Is.Zero, "everything spent");
 
             sys.Stop(core);
-            sys.SetTemperature(core, c.AmbientTemperature);
+            sys.SetHeat(core, 0f);
         });
 
         await pair.CleanReturnAsync();
@@ -457,11 +461,10 @@ public sealed class KamertonReactorTest
             Assert.That(sys.TryStart(core, out var reason), Is.True, reason);
 
             // No coolant anywhere: 16 pairs heat the core.
-            var t0 = c.Temperature;
+            Assert.That(c.Heat, Is.Zero, "starts at ambient");
+            Assert.That(sys.GetMaxHeat(c), Is.EqualTo(500f + 250f * c.Radiators.Count));
             sys.Step(core, 10f);
-            var expected = 16 * c.HeatPerPair * 10f / sys.GetHeatCapacity(c);
-            Assert.That(c.Temperature - t0, Is.EqualTo(expected).Within(0.5f), "heats up without cooling");
-            Assert.That(c.Temperature, Is.GreaterThan(t0 + 40f));
+            Assert.That(c.Heat, Is.EqualTo(16 * c.HeatPerPair * 10f).Within(0.5f), "16 pairs: +16 heat per second without cooling");
 
             // Heat-pipe joints: radiator-radiator and radiator-heat sink (N=1, S=2, E=4, W=8).
             var appearance = entMan.System<SharedAppearanceSystem>();
@@ -472,27 +475,25 @@ public sealed class KamertonReactorTest
             Assert.That(Links(entMan, r.At[new Vector2i(-3, 2)]), Is.EqualTo(1 | 2 | 4 | 16 | 64), "edge of the hull: nothing to the west");
             Assert.That(HeatLinks(r.Core), Is.Zero);
 
-            // Stop at 1200 K and push cold nitrogen into the west heat sink line (pipes run north -> south).
+            // Stop at 900 heat and push cold nitrogen into the west heat sink line.
             sys.Stop(core);
-            sys.SetTemperature(core, 1200f);
+            sys.SetHeat(core, 900f);
             var sink = r.At[new Vector2i(-3, 2)];
-            Assert.That(nodes.TryGetNode(sink, "inlet", out PipeNode? inlet), Is.True);
-            Assert.That(nodes.TryGetNode(sink, "outlet", out PipeNode? outlet), Is.True);
-            inlet!.Air.AdjustMoles(Gas.Nitrogen, 2000f);
-            inlet.Air.Temperature = 80f;
+            Assert.That(nodes.TryGetNode(sink, "pipe", out PipeNode? pipe), Is.True);
+            pipe!.Air.AdjustMoles(Gas.Nitrogen, 2000f);
+            pipe.Air.Temperature = 80f;
 
             sys.Step(core, 1f);
-            Assert.That(c.Temperature, Is.LessThan(1200f), "cold gas cools the core");
-            Assert.That(outlet!.Air.TotalMoles, Is.GreaterThan(0f), "gas moves inlet -> outlet");
-            Assert.That(outlet.Air.Temperature, Is.GreaterThan(80f), "the gas carries the heat away");
+            Assert.That(c.Heat, Is.LessThan(900f - c.PassiveCooling), "cold gas cools the core faster than passive cooling");
+            Assert.That(pipe.Air.Temperature, Is.GreaterThan(80f), "the gas carries the heat away");
             var sinkComp = entMan.GetComponent<KamertonHeatSinkComponent>(sink);
             Assert.That(sinkComp.LastHeatRemoved, Is.GreaterThan(0f));
 
-            var before = c.Temperature;
+            var before = c.Heat;
             for (var i = 0; i < 10; i++)
                 sys.Step(core, 1f);
-            Assert.That(c.Temperature, Is.LessThan(before));
-            Assert.That(c.Temperature, Is.GreaterThanOrEqualTo(80f), "never below the coolant");
+            Assert.That(c.Heat, Is.LessThan(before));
+            Assert.That(c.Heat, Is.GreaterThanOrEqualTo(0f), "never below ambient");
         });
 
         await pair.CleanReturnAsync();
@@ -525,20 +526,20 @@ public sealed class KamertonReactorTest
             Assert.That(c.Radiators, Has.Count.EqualTo(1));
             Assert.That(c.LinkedRadiators, Is.Empty, "no heat sink at the end of the radiator line");
             Assert.That(c.LinkedHeatSinks, Is.Empty, "no radiator brings heat to the heat sink");
-            Assert.That(sys.GetHeatCapacity(c), Is.EqualTo(c.BaseHeatCapacity + 25000f).Within(1f), "the radiator still buffers heat");
+            Assert.That(sys.GetMaxHeat(c), Is.EqualTo(750f), "the radiator still raises the heat limit");
 
-            sys.SetTemperature(core, 1200f);
+            sys.SetHeat(core, 300f);
             var sink = r.At[new Vector2i(-1, 0)];
-            Assert.That(nodes.TryGetNode(sink, "inlet", out PipeNode? inlet), Is.True);
-            inlet!.Air.AdjustMoles(Gas.Nitrogen, 2000f);
-            inlet.Air.Temperature = 80f;
+            Assert.That(nodes.TryGetNode(sink, "pipe", out PipeNode? pipe), Is.True);
+            pipe!.Air.AdjustMoles(Gas.Nitrogen, 2000f);
+            pipe.Air.Temperature = 80f;
 
             for (var i = 0; i < 5; i++)
                 sys.Step(core, 1f);
-            Assert.That(c.Temperature, Is.EqualTo(1200f).Within(0.01f), "unlinked radiators dump nothing");
+            Assert.That(c.Heat, Is.EqualTo(300f - 5 * c.PassiveCooling).Within(0.01f), "unlinked: only the passive 2/s cooling");
             Assert.That(entMan.GetComponent<KamertonHeatSinkComponent>(sink).LastHeatRemoved, Is.Zero);
-            Assert.That(inlet.Air.Temperature, Is.EqualTo(80f).Within(0.01f), "the gas stays cold");
-            sys.SetTemperature(core, c.AmbientTemperature);
+            Assert.That(pipe.Air.Temperature, Is.EqualTo(80f).Within(0.01f), "the gas stays cold");
+            sys.SetHeat(core, 0f);
         });
 
         await pair.CleanReturnAsync();
@@ -650,7 +651,7 @@ public sealed class KamertonReactorTest
                 sys.Step(core, 1f);
             Assert.That(Dmg(near), Is.EqualTo(after), "complete ring: no leak");
             sys.Stop(core);
-            sys.SetTemperature(core, core.Comp.AmbientTemperature);
+            sys.SetHeat(core, 0f);
         });
 
         await pair.CleanReturnAsync();
@@ -776,7 +777,7 @@ public sealed class KamertonReactorTest
             Assert.That(c.ActivePairs, Is.EqualTo(4));
             Assert.That(c.TotalPower, Is.EqualTo(200000f));
             sys.Stop(core);
-            sys.SetTemperature(core, c.AmbientTemperature);
+            sys.SetHeat(core, 0f);
         });
 
         await pair.CleanReturnAsync();
@@ -839,7 +840,7 @@ public sealed class KamertonReactorTest
             Assert.That(sys.IsAssembled(core.Comp), Is.False);
             Assert.That(core.Comp.Working, Is.False);
             Assert.That(core.Comp.RingMissing, Is.EqualTo(2));
-            sys.SetTemperature(core, core.Comp.AmbientTemperature);
+            sys.SetHeat(core, 0f);
         });
 
         await pair.CleanReturnAsync();
@@ -870,7 +871,7 @@ public sealed class KamertonReactorTest
             var core = Core(entMan, r);
             corePos = xforms.GetWorldPosition(r.Core);
             Assert.That(entMan.HasComponent<RedspaceMapComponent>(map.MapUid), Is.False);
-            sys.SetTemperature(core, 2100f);
+            sys.SetHeat(core, sys.GetMaxHeat(core.Comp) + 10f);
             sys.Step(core, 1f);
             Assert.That(core.Comp.Collapsed, Is.True);
 
@@ -1070,6 +1071,210 @@ public sealed class KamertonReactorTest
             Assert.That(d.Item2.State == KamertonDroneState.Returning && !d.Item2.AutoRefuel, Is.True);
             drones.Command(d, KamertonDroneCommand.ToggleAuto);
             Assert.That(d.Item2.AutoRefuel, Is.True);
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    /// <summary>
+    /// The in-game path: the core comes out of its flatpack with a drone, the drone starts outside the reactor,
+    /// walks across the hull to the storage and loads it on the console's Load command, then in auto mode.
+    /// </summary>
+    [Test]
+    public async Task DroneFromFlatpackLoadsOnConsoleCommandAndAuto()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var entMan = server.EntMan;
+        var map = await pair.CreateTestMap();
+        var sys = server.System<KamertonReactorSystem>();
+        var drones = server.System<KamertonDroneSystem>();
+        Reactor r = default!;
+        EntityUid user = default, drone = default;
+
+        await server.WaitPost(() =>
+        {
+            Floor(entMan, map, 7);
+            r = Build(entMan, map, fillCells: false);
+            entMan.DeleteEntity(r.Core);
+        });
+        await pair.RunTicksSync(5);
+
+        await server.WaitAssertion(() =>
+        {
+            user = entMan.SpawnEntity("MobHuman", Tile(map, 0, -5));
+            var tool = entMan.SpawnEntity("Multitool", Tile(map, 0, -5));
+            var flat = entMan.SpawnEntity("KamertonReactorCoreFlatpack", Tile(map, 0, 0));
+            server.System<SharedInteractionSystem>().InteractUsing(user, tool, flat, Tile(map, 0, 0), false, false);
+        });
+        await pair.RunTicksSync(5);
+
+        await server.WaitAssertion(() =>
+        {
+            var cores = entMan.EntityQuery<KamertonReactorCoreComponent>().Select(c => c.Owner).ToList();
+            var blockers = string.Join(", ", server.System<EntityLookupSystem>()
+                .GetEntitiesIntersecting(Tile(map, 0, 0), LookupFlags.Dynamic | LookupFlags.Static)
+                .Select(e => entMan.ToPrettyString(e).ToString()));
+            Assert.That(cores, Has.Count.EqualTo(1), $"the flatpack unpacked into a core; at the spot: {blockers}");
+            r.Core = cores[0];
+            var c = Core(entMan, r);
+            sys.Scan(c);
+            Assert.That(c.Comp.Drone, Is.Not.Null, "the core came with its drone");
+            Assert.That(c.Comp.Console, Is.EqualTo(r.Console));
+            Assert.That(c.Comp.Storage, Is.EqualTo(r.Storage));
+            drone = c.Comp.Drone!.Value;
+            var d = entMan.GetComponent<KamertonDroneComponent>(drone);
+            Assert.That(d.AutoRefuel, Is.True, "auto by default");
+            drones.Command((drone, d), KamertonDroneCommand.ToggleAuto);
+            Assert.That(d.AutoRefuel, Is.False);
+
+            var st = (r.Storage, entMan.GetComponent<KamertonFuelStorageComponent>(r.Storage));
+            for (var i = 0; i < 3; i++)
+                Assert.That(drones.TryStore(st, entMan.SpawnEntity(StableFull, Tile(map, 0, -6))), Is.True);
+
+            entMan.EventBus.RaiseLocalEvent(r.Console, new KamertonDroneCommandMessage(KamertonDroneCommand.Load) { Actor = user });
+            Assert.That(d.State, Is.EqualTo(KamertonDroneState.Working));
+        });
+
+        await pair.RunSeconds(15);
+
+        await server.WaitAssertion(() =>
+        {
+            var c = Core(entMan, r);
+            var st = (r.Storage, entMan.GetComponent<KamertonFuelStorageComponent>(r.Storage));
+            Assert.That(drones.CountStored(st, KamertonCellKind.Stable), Is.Zero, "the drone crossed the hull and loaded every cell");
+            Assert.That(drones.BuildInfo(c.Comp).FreeStable, Is.EqualTo(13));
+
+            for (var i = 0; i < 2; i++)
+                Assert.That(drones.TryStore(st, entMan.SpawnEntity(StableFull, Tile(map, 0, -6))), Is.True);
+            entMan.EventBus.RaiseLocalEvent(r.Console, new KamertonDroneCommandMessage(KamertonDroneCommand.ToggleAuto) { Actor = user });
+            Assert.That(entMan.GetComponent<KamertonDroneComponent>(drone).AutoRefuel, Is.True);
+        });
+
+        await pair.RunSeconds(10);
+
+        await server.WaitAssertion(() =>
+        {
+            var c = Core(entMan, r);
+            var st = (r.Storage, entMan.GetComponent<KamertonFuelStorageComponent>(r.Storage));
+            Assert.That(drones.CountStored(st, KamertonCellKind.Stable), Is.Zero, "auto mode loads new cells by itself");
+            Assert.That(drones.BuildInfo(c.Comp).FreeStable, Is.EqualTo(11));
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    [Test]
+    public async Task MeltdownLocksStopAndThrowsArcs()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var entMan = server.EntMan;
+        var map = await pair.CreateTestMap();
+        var sys = server.System<KamertonReactorSystem>();
+        var arcs = server.System<KamertonMeltdownSystem>();
+        Reactor r = default!;
+        var arcsBefore = 0;
+
+        await server.WaitPost(() =>
+        {
+            Floor(entMan, map, 6);
+            r = Build(entMan, map, fillCells: true);
+        });
+        await pair.RunTicksSync(5);
+
+        await server.WaitAssertion(() =>
+        {
+            var core = Core(entMan, r);
+            var c = core.Comp;
+            Assert.That(sys.TryStart(core, out var reason), Is.True, reason);
+            Assert.That(sys.GetMaxHeat(c), Is.EqualTo(3500f), "500 + 12 radiators x 250");
+            Assert.That(sys.GetMeltdownHeat(c), Is.EqualTo(2625f));
+
+            sys.SetHeat(core, 2000f);
+            Assert.That(c.Meltdown, Is.False);
+            sys.SetHeat(core, 2700f);
+            Assert.That(c.Meltdown, Is.True);
+            Assert.That(sys.TryStop(core, out reason), Is.False);
+            Assert.That(reason, Is.EqualTo("kamerton-reactor-popup-meltdown-locked"));
+            Assert.That(sys.TryScram(core, out _), Is.False);
+            Assert.That(c.Working, Is.True, "no way to stop it in meltdown");
+            arcsBefore = arcs.ArcsThrown;
+        });
+
+        await pair.RunSeconds(2);
+
+        await server.WaitAssertion(() =>
+        {
+            var core = Core(entMan, r);
+            Assert.That(arcs.ArcsThrown, Is.GreaterThan(arcsBefore), "meltdown throws red-blue arcs");
+            var proto = entMan.EntityQuery<MetaDataComponent>().Count(m => m.EntityPrototype?.ID is "KamertonArcCrawlRed" or "KamertonArcCrawlBlue");
+            Assert.That(proto, Is.GreaterThan(0));
+
+            sys.SetHeat(core, 1000f);
+            Assert.That(core.Comp.Meltdown, Is.False);
+            Assert.That(sys.TryStop(core, out _), Is.True);
+            sys.SetHeat(core, 100f);
+            sys.Step(core, 10f);
+            Assert.That(core.Comp.Heat, Is.EqualTo(80f).Within(0.5f), "switched off: passive cooling 2 per second");
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    /// <summary>Heat sinks are straight pipes: gas crosses a line of three, in either orientation.</summary>
+    [Test]
+    public async Task GasFlowsThroughHeatSinkLine()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var entMan = server.EntMan;
+        var map = await pair.CreateTestMap();
+        var nodes = server.System<NodeContainerSystem>();
+        var xforms = server.System<SharedTransformSystem>();
+        var a = new EntityUid[2];
+        var b = new EntityUid[2];
+        var sinks = new List<EntityUid>[] { new(), new() };
+
+        await server.WaitPost(() =>
+        {
+            Floor(entMan, map, 6);
+            // north-south line at x = -2, east-west line at y = -2
+            for (var line = 0; line < 2; line++)
+            {
+                var rot = line == 0 ? Angle.Zero : Angle.FromDegrees(90);
+                EntityCoordinates At(int i) => line == 0 ? Tile(map, -2, i) : Tile(map, i, -2);
+                a[line] = entMan.SpawnEntity("GasPipeStraight", At(0));
+                xforms.SetLocalRotation(a[line], rot);
+                for (var i = 1; i <= 3; i++)
+                {
+                    var sink = entMan.SpawnEntity("KamertonHeatSink", At(i));
+                    xforms.SetLocalRotation(sink, rot);
+                    sinks[line].Add(sink);
+                }
+
+                b[line] = entMan.SpawnEntity("GasPipeStraight", At(4));
+                xforms.SetLocalRotation(b[line], rot);
+            }
+        });
+        await pair.RunTicksSync(10);
+
+        await server.WaitAssertion(() =>
+        {
+            for (var line = 0; line < 2; line++)
+            {
+                Assert.That(nodes.TryGetNode(a[line], "pipe", out PipeNode? start), Is.True);
+                Assert.That(nodes.TryGetNode(b[line], "pipe", out PipeNode? end), Is.True);
+                foreach (var sink in sinks[line])
+                {
+                    Assert.That(nodes.TryGetNode(sink, "pipe", out PipeNode? mid), Is.True);
+                    Assert.That(mid!.NodeGroup, Is.SameAs(start!.NodeGroup), $"line {line}: heat sink joins the pipe net");
+                }
+
+                Assert.That(end!.NodeGroup, Is.SameAs(start!.NodeGroup), $"line {line}: gas reaches the far pipe");
+                start.Air.AdjustMoles(Gas.Frezon, 100f);
+                Assert.That(end.Air.GetMoles(Gas.Frezon), Is.GreaterThan(0f), $"line {line}: frezon is not stuck");
+            }
         });
 
         await pair.CleanReturnAsync();

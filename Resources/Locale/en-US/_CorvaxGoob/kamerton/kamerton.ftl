@@ -39,12 +39,12 @@ kamerton-converter-window-crystal-count = { $bluespace } BS / { $redspace } RS o
 kamerton-converter-window-stable = Stable energy:
 kamerton-converter-window-unstable = Unstable energy:
 kamerton-converter-window-power = Machine power:
-kamerton-converter-window-materials = Plasma / uranium (sheets):
-kamerton-converter-window-materials-value = { $plasma } / { $uranium } (print: { $cost } each)
+kamerton-converter-window-materials = Plasma / uranium sheets:
+kamerton-converter-window-materials-value = { $plasma } / { $uranium }, a print takes { $cost } each
 kamerton-converter-window-cell = Cell:
 kamerton-converter-window-cell-none = none
-kamerton-converter-window-cell-charged = { $name } (charged)
-kamerton-converter-window-cell-empty = { $name } (empty)
+kamerton-converter-window-cell-charged = { $name }, charged
+kamerton-converter-window-cell-empty = { $name }, empty
 kamerton-converter-window-start = Start
 kamerton-converter-window-charge = Charge cell
 kamerton-converter-window-print = Print crystal
@@ -59,7 +59,6 @@ kamerton-reactor-popup-not-assembled = The reactor is not assembled: no synchron
 kamerton-reactor-popup-scram = EMERGENCY SHUTDOWN OF THE KAMERTON!
 kamerton-reactor-popup-leak = Your skin prickles with a strange red static.
 kamerton-reactor-popup-collapse = The Kamerton reactor collapses!
-kamerton-reactor-examine-temperature = Core temperature: [color=orange]{ $temp } K[/color] (collapse at { $max } K).
 kamerton-reactor-examine-power = Output: [color=#39C6FF]{ $power } kW[/color], active pairs: { $pairs }.
 kamerton-reactor-examine-running = The reactor is [color=lime]running[/color].
 kamerton-reactor-examine-stopped = The reactor is [color=gray]stopped[/color].
@@ -73,12 +72,12 @@ kamerton-reactor-window-status = Status:
 kamerton-reactor-window-unlinked = no core
 kamerton-reactor-window-running = running
 kamerton-reactor-window-stopped = stopped
-kamerton-reactor-window-scrammed = emergency lockout ({ $seconds } s)
+kamerton-reactor-window-scrammed = emergency lockout, { $seconds } s left
 kamerton-reactor-window-not-assembled = not assembled
-kamerton-reactor-window-temperature = Core temperature:
+kamerton-reactor-window-temperature = Core heat:
 kamerton-reactor-window-power = Total power:
 kamerton-reactor-window-pairs = Active pairs:
-kamerton-reactor-window-pairs-value = { $pairs } (synchronizers: { $syncs })
+kamerton-reactor-window-pairs-value = { $pairs }, synchronizers: { $syncs }
 kamerton-reactor-window-output = HV output:
 kamerton-reactor-window-output-value = { $kw } kW supplied
 kamerton-reactor-window-output-none = no power unit in the ring
@@ -88,7 +87,7 @@ kamerton-reactor-window-ring-broken = broken, { $missing } missing
 kamerton-reactor-window-arrays = Fuel arrays
 kamerton-reactor-window-array-stable = Stable: { $charged }/{ $slots } charged, { $empty } empty, lowest { $minutes } min
 kamerton-reactor-window-array-unstable = Unstable: { $charged }/{ $slots } charged, { $empty } empty, lowest { $minutes } min
-kamerton-reactor-window-cooling = Cooling (radiators on heat lines: { $radiators })
+kamerton-reactor-window-cooling = Cooling. Radiators on heat lines: { $radiators }
 kamerton-reactor-window-sink = Heat sink { $index }: { $flow } mol/s, { $tin } K → { $tout } K, { $kw } kW
 kamerton-reactor-window-no-sinks = No heat sinks linked.
 kamerton-reactor-window-hint-unlinked = Place the console in the suppressor ring of a reactor core.
@@ -127,3 +126,12 @@ kamerton-reactor-window-drone-load = Load arrays
 kamerton-reactor-window-drone-unload = Unload spent
 kamerton-reactor-window-drone-return = Return / stop
 kamerton-reactor-window-drone-auto = Auto-refuel
+
+## Stage 7: heat and meltdown
+kamerton-reactor-examine-heat = Core heat: [color=orange]{ $heat }[/color] of { $max }.
+kamerton-reactor-examine-meltdown = [color=red]The core is in meltdown![/color]
+kamerton-reactor-popup-meltdown = The Kamerton core goes into meltdown!
+kamerton-reactor-popup-meltdown-locked = The core is in meltdown: the reactor cannot be stopped until it cools down.
+kamerton-reactor-window-meltdown-threshold = Meltdown threshold:
+kamerton-reactor-window-meltdown = CORE MELTDOWN: stop and SCRAM locked, cool the core below the threshold!
+kamerton-reactor-window-hint-meltdown = Meltdown: lightning strikes around the reactor. Cool the heat sinks!

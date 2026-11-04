@@ -166,3 +166,13 @@
   id: KamertonBoards
   recipes:
   - KamertonConverterCircuitboard
+  - KamertonReactorCoreFlatpackBoard
+  - KamertonStableFuelArrayFlatpackBoard
+  - KamertonUnstableFuelArrayFlatpackBoard
+  - KamertonSynchronizerFlatpackBoard
+  - KamertonHeatSinkFlatpackBoard
+  - KamertonRadiatorFlatpackBoard
+  - KamertonSuppressorFlatpackBoard
+  - KamertonPowerUnitFlatpackBoard
+  - KamertonControlModuleFlatpackBoard
+  - KamertonFuelStorageFlatpackBoard

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "license": "CC-BY-SA-3.0",
-  "copyright": "Original pixel art for CorvaxGoob Kamerton RDZT drone",
+  "copyright": "Based on the engineering cyborg chassis taken from tgstation at https://github.com/tgstation/tgstation/commit/faf6db214927874c19b8fa8585d26b5d40de1acc; recoloured and animated for the CorvaxGoob Kamerton RDZT drone",
   "size": {
     "x": 32,
     "y": 32

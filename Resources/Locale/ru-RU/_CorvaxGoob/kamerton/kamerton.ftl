@@ -39,12 +39,12 @@ kamerton-converter-window-crystal-count = { $bluespace } BS / { $redspace } RS �
 kamerton-converter-window-stable = Стабильная энергия:
 kamerton-converter-window-unstable = Нестабильная энергия:
 kamerton-converter-window-power = Энергия машины:
-kamerton-converter-window-materials = Плазма / уран (листы):
-kamerton-converter-window-materials-value = { $plasma } / { $uranium } (печать: по { $cost })
+kamerton-converter-window-materials = Плазма / уран, листов:
+kamerton-converter-window-materials-value = { $plasma } / { $uranium }, на печать нужно по { $cost }
 kamerton-converter-window-cell = Ячейка:
 kamerton-converter-window-cell-none = нет
-kamerton-converter-window-cell-charged = { $name } (заряжена)
-kamerton-converter-window-cell-empty = { $name } (пустая)
+kamerton-converter-window-cell-charged = { $name }, заряжена
+kamerton-converter-window-cell-empty = { $name }, пустая
 kamerton-converter-window-start = Старт
 kamerton-converter-window-charge = Зарядить ячейку
 kamerton-converter-window-print = Печать кристалла
@@ -59,7 +59,6 @@ kamerton-reactor-popup-not-assembled = Реактор не собран: ряд�
 kamerton-reactor-popup-scram = АВАРИЙНАЯ ОСТАНОВКА КАМЕРТОНА!
 kamerton-reactor-popup-leak = Кожу покалывает странным красным статическим зудом.
 kamerton-reactor-popup-collapse = Реактор «Камертон» схлопывается!
-kamerton-reactor-examine-temperature = Температура ядра: [color=orange]{ $temp } K[/color] (схлопывание при { $max } K).
 kamerton-reactor-examine-power = Выработка: [color=#39C6FF]{ $power } кВт[/color], активных пар: { $pairs }.
 kamerton-reactor-examine-running = Реактор [color=lime]работает[/color].
 kamerton-reactor-examine-stopped = Реактор [color=gray]остановлен[/color].
@@ -73,12 +72,12 @@ kamerton-reactor-window-status = Состояние:
 kamerton-reactor-window-unlinked = нет ядра
 kamerton-reactor-window-running = работает
 kamerton-reactor-window-stopped = остановлен
-kamerton-reactor-window-scrammed = аварийная блокировка ({ $seconds } с)
+kamerton-reactor-window-scrammed = аварийная блокировка, ещё { $seconds } с
 kamerton-reactor-window-not-assembled = не собран
-kamerton-reactor-window-temperature = Температура ядра:
+kamerton-reactor-window-temperature = Нагрев ядра:
 kamerton-reactor-window-power = Общая мощность:
 kamerton-reactor-window-pairs = Активные пары:
-kamerton-reactor-window-pairs-value = { $pairs } (синхронизаторов: { $syncs })
+kamerton-reactor-window-pairs-value = { $pairs }, синхронизаторов: { $syncs }
 kamerton-reactor-window-output = Выход ВВ:
 kamerton-reactor-window-output-value = отдаётся { $kw } кВт
 kamerton-reactor-window-output-none = в кольце нет силового блока
@@ -88,7 +87,7 @@ kamerton-reactor-window-ring-broken = разомкнуто, не хватает 
 kamerton-reactor-window-arrays = Топливные массивы
 kamerton-reactor-window-array-stable = Стабильный: заряжено { $charged }/{ $slots }, пустых { $empty }, минимум { $minutes } мин
 kamerton-reactor-window-array-unstable = Нестабильный: заряжено { $charged }/{ $slots }, пустых { $empty }, минимум { $minutes } мин
-kamerton-reactor-window-cooling = Охлаждение (радиаторов на теплолиниях: { $radiators })
+kamerton-reactor-window-cooling = Охлаждение. Радиаторов на теплолиниях: { $radiators }
 kamerton-reactor-window-sink = Теплоотвод { $index }: { $flow } моль/с, { $tin } K → { $tout } K, { $kw } кВт
 kamerton-reactor-window-no-sinks = Нет подключённых теплоотводов.
 kamerton-reactor-window-hint-unlinked = Поставьте консоль в кольцо подавителей вокруг ядра реактора.
@@ -127,3 +126,12 @@ kamerton-reactor-window-drone-load = Загрузить массивы
 kamerton-reactor-window-drone-unload = Выгрузить отработанные
 kamerton-reactor-window-drone-return = Вернуть / стоп
 kamerton-reactor-window-drone-auto = Автозаправка
+
+## Этап 7: нагрев и расплав
+kamerton-reactor-examine-heat = Нагрев ядра: [color=orange]{ $heat }[/color] из { $max }.
+kamerton-reactor-examine-meltdown = [color=red]Ядро в расплаве![/color]
+kamerton-reactor-popup-meltdown = Ядро «Камертона» уходит в расплав!
+kamerton-reactor-popup-meltdown-locked = Ядро в расплаве: остановить реактор нельзя, пока он не остынет.
+kamerton-reactor-window-meltdown-threshold = Порог расплава:
+kamerton-reactor-window-meltdown = РАСПЛАВ ЯДРА: стоп и АЗ заблокированы, охладите ядро ниже порога!
+kamerton-reactor-window-hint-meltdown = Расплав: вокруг реактора бьют молнии. Охлаждайте теплоотводы!

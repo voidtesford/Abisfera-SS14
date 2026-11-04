@@ -58,6 +58,51 @@ public sealed class KamertonConverterTest
         return uid;
     }
 
+    private static readonly string[] FlatpackParts =
+    {
+        "KamertonReactorCore", "KamertonStableFuelArray", "KamertonUnstableFuelArray", "KamertonSynchronizer", "KamertonHeatSink",
+        "KamertonRadiator", "KamertonSuppressor", "KamertonPowerUnit", "KamertonControlModule", "KamertonFuelStorage",
+    };
+
+    /// <summary>The flatpacker takes the Kamerton boards and the converter board, and charges each its own materials.</summary>
+    [Test]
+    public async Task FlatpackerTakesKamertonBoards()
+    {
+        await using var pair = await PoolManager.GetServerClient(new PoolSettings { Dirty = true });
+        var server = pair.Server;
+        var entMan = server.EntMan;
+        var map = await pair.CreateTestMap();
+
+        await server.WaitAssertion(() =>
+        {
+            var slots = server.System<ItemSlotsSystem>();
+            var flat = server.System<Content.Server.Construction.FlatpackSystem>();
+            var costs = new HashSet<string>();
+            foreach (var part in FlatpackParts.Append("Converter"))
+            {
+                var packer = entMan.SpawnEntity("MachineFlatpacker", map.GridCoords);
+                var boardId = part == "Converter" ? "KamertonConverterCircuitboard" : part + "FlatpackBoard";
+                var board = entMan.SpawnEntity(boardId, map.GridCoords);
+                Assert.That(slots.TryInsert(packer, "board_slot", board, null), Is.True, $"flatpacker takes {boardId}");
+                var creator = (packer, entMan.GetComponent<FlatpackCreatorComponent>(packer));
+                Dictionary<string, int> cost;
+                if (part == "Converter")
+                {
+                    Assert.That(flat.TryGetKamertonBoard(board, out _, out _), Is.False);
+                    cost = flat.GetFlatpackCreationCost(creator, (board, entMan.GetComponent<MachineBoardComponent>(board)));
+                }
+                else
+                    Assert.That(flat.TryGetKamertonBoard(board, out _, out cost), Is.True);
+                Assert.That(cost.Values.All(v => v < 0), Is.True, boardId);
+                costs.Add(string.Join(",", cost.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key}{kv.Value}")));
+                entMan.DeleteEntity(packer);
+            }
+            Assert.That(costs, Has.Count.EqualTo(FlatpackParts.Length + 1), "every board has its own price");
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
     [Test]
     public async Task PrototypesAndSprites()
     {
@@ -74,7 +119,9 @@ public sealed class KamertonConverterTest
             Assert.That(c.StablePerBluespace, Is.EqualTo(10));
             Assert.That(c.UnstablePerRedspace, Is.EqualTo(100));
             Assert.That(c.ChargeCost, Is.EqualTo(100));
-            Assert.That(c.PrintPower, Is.EqualTo(20000f));
+            Assert.That(c.PrintPower, Is.EqualTo(1000f));
+            Assert.That(c.CreatePower, Is.EqualTo(10000f));
+            Assert.That(c.PrintSheets, Is.EqualTo(5));
             Assert.That(c.MaxPower, Is.EqualTo(40000f));
             Assert.That(c.ChargeRate, Is.EqualTo(100f));
 
@@ -87,8 +134,23 @@ public sealed class KamertonConverterTest
                 Does.Contain(new ProtoId<LatheRecipePrototype>("KamertonConverterCircuitboard")));
             Assert.That(proto.Index<EntityPrototype>("CircuitImprinter").TryGetComponent<LatheComponent>(out var imprinter, factory), Is.True);
             Assert.That(imprinter!.DynamicPacks, Does.Contain(new ProtoId<LatheRecipePackPrototype>("KamertonBoards")));
+            var tech = proto.Index<TechnologyPrototype>("KamertonTech");
+            Assert.That(tech.TechnologyPrerequisites, Does.Contain(new ProtoId<TechnologyPrototype>("BluespaceMining")));
+            Assert.That(tech.RecipeUnlocks, Does.Contain(new ProtoId<LatheRecipePrototype>("KamertonConverterCircuitboard")));
             Assert.That(proto.Index<TechnologyPrototype>("BluespaceMining").RecipeUnlocks,
-                Does.Contain(new ProtoId<LatheRecipePrototype>("KamertonConverterCircuitboard")));
+                Does.Not.Contain(new ProtoId<LatheRecipePrototype>("KamertonConverterCircuitboard")));
+            foreach (var part in FlatpackParts)
+            {
+                var boardId = part + "FlatpackBoard";
+                Assert.That(tech.RecipeUnlocks, Does.Contain(new ProtoId<LatheRecipePrototype>(boardId)), boardId);
+                Assert.That(proto.Index<LatheRecipePackPrototype>("KamertonBoards").Recipes, Does.Contain(new ProtoId<LatheRecipePrototype>(boardId)));
+                Assert.That(proto.Index<EntityPrototype>(boardId).TryGetComponent<KamertonFlatpackBoardComponent>(out var fb, factory), Is.True, boardId);
+                Assert.That(fb!.Entity.Id, Is.EqualTo(part));
+                Assert.That(fb.Cost, Is.Not.Empty);
+                Assert.That(proto.Index<EntityPrototype>(boardId).TryGetComponent<MachineBoardComponent>(out _, factory), Is.False, "frames must not take it");
+                Assert.That(proto.Index(fb.Flatpack).TryGetComponent<FlatpackComponent>(out var fp, factory), Is.True);
+                Assert.That(fp!.Entity?.Id, Is.EqualTo(part), boardId);
+            }
 
             // Board requirements: 3 manipulators + 3 matter bins + 3 capacitors (one merged stock part here) + 1 plasma glass.
             Assert.That(proto.Index<EntityPrototype>("KamertonConverterCircuitboard").TryGetComponent<MachineBoardComponent>(out var board, factory), Is.True);
@@ -159,7 +221,11 @@ public sealed class KamertonConverterTest
             var bs2 = Stack(entMan, Bluespace, 5, map.GridCoords);
             Assert.That(sys.TryInsertCrystals(ent, bs2, null), Is.EqualTo(1), "capacity is 10");
             Assert.That(entMan.GetComponent<StackComponent>(bs2).Count, Is.EqualTo(4));
+            ent.Item2.Power = 9999f;
+            Assert.That(sys.TryStart(ent, null), Is.False, "a redspace crystal needs 10000 battery energy");
+            ent.Item2.Power = 15000f;
             Assert.That(sys.TryStart(ent, null), Is.True);
+            Assert.That(ent.Item2.Power, Is.EqualTo(5000f), "10000 spent");
             Assert.That(ent.Item2.Work, Is.EqualTo(KamertonConverterWork.Creating));
             Assert.That(sys.SetMode(ent, KamertonConverterMode.Destroy, null), Is.False, "no mode switch while busy");
             sys.FinishWork(ent);
@@ -294,8 +360,8 @@ public sealed class KamertonConverterTest
             Assert.That(mats.TryInsertMaterialEntity(user, entMan.SpawnEntity("PlasmaOre1", map.GridCoords), uid), Is.False, "no ore");
             Assert.That(mats.TryInsertMaterialEntity(user, entMan.SpawnEntity("SheetGlass1", map.GridCoords), uid), Is.False, "only plasma/uranium");
 
-            comp.Power = 19999f;
-            Assert.That(sys.TryPrintCrystal(ent, null), Is.False, "needs 20000 power");
+            comp.Power = 999f;
+            Assert.That(sys.TryPrintCrystal(ent, null), Is.False, "needs 1000 power");
             comp.Power = 40000f;
             Assert.That(sys.TryPrintCrystal(ent, null), Is.False, "needs sheets");
 
@@ -305,7 +371,7 @@ public sealed class KamertonConverterTest
             Assert.That(mats.GetMaterialAmount(uid, "Plasma"), Is.EqualTo(comp.PrintSheets * 100));
 
             Assert.That(sys.TryPrintCrystal(ent, null), Is.True);
-            Assert.That(comp.Power, Is.EqualTo(20000f), "20000 spent");
+            Assert.That(comp.Power, Is.EqualTo(39000f), "1000 spent");
             Assert.That(mats.GetMaterialAmount(uid, "Plasma"), Is.EqualTo(0));
             Assert.That(mats.GetMaterialAmount(uid, "Uranium"), Is.EqualTo(0));
             Assert.That(comp.Work, Is.EqualTo(KamertonConverterWork.Printing));

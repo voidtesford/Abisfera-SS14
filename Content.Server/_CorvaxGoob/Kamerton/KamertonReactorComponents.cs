@@ -38,21 +38,21 @@ public sealed partial class KamertonFuelArrayComponent : Component
     public EntityUid? Synchronizer;
 }
 
-/// <summary>Corner heat sink: pumps gas inlet -> outlet and hands core heat to it.</summary>
+/// <summary>
+/// Heat sink: a straight pipe through the reactor shell (one pipe node, so gas passes through like an ordinary
+/// pipe and through neighbouring heat sinks) that hands core heat to the gas in its pipe.
+/// </summary>
 [RegisterComponent]
 public sealed partial class KamertonHeatSinkComponent : Component
 {
     [DataField]
-    public string InletName = "inlet";
+    public string PipeName = "pipe";
 
-    [DataField]
-    public string OutletName = "outlet";
-
-    /// <summary>Litres of inlet gas moved per second.</summary>
+    /// <summary>Litres of pipe gas that exchange heat with the core per second.</summary>
     [DataField]
     public float TransferRate = 100f;
 
-    /// <summary>Fraction of the core/gas temperature gap the passing gas closes.</summary>
+    /// <summary>Fraction of the core/gas temperature gap the exchanged gas closes.</summary>
     [DataField]
     public float Efficiency = 0.5f;
 
@@ -62,17 +62,9 @@ public sealed partial class KamertonHeatSinkComponent : Component
     [ViewVariables] public float LastHeatRemoved;
 }
 
-/// <summary>
-/// Radiator: extra heat capacity for the core. Carries heat on to the heat sinks when a chain of radiators
-/// links it to one; otherwise it only buffers heat.
-/// </summary>
+/// <summary>Radiator: every radiator in the reactor raises its heat limit; linked radiators carry heat to heat sinks.</summary>
 [RegisterComponent]
-public sealed partial class KamertonRadiatorComponent : Component
-{
-    /// <summary>J/K added to the core.</summary>
-    [DataField]
-    public float HeatCapacity = 25000f;
-}
+public sealed partial class KamertonRadiatorComponent : Component;
 
 /// <summary>HV output of the reactor: its PowerSupplier gets the core's total power.</summary>
 [RegisterComponent]
@@ -90,7 +82,7 @@ public sealed partial class KamertonControlModuleComponent : Component
 /// Kamerton reactor core: the layout anchor and holder of the reactor state
 /// (temperature, total power, assembly).
 /// </summary>
-[RegisterComponent, Access(typeof(KamertonReactorSystem), typeof(KamertonDroneSystem))]
+[RegisterComponent, Access(typeof(KamertonReactorSystem), typeof(KamertonDroneSystem), typeof(KamertonMeltdownSystem))]
 public sealed partial class KamertonReactorCoreComponent : Component
 {
     #region Settings
@@ -103,24 +95,45 @@ public sealed partial class KamertonReactorCoreComponent : Component
     [DataField]
     public int MaxPairsPerSynchronizer = 4;
 
-    /// <summary>W of waste heat per active pair.</summary>
+    /// <summary>Heat units per second per active pair.</summary>
     [DataField]
-    public float HeatPerPair = 150000f;
+    public float HeatPerPair = 1f;
 
-    /// <summary>Core heat capacity without radiators, J/K.</summary>
+    /// <summary>Heat limit without radiators; reaching the limit collapses the reactor.</summary>
     [DataField]
-    public float BaseHeatCapacity = 200000f;
+    public float BaseMaxHeat = 500f;
 
+    /// <summary>Heat limit added by every radiator of the reactor.</summary>
+    [DataField]
+    public float MaxHeatPerRadiator = 250f;
+
+    /// <summary>Share of the heat limit where meltdown starts: no stop, no SCRAM, arcs around the core.</summary>
+    [DataField]
+    public float MeltdownFraction = 0.75f;
+
+    /// <summary>Heat units per second a stopped core loses on its own, down to 0.</summary>
+    [DataField]
+    public float PassiveCooling = 2f;
+
+    /// <summary>Joules per heat unit, used when the heat sinks exchange heat with gas.</summary>
+    [DataField]
+    public float JoulesPerHeat = 20000f;
+
+    /// <summary>Gas temperature that matches heat 0; one heat unit is one kelvin above it.</summary>
     [DataField]
     public float AmbientTemperature = 293.15f;
 
-    /// <summary>Above this the reactor collapses.</summary>
+    /// <summary>Meltdown arcs reach this far, tiles.</summary>
     [DataField]
-    public float CollapseTemperature = 2000f;
+    public float ArcRange = 10f;
 
-    /// <summary>Console warning threshold.</summary>
+    /// <summary>Seconds between meltdown arcs.</summary>
     [DataField]
-    public float WarningTemperature = 1500f;
+    public float ArcInterval = 0.3f;
+
+    /// <summary>Damage of one meltdown arc.</summary>
+    [DataField]
+    public DamageSpecifier ArcDamage = new();
 
     /// <summary>A reactor node group with more parts than this does not run.</summary>
     [DataField]
@@ -156,8 +169,14 @@ public sealed partial class KamertonReactorCoreComponent : Component
 
     #region State
 
+    /// <summary>Core heat, 0 = room temperature.</summary>
     [DataField]
-    public float Temperature = 293.15f;
+    public float Heat;
+
+    [ViewVariables]
+    public bool Meltdown;
+
+    [ViewVariables] public float ArcAccumulator;
 
     [ViewVariables]
     public bool Working;

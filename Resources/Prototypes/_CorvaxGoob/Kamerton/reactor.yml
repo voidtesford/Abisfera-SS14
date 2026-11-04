@@ -25,6 +25,7 @@
   components:
   - type: Sprite
     sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_reactor.rsi
+    drawdepth: Objects
     snapCardinals: true
     noRot: true
   - type: Transform
@@ -106,6 +107,9 @@
     leakDamage:
       types:
         Cellular: 0.2
+    arcDamage:
+      types:
+        Shock: 2
   - type: StaticPrice
     price: 10000
   - type: NodeContainer
@@ -140,7 +144,7 @@
   parent: KamertonFuelArrayBase
   id: KamertonStableFuelArray
   name: Kamerton stable fuel array
-  description: Holds up to four super-energy cells for the Kamerton reactor.
+  description: A cradle for super-energy cells. The cells hum quietly inside it.
   components:
   - type: Sprite
     layers:
@@ -195,7 +199,7 @@
   parent: KamertonFuelArrayBase
   id: KamertonUnstableFuelArray
   name: Kamerton unstable fuel array
-  description: Holds up to four unstable super-energy cells for the Kamerton reactor.
+  description: A cradle for unstable super-energy cells. Red light flickers between its contacts.
   components:
   - type: Sprite
     layers:
@@ -250,7 +254,7 @@
   parent: KamertonReactorPartBase
   id: KamertonSynchronizer
   name: Kamerton synchronizer
-  description: Tunes stable and unstable cells to one frequency. Each tuned pair gives 50 kW, up to four pairs.
+  description: Tunes stable and unstable cells to one frequency, so they ring together like a tuning fork.
   components:
   - type: Sprite
     layers:
@@ -295,11 +299,11 @@
   parent: KamertonReactorPartBase
   id: KamertonHeatSink
   name: Kamerton heat sink
-  description: Pumps gas from its inlet pipe to its outlet pipe and dumps the heat its radiators bring into it. Sits on the reactor edge and needs a radiator line next to it.
+  description: A heavy finned pipe running through the reactor shell. Gas flowing through it carries the reactor heat away.
   components:
   - type: Sprite
-    noRot: false
-    snapCardinals: false
+    noRot: true
+    snapCardinals: true
     layers:
     - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
       state: hull_ne_0
@@ -336,14 +340,10 @@
       kamerton:
         !type:AdjacentNode
         nodeGroupID: KamertonReactor
-      inlet:
+      pipe:
         !type:PipeNode
         nodeGroupID: Pipe
-        pipeDirection: North
-      outlet:
-        !type:PipeNode
-        nodeGroupID: Pipe
-        pipeDirection: South
+        pipeDirection: Longitudinal
   - type: KamertonReactorPart
     kind: HeatSink
   - type: KamertonHeatSink
@@ -353,11 +353,11 @@
   parent: KamertonReactorPartBase
   id: KamertonRadiator
   name: Kamerton radiator
-  description: Soaks up reactor heat and passes it along a line of radiators to a heat sink. Without a heat sink at the end of its line it only buffers heat.
+  description: A dense heat block that soaks up reactor heat and hands it on to its neighbours.
   components:
   - type: Sprite
-    noRot: false
-    snapCardinals: false
+    noRot: true
+    snapCardinals: true
     layers:
     - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
       state: hull_ne_0
@@ -405,7 +405,7 @@
   parent: KamertonReactorPartBase
   id: KamertonSuppressor
   name: Kamerton suppressor
-  description: One segment of the suppressor ring around the Kamerton reactor. A broken ring leaks redspace.
+  description: A segment of the suppressor ring that keeps redspace inside the reactor.
   components:
   - type: Sprite
     layers:
@@ -452,7 +452,7 @@
   parent: KamertonReactorPartBase
   id: KamertonPowerUnit
   name: Kamerton power unit
-  description: Feeds the reactor output into the high-voltage network. Stands in the suppressor ring on an HV cable.
+  description: Feeds the reactor output into the high-voltage network.
   components:
   - type: Sprite
     layers:
@@ -511,7 +511,7 @@
   parent: KamertonReactorPartBase
   id: KamertonFuelStorage
   name: Kamerton fuel storage
-  description: A shell part next to the console. Holds 10 stable and 10 unstable cells, loaded from outside. The RDZT drone refuels the arrays from here.
+  description: A shielded rack for spare super-energy cells, built into the reactor shell.
   components:
   - type: Sprite
     layers:
@@ -574,10 +574,11 @@
 - type: entity
   id: KamertonDroneRDZT
   name: RDZT
-  description: Kamerton refuelling maintenance drone, a spider-like service robot. It docks at the fuel storage and swaps the cells in the fuel arrays through the hull. It never strays far from the core.
+  description: A Kamerton refuelling maintenance drone. A spider-like engineering robot that tends the reactor fuel.
   components:
   - type: Sprite
     sprite: _CorvaxGoob/Mobs/Silicon/kamerton_drone.rsi
+    drawdepth: Overdoors
     layers:
     - state: idle
       map: [ "enum.KamertonDroneVisualLayers.Base" ]
@@ -632,7 +633,6 @@
     price: 1500
 
 # Flatpacks (multitool to unpack, like the AME flatpack).
-  - type: KamertonLinkVisuals
 
 - type: entity
   abstract: true
@@ -778,3 +778,356 @@
     layers:
     - state: base
     - state: icon-storage
+
+# Meltdown arcs: thin red and blue lightning running from the core, drawn like Gilbert's phase-2 bolts.
+- type: entity
+  id: KamertonArcFxBase
+  abstract: true
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Effects/kamerton_arc.rsi
+    drawdepth: Effects
+    noRot: false
+  - type: TimedDespawn
+    lifetime: 0.16
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+- type: entity
+  id: KamertonArcSegmentRed
+  parent: KamertonArcFxBase
+  name: red arc
+  components:
+  - type: Sprite
+    layers:
+    - state: bolt_red
+      shader: unshaded
+
+- type: entity
+  id: KamertonArcSegmentBlue
+  parent: KamertonArcFxBase
+  name: blue arc
+  components:
+  - type: Sprite
+    layers:
+    - state: bolt_blue
+      shader: unshaded
+
+- type: entity
+  id: KamertonArcCrawlRed
+  parent: KamertonArcFxBase
+  name: red crackle
+  components:
+  - type: Sprite
+    noRot: true
+    layers:
+    - state: crawl_red
+      shader: unshaded
+  - type: PointLight
+    color: "#ff4040"
+    radius: 1.4
+    energy: 1.4
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.3
+
+- type: entity
+  id: KamertonArcCrawlBlue
+  parent: KamertonArcFxBase
+  name: blue crackle
+  components:
+  - type: Sprite
+    noRot: true
+    layers:
+    - state: crawl_blue
+      shader: unshaded
+  - type: PointLight
+    color: "#4080ff"
+    radius: 1.4
+    energy: 1.4
+    castShadows: false
+  - type: TimedDespawn
+    lifetime: 0.3
+
+# Flatpacker boards («упаковщик 1001»). Printed at the circuit imprinter after the «Камертон» research;
+# the flatpacker turns each one into the ready flatpack. Costs are material units (100 per sheet).
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonReactorCoreFlatpackBoard
+  name: Kamerton reactor core flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton reactor core; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonReactorCoreFlatpack
+    entity: KamertonReactorCore
+    cost:
+      Steel: 3000
+      Plasteel: 1500
+      Gold: 1000
+      Plasma: 1000
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonStableFuelArrayFlatpackBoard
+  name: Kamerton stable fuel array flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton stable fuel array; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonStableFuelArrayFlatpack
+    entity: KamertonStableFuelArray
+    cost:
+      Steel: 1500
+      Plasteel: 500
+      Silver: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonUnstableFuelArrayFlatpackBoard
+  name: Kamerton unstable fuel array flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton unstable fuel array; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonUnstableFuelArrayFlatpack
+    entity: KamertonUnstableFuelArray
+    cost:
+      Steel: 1500
+      Plasteel: 500
+      Plasma: 500
+      Uranium: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonSynchronizerFlatpackBoard
+  name: Kamerton synchronizer flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton synchronizer; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonSynchronizerFlatpack
+    entity: KamertonSynchronizer
+    cost:
+      Steel: 1000
+      Glass: 500
+      Gold: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonHeatSinkFlatpackBoard
+  name: Kamerton heat sink flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton heat sink; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonHeatSinkFlatpack
+    entity: KamertonHeatSink
+    cost:
+      Steel: 1000
+      Plasteel: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonRadiatorFlatpackBoard
+  name: Kamerton radiator flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton radiator; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonRadiatorFlatpack
+    entity: KamertonRadiator
+    cost:
+      Steel: 1000
+      Glass: 1000
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonSuppressorFlatpackBoard
+  name: Kamerton suppressor flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton suppressor; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonSuppressorFlatpack
+    entity: KamertonSuppressor
+    cost:
+      Steel: 1500
+      Plasteel: 1000
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonPowerUnitFlatpackBoard
+  name: Kamerton power unit flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton power unit; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonPowerUnitFlatpack
+    entity: KamertonPowerUnit
+    cost:
+      Steel: 1500
+      Gold: 500
+      Silver: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonControlModuleFlatpackBoard
+  name: Kamerton control module flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton control module; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonControlModuleFlatpack
+    entity: KamertonControlModule
+    cost:
+      Steel: 1000
+      Glass: 1000
+      Gold: 500
+  - type: StaticPrice
+    price: 300
+
+- type: entity
+  parent: BaseElectronics
+  id: KamertonFuelStorageFlatpackBoard
+  name: Kamerton fuel storage flatpack board
+  description: A circuit board for the flatpacker. It packs a Kamerton fuel storage; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonFuelStorageFlatpack
+    entity: KamertonFuelStorage
+    cost:
+      Steel: 1500
+      Plasteel: 500
+  - type: StaticPrice
+    price: 300
+
+- type: latheRecipe
+  id: KamertonReactorCoreFlatpackBoard
+  result: KamertonReactorCoreFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonStableFuelArrayFlatpackBoard
+  result: KamertonStableFuelArrayFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonUnstableFuelArrayFlatpackBoard
+  result: KamertonUnstableFuelArrayFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonSynchronizerFlatpackBoard
+  result: KamertonSynchronizerFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonHeatSinkFlatpackBoard
+  result: KamertonHeatSinkFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonRadiatorFlatpackBoard
+  result: KamertonRadiatorFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonSuppressorFlatpackBoard
+  result: KamertonSuppressorFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonPowerUnitFlatpackBoard
+  result: KamertonPowerUnitFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonControlModuleFlatpackBoard
+  result: KamertonControlModuleFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonFuelStorageFlatpackBoard
+  result: KamertonFuelStorageFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300

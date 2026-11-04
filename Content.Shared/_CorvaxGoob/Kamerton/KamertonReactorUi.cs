@@ -103,8 +103,8 @@ public sealed class KamertonReactorBoundUserInterfaceState(
     bool assembled,
     bool running,
     float scramCooldown,
-    float temperature,
-    float collapseTemperature,
+    float heat,
+    float maxHeat,
     float totalPower,
     float maxPower,
     int activePairs,
@@ -121,8 +121,10 @@ public sealed class KamertonReactorBoundUserInterfaceState(
     public readonly bool Assembled = assembled;
     public readonly bool Running = running;
     public readonly float ScramCooldown = scramCooldown;
-    public readonly float Temperature = temperature;
-    public readonly float CollapseTemperature = collapseTemperature;
+    /// <summary>Core heat, 0 = room temperature.</summary>
+    public readonly float Heat = heat;
+    /// <summary>Heat limit: the reactor collapses on reaching it.</summary>
+    public readonly float MaxHeat = maxHeat;
     public readonly float TotalPower = totalPower;
     public readonly float MaxPower = maxPower;
     public readonly int ActivePairs = activePairs;
@@ -137,6 +139,11 @@ public sealed class KamertonReactorBoundUserInterfaceState(
 
     /// <summary>Fuel storage and RDZT drone section of the console.</summary>
     public KamertonDroneInfo Drone = new();
+
+    /// <summary>Heat where meltdown starts (stop and SCRAM refused).</summary>
+    public float MeltdownHeat;
+
+    public bool Meltdown;
 }
 
 [Serializable, NetSerializable]

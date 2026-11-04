@@ -7,6 +7,7 @@ using Content.Shared.Examine;
 using Content.Shared.Interaction;
 using Robust.Server.GameObjects;
 using Robust.Shared.Containers;
+using Robust.Shared.Physics.Events;
 using Robust.Shared.Physics.Systems;
 using Robust.Shared.Random;
 
@@ -47,6 +48,7 @@ public sealed class KamertonDroneSystem : EntitySystem
         SubscribeLocalEvent<KamertonDroneSpawnerComponent, InteractUsingEvent>(OnSpawnerInteractUsing,
             after: new[] { typeof(FlatpackSystem) });
         SubscribeLocalEvent<KamertonDroneComponent, ExaminedEvent>(OnDroneExamined);
+        SubscribeLocalEvent<KamertonDroneComponent, PreventCollideEvent>(OnDronePreventCollide);
         SubscribeLocalEvent<KamertonControlModuleComponent, KamertonDroneCommandMessage>(OnCommand);
     }
 
@@ -293,7 +295,7 @@ public sealed class KamertonDroneSystem : EntitySystem
                 var storagePos = _transform.GetWorldPosition(storage);
                 if ((pos - storagePos).Length() > comp.DockRange)
                 {
-                    comp.Goal = storagePos;
+                    comp.Goal = DockPoint(storage);
                     break;
                 }
 
@@ -387,6 +389,48 @@ public sealed class KamertonDroneSystem : EntitySystem
 
         _physics.SetLinearVelocity(drone, velocity);
         _appearance.SetData(drone, KamertonDroneVisuals.Moving, velocity != Vector2.Zero);
+    }
+
+    /// <summary>
+    /// The drone climbs over the reactor hull: without this the anchored parts (hard structures) stop it dead
+    /// and it can never reach a storage that sits in the shell, which is why it used to do nothing in-game.
+    /// </summary>
+    private void OnDronePreventCollide(Entity<KamertonDroneComponent> ent, ref PreventCollideEvent args)
+    {
+        if (HasComp<KamertonReactorPartComponent>(args.OtherEntity))
+            args.Cancelled = true;
+    }
+
+    /// <summary>Where the drone parks to work: the free tile next to the storage, outside the reactor.</summary>
+    public Vector2 DockPoint(EntityUid storage)
+    {
+        var xform = Transform(storage);
+        var center = _transform.GetWorldPosition(xform);
+        if (xform.GridUid is not { } grid || !TryComp<Robust.Shared.Map.Components.MapGridComponent>(grid, out var gridComp))
+            return center;
+
+        var maps = EntityManager.System<SharedMapSystem>();
+        var tile = maps.TileIndicesFor(grid, gridComp, xform.Coordinates);
+        var rot = _transform.GetWorldRotation(grid);
+        foreach (var dir in new[] { Direction.North, Direction.South, Direction.East, Direction.West })
+        {
+            var next = tile.Offset(dir);
+            var blocked = false;
+            var anchored = maps.GetAnchoredEntitiesEnumerator(grid, gridComp, next);
+            while (anchored.MoveNext(out var other))
+            {
+                if (HasComp<KamertonReactorPartComponent>(other))
+                {
+                    blocked = true;
+                    break;
+                }
+            }
+
+            if (!blocked)
+                return center + rot.RotateVec(dir.ToVec()) * 0.8f;
+        }
+
+        return center;
     }
 
     private void OnDroneExamined(Entity<KamertonDroneComponent> ent, ref ExaminedEvent args)

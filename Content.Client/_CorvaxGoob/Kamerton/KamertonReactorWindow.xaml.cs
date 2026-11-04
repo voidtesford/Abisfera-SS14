@@ -47,6 +47,8 @@ public sealed partial class KamertonReactorWindow : FancyWindow
             StatusLabel.FontColorOverride = Unstable;
             TempBar.Value = 0f;
             TempLabel.Text = "-";
+            ThresholdLabel.Text = "-";
+            MeltdownLabel.Visible = false;
             PowerBar.Value = 0f;
             PowerLabel.Text = "-";
             PairsLabel.Text = "-";
@@ -67,9 +69,11 @@ public sealed partial class KamertonReactorWindow : FancyWindow
             : "kamerton-reactor-window-not-assembled", ("seconds", N(s.ScramCooldown)));
         StatusLabel.FontColorOverride = s.Running ? Ok : s.ScramCooldown > 0f ? Unstable : null;
 
-        TempBar.Value = s.CollapseTemperature > 0f ? Math.Clamp(s.Temperature / s.CollapseTemperature, 0f, 1f) : 0f;
-        TempLabel.Text = $"{N(s.Temperature)} / {N(s.CollapseTemperature)} K";
-        TempLabel.FontColorOverride = s.Temperature > s.CollapseTemperature * 0.75f ? Unstable : null;
+        TempBar.Value = s.MaxHeat > 0f ? Math.Clamp(s.Heat / s.MaxHeat, 0f, 1f) : 0f;
+        TempLabel.Text = $"{N(s.Heat)} / {N(s.MaxHeat)}";
+        TempLabel.FontColorOverride = s.Meltdown ? Unstable : null;
+        ThresholdLabel.Text = N(s.MeltdownHeat);
+        MeltdownLabel.Visible = s.Meltdown;
 
         PowerBar.Value = s.MaxPower > 0f ? Math.Clamp(s.TotalPower / s.MaxPower, 0f, 1f) : 0f;
         PowerLabel.Text = $"{Kw(s.TotalPower)} / {Kw(s.MaxPower)} kW";
@@ -110,13 +114,15 @@ public sealed partial class KamertonReactorWindow : FancyWindow
         if (s.HeatSinks.Count == 0)
             SinksBox.AddChild(new Label { Text = Loc.GetString("kamerton-reactor-window-no-sinks") });
 
-        HintLabel.Text = s.Temperature > s.CollapseTemperature * 0.75f
+        HintLabel.Text = s.Meltdown
+            ? Loc.GetString("kamerton-reactor-window-hint-meltdown")
+            : s.Heat > s.MeltdownHeat * 0.8f
             ? Loc.GetString("kamerton-reactor-window-hint-hot")
             : !s.RingComplete && s.Running ? Loc.GetString("kamerton-reactor-window-hint-ring") : string.Empty;
 
         StartButton.Disabled = s.Running || !s.Assembled || s.ScramCooldown > 0f;
-        StopButton.Disabled = !s.Running;
-        ScramButton.Disabled = false;
+        StopButton.Disabled = !s.Running || s.Meltdown;
+        ScramButton.Disabled = s.Meltdown;
         UpdateDrone(s.Drone);
     }
 

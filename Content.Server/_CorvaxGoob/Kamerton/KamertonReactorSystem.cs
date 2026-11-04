@@ -32,7 +32,8 @@ namespace Content.Server._CorvaxGoob.Kamerton;
 /// radiators inside, suppressors, the console and the power unit as the shell around them), then once a second:
 /// pairs charged stable/unstable cells per synchronizer (50 kW each, 4 per synchronizer), drains them,
 /// heats up, lets the heat sinks and radiators carry the heat away, feeds the power unit's HV supplier,
-/// leaks weak redspace if the ring is broken and collapses above 2000 K.
+/// leaks weak redspace if the ring is broken. Heat is counted in units (0 = room temperature) up to a limit of
+/// 500 + 250 per radiator; from 75% of it the core is in meltdown (no stop, arcs around it), at the limit it collapses.
 /// </summary>
 public sealed class KamertonReactorSystem : EntitySystem
 {
@@ -562,9 +563,12 @@ public sealed class KamertonReactorSystem : EntitySystem
             DrainCells(core, dt);
 
         // Heat.
-        var capacity = GetHeatCapacity(comp);
-        comp.Temperature += pairs * comp.HeatPerPair * dt / capacity;
-        CoolHeatSinks(core, capacity, dt);
+        comp.Heat += pairs * comp.HeatPerPair * dt;
+        CoolHeatSinks(core, dt);
+        if (!comp.Working)
+            comp.Heat = MathF.Max(0f, comp.Heat - comp.PassiveCooling * dt);
+        comp.Heat = MathF.Max(0f, comp.Heat);
+        UpdateMeltdown(core);
 
         // Power.
         if (comp.PowerUnit is { } unit && TryComp<PowerSupplierComponent>(unit, out var supplier))
@@ -578,7 +582,7 @@ public sealed class KamertonReactorSystem : EntitySystem
         if (comp.Working && pairs > 0 && !RingComplete(comp))
             Leak(core, dt);
 
-        if (comp.Temperature > comp.CollapseTemperature)
+        if (comp.Heat >= GetMaxHeat(comp))
         {
             Collapse(core);
             return;
@@ -587,41 +591,66 @@ public sealed class KamertonReactorSystem : EntitySystem
         UpdateUi(core);
     }
 
-    /// <summary>Sets the core temperature directly (admin tools and tests); the next step reacts to it.</summary>
-    public void SetTemperature(Entity<KamertonReactorCoreComponent> core, float kelvin)
+    /// <summary>Sets the core heat directly (admin tools and tests); the next step reacts to it.</summary>
+    public void SetHeat(Entity<KamertonReactorCoreComponent> core, float heat)
     {
-        core.Comp.Temperature = MathF.Max(0f, kelvin);
+        core.Comp.Heat = MathF.Max(0f, heat);
+        UpdateMeltdown(core);
     }
 
-    public float GetHeatCapacity(KamertonReactorCoreComponent comp)
+    /// <summary>Heat limit: 500 + 250 per radiator of the reactor. Reaching it collapses the reactor.</summary>
+    public float GetMaxHeat(KamertonReactorCoreComponent comp)
     {
-        var capacity = comp.BaseHeatCapacity;
-        foreach (var rad in comp.Radiators)
-        {
-            if (TryComp<KamertonRadiatorComponent>(rad, out var r))
-                capacity += r.HeatCapacity;
-        }
-
-        return MathF.Max(1f, capacity);
+        return comp.BaseMaxHeat + comp.MaxHeatPerRadiator * comp.Radiators.Count;
     }
 
-    /// <summary>Heat moving from the core (capacity <paramref name="coreCap"/>) into gas, never past equilibrium.</summary>
-    private float Exchange(KamertonReactorCoreComponent comp, float coreCap, GasMixture gas, float fraction)
+    /// <summary>Heat where meltdown starts.</summary>
+    public float GetMeltdownHeat(KamertonReactorCoreComponent comp)
+    {
+        return GetMaxHeat(comp) * comp.MeltdownFraction;
+    }
+
+    /// <summary>Core temperature the heat stands for: one heat unit is one kelvin above room temperature.</summary>
+    public static float CoreTemperature(KamertonReactorCoreComponent comp)
+    {
+        return comp.AmbientTemperature + comp.Heat;
+    }
+
+    private void UpdateMeltdown(Entity<KamertonReactorCoreComponent> core)
+    {
+        var comp = core.Comp;
+        var meltdown = comp.Heat >= GetMeltdownHeat(comp);
+        if (meltdown == comp.Meltdown)
+            return;
+
+        comp.Meltdown = meltdown;
+        if (meltdown)
+            _popup.PopupEntity(Loc.GetString("kamerton-reactor-popup-meltdown"), core, PopupType.LargeCaution);
+    }
+
+    /// <summary>Heat moving from the core into gas, never past equilibrium. Returns joules.</summary>
+    private float Exchange(KamertonReactorCoreComponent comp, GasMixture gas, float fraction)
     {
         var gasCap = _atmos.GetHeatCapacity(gas, true);
         if (gasCap <= 0f)
             return 0f;
 
-        var gap = comp.Temperature - gas.Temperature;
+        var coreCap = comp.JoulesPerHeat;
+        var gap = CoreTemperature(comp) - gas.Temperature;
         var equilibrium = gap * gasCap * coreCap / (gasCap + coreCap);
         var q = equilibrium * Math.Clamp(fraction, 0f, 1f);
 
+        // A cold core does not soak heat back out of hot gas below room temperature.
+        if (q < 0f)
+            q = 0f;
+
+        q = MathF.Min(q, comp.Heat * coreCap);
         gas.Temperature = MathF.Max(Atmospherics.TCMB, gas.Temperature + q / gasCap);
-        comp.Temperature -= q / coreCap;
+        comp.Heat -= q / coreCap;
         return q;
     }
 
-    private void CoolHeatSinks(Entity<KamertonReactorCoreComponent> core, float capacity, float dt)
+    private void CoolHeatSinks(Entity<KamertonReactorCoreComponent> core, float dt)
     {
         foreach (var uid in core.Comp.HeatSinks)
         {
@@ -631,34 +660,35 @@ public sealed class KamertonReactorSystem : EntitySystem
             sink.LastFlow = 0f;
             sink.LastHeatRemoved = 0f;
 
-            // No radiator line feeds this heat sink: it has no heat to hand to its gas.
+            if (!_nodes.TryGetNode(uid, sink.PipeName, out PipeNode? pipe))
+            {
+                SetOn(uid, false);
+                continue;
+            }
+
+            sink.LastInletTemperature = pipe.Air.Temperature;
+            sink.LastOutletTemperature = pipe.Air.Temperature;
+
+            // No radiator line feeds this heat sink: it is just a pipe.
             if (!core.Comp.LinkedHeatSinks.Contains(uid))
             {
                 SetOn(uid, false);
                 continue;
             }
 
-            if (!_nodes.TryGetNodes(uid, sink.InletName, sink.OutletName, out PipeNode? inlet, out PipeNode? outlet))
-            {
-                SetOn(uid, false);
-                continue;
-            }
-
-            sink.LastInletTemperature = inlet.Air.Temperature;
-            var removed = inlet.Air.RemoveVolume(sink.TransferRate * dt);
+            var removed = pipe.Air.RemoveVolume(sink.TransferRate * dt);
             if (removed.TotalMoles <= 0f)
             {
-                sink.LastOutletTemperature = outlet.Air.Temperature;
                 SetOn(uid, false);
                 continue;
             }
 
-            var q = Exchange(core.Comp, capacity, removed, sink.Efficiency);
+            var q = Exchange(core.Comp, removed, sink.Efficiency);
             sink.LastFlow = removed.TotalMoles / MathF.Max(dt, 0.001f);
             sink.LastHeatRemoved = q / MathF.Max(dt, 0.001f);
             sink.LastOutletTemperature = removed.Temperature;
-            _atmos.Merge(outlet.Air, removed);
-            SetOn(uid, true);
+            _atmos.Merge(pipe.Air, removed);
+            SetOn(uid, q > 0f);
         }
     }
 
@@ -692,6 +722,34 @@ public sealed class KamertonReactorSystem : EntitySystem
 
         comp.Working = true;
         UpdateVisuals(core);
+        return true;
+    }
+
+    /// <summary>Stops the reactor unless it is in meltdown. Returns false (with a reason) when refused.</summary>
+    public bool TryStop(Entity<KamertonReactorCoreComponent> core, out string? reason)
+    {
+        reason = null;
+        if (core.Comp.Meltdown)
+        {
+            reason = "kamerton-reactor-popup-meltdown-locked";
+            return false;
+        }
+
+        Stop(core);
+        return true;
+    }
+
+    /// <summary>SCRAM unless the reactor is in meltdown.</summary>
+    public bool TryScram(Entity<KamertonReactorCoreComponent> core, out string? reason)
+    {
+        reason = null;
+        if (core.Comp.Meltdown)
+        {
+            reason = "kamerton-reactor-popup-meltdown-locked";
+            return false;
+        }
+
+        Scram(core);
         return true;
     }
 
@@ -740,7 +798,9 @@ public sealed class KamertonReactorSystem : EntitySystem
         if (ConsoleCore(ent) is not { } core)
             return;
 
-        Stop(core);
+        if (!TryStop(core, out var reason) && reason != null)
+            _popup.PopupEntity(Loc.GetString(reason), ent, args.Actor, PopupType.MediumCaution);
+
         UpdateUi(core);
     }
 
@@ -749,7 +809,9 @@ public sealed class KamertonReactorSystem : EntitySystem
         if (ConsoleCore(ent) is not { } core)
             return;
 
-        Scram(core);
+        if (!TryScram(core, out var reason) && reason != null)
+            _popup.PopupEntity(Loc.GetString(reason), ent, args.Actor, PopupType.MediumCaution);
+
         UpdateUi(core);
     }
 
@@ -805,9 +867,11 @@ public sealed class KamertonReactorSystem : EntitySystem
         var max = comp.Synchronizers.Count * comp.MaxPairsPerSynchronizer * comp.PowerPerPair;
 
         var state = new KamertonReactorBoundUserInterfaceState(true, IsAssembled(comp), comp.Working, comp.ScramCooldown,
-            comp.Temperature, comp.CollapseTemperature, comp.TotalPower, max, comp.ActivePairs, comp.Synchronizers.Count,
+            comp.Heat, GetMaxHeat(comp), comp.TotalPower, max, comp.ActivePairs, comp.Synchronizers.Count,
             RingComplete(comp), comp.RingMissing, comp.PowerUnit != null, supplied, arrays, sinks, comp.LinkedRadiators.Count);
         state.Drone = _drone.BuildInfo(core);
+        state.MeltdownHeat = GetMeltdownHeat(comp);
+        state.Meltdown = comp.Meltdown;
         return state;
     }
 
@@ -852,7 +916,7 @@ public sealed class KamertonReactorSystem : EntitySystem
     }
 
     /// <summary>
-    /// Above the collapse temperature: a tesla ball at the core, small singularities around it,
+    /// At the heat limit: a tesla ball at the core, small singularities around it,
     /// the whole map turns into normal redspace and the reactor is gone.
     /// </summary>
     public void Collapse(Entity<KamertonReactorCoreComponent> core)
@@ -907,9 +971,10 @@ public sealed class KamertonReactorSystem : EntitySystem
     {
         var comp = core.Comp;
         _appearance.SetData(core, KamertonReactorVisuals.On, comp.Working);
-        var heat = comp.Temperature < 600f ? 0
-            : comp.Temperature < 1000f ? 1
-            : comp.Temperature < comp.WarningTemperature ? 2
+        var share = comp.Heat / MathF.Max(1f, GetMaxHeat(comp));
+        var heat = share < 0.2f ? 0
+            : share < 0.45f ? 1
+            : share < comp.MeltdownFraction ? 2
             : 3;
         _appearance.SetData(core, KamertonReactorVisuals.Heat, heat);
         if (_light.TryGetLight(core, out var light))
@@ -937,7 +1002,9 @@ public sealed class KamertonReactorSystem : EntitySystem
         var comp = ent.Comp;
         using (args.PushGroup(nameof(KamertonReactorCoreComponent)))
         {
-            args.PushMarkup(Loc.GetString("kamerton-reactor-examine-temperature", ("temp", MathF.Round(comp.Temperature)), ("max", comp.CollapseTemperature)));
+            args.PushMarkup(Loc.GetString("kamerton-reactor-examine-heat", ("heat", MathF.Round(comp.Heat)), ("max", GetMaxHeat(comp))));
+            if (comp.Meltdown)
+                args.PushMarkup(Loc.GetString("kamerton-reactor-examine-meltdown"));
             args.PushMarkup(Loc.GetString("kamerton-reactor-examine-power", ("power", MathF.Round(comp.TotalPower / 1000f, 1)), ("pairs", comp.ActivePairs)));
             args.PushMarkup(Loc.GetString(comp.Working ? "kamerton-reactor-examine-running" : "kamerton-reactor-examine-stopped"));
             args.PushMarkup(RingComplete(comp)

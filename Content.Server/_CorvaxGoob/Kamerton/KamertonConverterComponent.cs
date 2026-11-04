@@ -76,11 +76,15 @@ public sealed partial class KamertonConverterComponent : Component
     public float ChargeRate = 100f;
 
     [DataField]
-    public float PrintPower = 20000f;
+    public float PrintPower = 1000f;
+
+    /// <summary>Battery energy one redspace crystal costs on top of the 10 bluespace crystals.</summary>
+    [DataField]
+    public float CreatePower = 10000f;
 
     /// <summary>Sheets of each of plasma and uranium (MaterialStorage) one printed bluespace crystal costs.</summary>
     [DataField]
-    public int PrintSheets = 15;
+    public int PrintSheets = 5;
 
     [DataField]
     public ProtoId<MaterialPrototype> Plasma = "Plasma";
@@ -104,7 +108,11 @@ public sealed partial class KamertonConverterComponent : Component
     public SoundSpecifier? WorkSound = new SoundPathSpecifier("/Audio/Machines/anomaly_generate.ogg");
 
     [DataField]
-    public SoundSpecifier? DoneSound = new SoundPathSpecifier("/Audio/Machines/machine_vend.ogg");
+    public SoundSpecifier? DoneSound = new SoundPathSpecifier("/Audio/Machines/phasein.ogg");
+
+    /// <summary>Played when a cell is charged.</summary>
+    [DataField]
+    public SoundSpecifier? ChargeSound = new SoundPathSpecifier("/Audio/Effects/sparks4.ogg");
 
     [DataField]
     public SoundSpecifier? DenySound = new SoundPathSpecifier("/Audio/Machines/custom_deny.ogg");

@@ -13,6 +13,11 @@
             <Label Name="TempLabel" Margin="6 0 0 0" MinWidth="110"/>
         </BoxContainer>
         <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-meltdown-threshold'}" MinWidth="190"/>
+            <Label Name="ThresholdLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <Label Name="MeltdownLabel" FontColorOverride="#FF3050" Visible="False" Text="{Loc 'kamerton-reactor-window-meltdown'}"/>
+        <BoxContainer Orientation="Horizontal">
             <Label Text="{Loc 'kamerton-reactor-window-power'}" MinWidth="190"/>
             <ProgressBar Name="PowerBar" HorizontalExpand="True" MinValue="0" MaxValue="1" SetHeight="18"/>
             <Label Name="PowerLabel" Margin="6 0 0 0" MinWidth="110"/>

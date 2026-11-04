@@ -55,7 +55,7 @@ public sealed partial class KamertonConverterWindow : FancyWindow
                 ("name", s.CellName));
 
         var idle = s.Work == KamertonConverterWork.Idle;
-        StartButton.Disabled = !idle || (create ? s.Bluespace < s.MaxCrystals : loaded == 0);
+        StartButton.Disabled = !idle || (create ? s.Bluespace < s.MaxCrystals || s.Power < s.CreatePower : loaded == 0);
 
         // Charging needs an empty cell and enough energy of the matching kind.
         var energy = s.CellStable ? s.StableEnergy : s.UnstableEnergy;

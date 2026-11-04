@@ -213,6 +213,13 @@ public sealed class KamertonConverterSystem : EntitySystem
                 return false;
             }
 
+            if (comp.Power < comp.CreatePower)
+            {
+                Deny(ent, user, "kamerton-converter-not-enough-power", ("need", comp.CreatePower), ("have", MathF.Floor(comp.Power)));
+                return false;
+            }
+
+            comp.Power -= comp.CreatePower;
             BeginWork(ent, KamertonConverterWork.Creating, comp.CreateTime);
             return true;
         }
@@ -299,7 +306,7 @@ public sealed class KamertonConverterSystem : EntitySystem
             comp.UnstableEnergy -= comp.ChargeCost;
 
         _cells.SwapInSlot(ent, comp.CellSlot, (cellUid, cell));
-        _audio.PlayPvs(comp.DoneSound, ent);
+        _audio.PlayPvs(comp.ChargeSound, ent);
         Popup(ent, user, "kamerton-converter-cell-charged");
         Changed(ent);
         return true;
@@ -446,7 +453,7 @@ public sealed class KamertonConverterSystem : EntitySystem
         _ui.SetUiState(ent.Owner, KamertonConverterUiKey.Key, new KamertonConverterBoundUserInterfaceState(
             c.Mode, c.Work, c.Bluespace, c.Redspace, c.MaxCrystals,
             c.StableEnergy, c.UnstableEnergy, c.ChargeCost,
-            c.Power, c.MaxPower, c.PrintPower,
+            c.Power, c.MaxPower, c.PrintPower, c.CreatePower,
             _materials.GetMaterialAmount(ent, c.Plasma) / SheetVolume,
             _materials.GetMaterialAmount(ent, c.Uranium) / SheetVolume,
             c.PrintSheets, cellName, charged, stable));

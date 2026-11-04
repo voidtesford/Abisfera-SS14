@@ -60,6 +60,7 @@ public sealed class KamertonConverterBoundUserInterfaceState(
     float power,
     float maxPower,
     float printPower,
+    float createPower,
     int plasma,
     int uranium,
     int sheetCost,
@@ -78,6 +79,7 @@ public sealed class KamertonConverterBoundUserInterfaceState(
     public readonly float Power = power;
     public readonly float MaxPower = maxPower;
     public readonly float PrintPower = printPower;
+    public readonly float CreatePower = createPower;
     /// <summary>Plasma stored, in sheets.</summary>
     public readonly int Plasma = plasma;
     /// <summary>Uranium stored, in sheets.</summary>

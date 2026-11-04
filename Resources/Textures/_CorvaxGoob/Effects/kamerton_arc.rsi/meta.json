@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Red frames from gilbert_red_bolt.rsi (CorvaxGoob); blue frames hue-shifted from them for the Kamerton meltdown",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "bolt_red",
+      "delays": [
+        [
+          0.05,
+          0.05,
+          0.05
+        ]
+      ]
+    },
+    {
+      "name": "bolt_blue",
+      "delays": [
+        [
+          0.05,
+          0.05,
+          0.05
+        ]
+      ]
+    },
+    {
+      "name": "crawl_red",
+      "delays": [
+        [
+          0.06,
+          0.06,
+          0.06,
+          0.06,
+          0.06
+        ]
+      ]
+    },
+    {
+      "name": "crawl_blue",
+      "delays": [
+        [
+          0.06,
+          0.06,
+          0.06,
+          0.06,
+          0.06
+        ]
+      ]
+    }
+  ]
+}
