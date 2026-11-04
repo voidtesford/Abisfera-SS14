@@ -155,7 +155,7 @@ public sealed partial class KamertonReactorCoreComponent : Component
     public float ScramLockout = 30f;
 
     [DataField]
-    public EntProtoId CollapseTesla = "TeslaEnergyBall";
+    public EntProtoId CollapseTesla = "KamertonTesla";
 
     [DataField]
     public EntProtoId CollapseSingularity = "Singularity";

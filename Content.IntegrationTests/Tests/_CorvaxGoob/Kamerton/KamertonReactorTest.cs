@@ -929,11 +929,11 @@ public sealed class KamertonReactorTest
                 if (xform.MapID != map.MapId)
                     continue;
                 var dist = (xforms.GetWorldPosition(xform) - corePos).Length();
-                if (meta.EntityPrototype?.ID == "TeslaEnergyBall")
+                if (meta.EntityPrototype?.ID == "KamertonTesla")
                 {
                     tesla++;
                     spawned.Add(uid);
-                    Assert.That(dist, Is.LessThan(1.5f), "tesla ball at the core");
+                    Assert.That(dist, Is.LessThan(1.5f), "the Kamerton tesla at the core");
                 }
                 else if (meta.EntityPrototype?.ID == "Singularity")
                 {
