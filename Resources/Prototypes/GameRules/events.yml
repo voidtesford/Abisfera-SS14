@@ -241,7 +241,7 @@
     announcersStartAudio: # CorvaxGoob-CustomAnnouncers
       Intern:
         path: /Audio/_CorvaxGoob/Announcements/Announcers/Intern/flux.ogg # CorvaxGoob-Announcements
-    weight: 8
+    weight: 7
     duration: 35
     chaos: # Goobstation
       Anomaly: 100
@@ -318,7 +318,7 @@
   components:
   - type: StationEvent
     startAnnouncement: station-event-bureaucratic-error-announcement
-    minimumPlayers: 25
+    minimumPlayers: 15
     weight: 3
     duration: 1
     eventType: Neutral # Goobstation
@@ -335,8 +335,8 @@
   components:
   - type: StationEvent
     startAnnouncement: station-event-clerical-error-announcement
-    minimumPlayers: 15
-    weight: 5
+    minimumPlayers: 10
+    weight: 2
     duration: 1
     eventType: Chaotic # Goobstation
   # Goobstation
@@ -349,9 +349,9 @@
   id: ClosetSkeleton
   components:
   - type: StationEvent
-    weight: 5
+    weight: 4
     duration: 1
-    minimumPlayers: 30 # CorvaxGoob-SpawnRebalance: Changed to from 10
+    minimumPlayers: 5 # CorvaxGoob-SpawnRebalance: Changed to from 10
     eventType: Chaotic # Goobstation
   # Goobstation
   - type: GameRule
@@ -368,7 +368,7 @@
     earliestStart: 30 # Goobstation was 45
     #recorruenceDelay: 20 # Goobstation - no longer needed
     maxOccurrences: 1 # Goobstation
-    minimumPlayers: 50
+    minimumPlayers: 15
     duration: null
     chaos: # Goobstation
       Hostile: 20
@@ -409,7 +409,7 @@
     earliestStart: 30 # Goobstation - was 45
     #reoccurrenceDelay: 20 # Goobstation - no longer needed
     maxOccurrences: 1 # Goobstation
-    minimumPlayers: 30
+    minimumPlayers: 20
     chaos: # Goobstation
       Hostile: 20
       Friend: 20
@@ -481,7 +481,7 @@
     duration: null
     earliestStart: 20
     reoccurrenceDelay: 20
-    minimumPlayers: 15
+    minimumPlayers: 10
     eventType: Chaotic # Goobstation
   # Goobstation
   - type: GameRule
@@ -520,27 +520,27 @@
       mindRoles:
       - MindRoleParadoxClone
 
-#- type: entity   Goobstaion start - disabled until rework
-#  parent: BaseGameRule
-#  id: RevenantSpawn
-#  components:
-#  - type: StationEvent
-#    weight: 3.5
-#    duration: 1
-#    earliestStart: 30
-#    minimumPlayers: 20
-#    chaos: # Goobstation
-#      Hostile: 20
-#      Friend: 20
-#      Combat: 40
-#      Death: 100
-#      Medical: 100
-#    eventType: HostilesSpawn # Goobstation
-#  # Goobstation
-#  - type: GameRule
-#    chaosScore: 450
-#  - type: RandomSpawnRule
-#    prototype: MobRevenant      goobstation end
+- type: entity    
+  parent: BaseGameRule
+  id: RevenantSpawn
+  components:
+  - type: StationEvent
+    weight: 3.5
+    duration: 1
+    earliestStart: 30
+    minimumPlayers: 15
+    chaos: # Goobstation
+      Hostile: 20
+      Friend: 20
+      Combat: 40
+      Death: 100
+      Medical: 100
+    eventType: HostilesSpawn # Goobstation
+   # Goobstation
+  - type: GameRule
+    chaosScore: 450
+  - type: RandomSpawnRule
+    prototype: MobRevenant      
 
 # Goob - wiz of our own
 #- type: entity
@@ -581,15 +581,14 @@
 #      mindRoles:
 #      - MindRoleWizard
 
-# disabled until event is rewritten to be more interesting
-#- type: entity
-#  id: FalseAlarm
-#  parent: BaseGameRule
-#  components:
-#  - type: StationEvent
-#    weight: 15
-#    duration: 1
-#  - type: FalseAlarmRule
+- type: entity
+  id: FalseAlarm
+  parent: BaseGameRule
+  components:
+  - type: StationEvent
+    weight: 2
+    duration: 1
+  - type: FalseAlarmRule
 
 - type: entity
   id: GasLeak
@@ -606,7 +605,7 @@
     announcersEndAudio:
       Intern:
         path: /Audio/_CorvaxGoob/Announcements/Announcers/Intern/gasleak_end.ogg
-    weight: 8
+    weight: 7
     chaos:
       Atmos: 100
       Medical: 50
@@ -626,8 +625,8 @@
   components:
   - type: StationEvent
     earliestStart: 15
-    minimumPlayers: 15
-    weight: 7
+    minimumPlayers: 10
+    weight: 5
     duration: 240
     chaos:
       Hostile: 20
@@ -706,13 +705,13 @@
   - type: StationEvent
     startAnnouncement: station-event-vent-clog-start-announcement
     startAudio:
-      path: /Audio/Announcements/attention.ogg # CorvaxGoob-Announcements
+      path: /Audio/_Abisfera/Announcements/ventclog.ogg # CorvaxGoob-Announcements
     announcersStartAudio: # CorvaxGoob-CustomAnnouncers
       Intern:
         path: /Audio/_CorvaxGoob/Announcements/Announcers/Intern/aliens.ogg
     earliestStart: 15
-    minimumPlayers: 15
-    weight: 5
+    minimumPlayers: 5
+    weight: 7
     duration: 60
     chaos: # Goobstation
       Mess: 200
@@ -729,12 +728,12 @@
   - type: StationEvent
     startAnnouncement: station-event-vent-creatures-start-announcement
     startAudio:
-      path: /Audio/Announcements/attention.ogg # CorvaxGoob-Announcements
+      path: /Audio/_Abisfera/Announcements/lifesigns.ogg # CorvaxGoob-Announcements
     announcersStartAudio: # CorvaxGoob-CustomAnnouncers
       Intern:
-        path: /Audio/_CorvaxGoob/Announcements/Announcers/Intern/aliens.ogg
+        path: /Audio/_Abisfera/Announcements/lifesigns.ogg
     earliestStart: 20
-    minimumPlayers: 15
+    minimumPlayers: 5
     weight: 7 # Goobstation - was 5
     duration: 30 # DeltaV: was 60, used as a delay now
     chaos: # Goobstation
@@ -758,10 +757,10 @@
   - type: StationEvent
     startAnnouncement: station-event-vent-creatures-start-announcement
     startAudio:
-      path: /Audio/Announcements/attention.ogg
+      path: /Audio/_Abisfera/Announcements/lifesigns.ogg
     announcersStartAudio: # CorvaxGoob-CustomAnnouncers
       Intern:
-        path: /Audio/_CorvaxGoob/Announcements/Announcers/Intern/aliens.ogg
+        path: /Audio/_Abisfera/Announcements/lifesigns.ogg
     earliestStart: 20
     minimumPlayers: 15
     weight: 7 # Goobstation - was 5
@@ -787,12 +786,12 @@
   - type: StationEvent
     startAnnouncement: station-event-vent-creatures-start-announcement
     startAudio:
-      path: /Audio/Announcements/aliens.ogg
+      path: /Audio/_Abisfera/Announcements/lifesigns.ogg
     announcersStartAudio: # CorvaxGoob-CustomAnnouncers
       Intern:
-        path: /Audio/_CorvaxGoob/Announcements/Announcers/Intern/aliens.ogg
+        path: /Audio/_Abisfera/Announcements/lifesigns.ogg
     earliestStart: 20
-    minimumPlayers: 15
+    minimumPlayers: 5
     weight: 7 # Goobstation - was 5
     duration: 30 # DeltaV: was 60, used as a delay now
     chaos: # Goobstation
@@ -813,12 +812,12 @@
   - type: StationEvent
     startAnnouncement: station-event-vent-creatures-start-announcement
     startAudio:
-      path: /Audio/Announcements/attention.ogg
+      path: /Audio/_Abisfera/Announcements/lifesigns.ogg
     announcersStartAudio: # CorvaxGoob-CustomAnnouncers
       Intern:
-        path: /Audio/_CorvaxGoob/Announcements/Announcers/Intern/aliens.ogg
+        path: /Audio/_Abisfera/Announcements/lifesigns.ogg
     earliestStart: 45 # DeltaV - was 20
-    minimumPlayers: 30 # DeltaV - was 20
+    minimumPlayers: 10 # DeltaV - was 20
     weight: 3 # Goobstation - was 1.5
     duration: 30 # DeltaV: was 60, used as a delay now
     chaos: # Goobstation
@@ -839,7 +838,7 @@
   components:
   - type: StationEvent
     earliestStart: 60 # Goobstation - was 90 (impossible on goob)
-    minimumPlayers: 40
+    minimumPlayers: 30
     weight: 1 # Zombies was happening basically every single survival round, so now it's super rare
     duration: 1
     chaos: # Goobstation
@@ -884,7 +883,7 @@
   - type: StationEvent
     earliestStart: 35
     weight: 2.5 # Goobstation - was 5.5
-    minimumPlayers: 50 # Goobstation - was 20
+    minimumPlayers: 30 # Goobstation - was 20
     duration: 1
     chaos: # Goobstation
       Hostile: 200
@@ -1016,9 +1015,9 @@
   components:
   - type: StationEvent
     earliestStart: 0
-    minimumPlayers: 20
+    minimumPlayers: 5
     maxOccurrences: 1 # this event has diminishing returns on interesting-ness, so we cap it
-    weight: 5
+    weight: 7
     chaos: # Goobstation
       Hostile: 20 # for when they're actually properly hostile
       Hunger: 10
@@ -1039,8 +1038,8 @@
     announcersStartAudio: # CorvaxGoob-CustomAnnouncers
       Intern:
         path: /Audio/_CorvaxGoob/Announcements/Announcers/Intern/greytide.ogg
-    weight: 5
-    minimumPlayers: 25
+    weight: 3
+    minimumPlayers: 10
     reoccurrenceDelay: 20
     chaos: # Goobstation
       Atmos: 15

@@ -1,0 +1,10 @@
+- type: decal
+  id: random_zacha_4_fire
+  sprite:
+    sprite: Decals/burnt.rsi  
+    state: burnt1
+  states:
+  - burnt1
+  - burnt2
+  - burnt3
+  - burnt4

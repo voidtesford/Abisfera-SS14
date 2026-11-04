@@ -32,7 +32,7 @@
   - type: GameRule
     chaosScore: 150
   - type: StationEvent
-    weight: 4.5 # Uncommon
+    weight: 2 # Uncommon
     earliestStart: 30
     reoccurrenceDelay: 30
     minimumPlayers: 4
