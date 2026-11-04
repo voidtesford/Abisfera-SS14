@@ -84,7 +84,7 @@ public sealed partial class KamertonConverterComponent : Component
 
     /// <summary>Sheets of each of plasma and uranium (MaterialStorage) one printed bluespace crystal costs.</summary>
     [DataField]
-    public int PrintSheets = 5;
+    public int PrintSheets = 10;
 
     [DataField]
     public ProtoId<MaterialPrototype> Plasma = "Plasma";

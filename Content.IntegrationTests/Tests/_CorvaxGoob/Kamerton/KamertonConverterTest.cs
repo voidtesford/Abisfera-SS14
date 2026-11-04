@@ -121,7 +121,7 @@ public sealed class KamertonConverterTest
             Assert.That(c.ChargeCost, Is.EqualTo(100));
             Assert.That(c.PrintPower, Is.EqualTo(1000f));
             Assert.That(c.CreatePower, Is.EqualTo(10000f));
-            Assert.That(c.PrintSheets, Is.EqualTo(5));
+            Assert.That(c.PrintSheets, Is.EqualTo(10));
             Assert.That(c.MaxPower, Is.EqualTo(40000f));
             Assert.That(c.ChargeRate, Is.EqualTo(100f));
 

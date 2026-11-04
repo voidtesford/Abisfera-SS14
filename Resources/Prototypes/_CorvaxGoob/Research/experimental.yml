@@ -57,7 +57,7 @@
     state: core
   discipline: Experimental
   tier: 3
-  cost: 10000
+  cost: 50000
   recipeUnlocks:
   - KamertonConverterCircuitboard
   - KamertonReactorCoreFlatpackBoard

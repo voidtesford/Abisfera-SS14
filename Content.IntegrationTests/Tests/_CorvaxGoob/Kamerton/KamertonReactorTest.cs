@@ -505,7 +505,7 @@ public sealed class KamertonReactorTest
             Assert.That(c.Heat, Is.Zero, "starts at ambient");
             Assert.That(sys.GetMaxHeat(c), Is.EqualTo(500f + 250f * c.Radiators.Count));
             sys.Step(core, 10f);
-            Assert.That(c.Heat, Is.EqualTo(16 * c.HeatPerPair * 10f).Within(0.5f), "16 pairs at 8 heat each: +128 heat per second without cooling");
+            Assert.That(c.Heat, Is.EqualTo(16 * c.HeatPerPair * 10f).Within(0.5f), "16 pairs at 15 heat each: +240 heat per second without cooling");
 
             // Heat-pipe joints: radiator-radiator and radiator-heat sink (N=1, S=2, E=4, W=8).
             var appearance = entMan.System<SharedAppearanceSystem>();
@@ -1224,10 +1224,12 @@ public sealed class KamertonReactorTest
             Breathable(entMan, map);
             Assert.That(sys.TryStart(c, out _), Is.True);
             sys.Step(c, 0.5f);
-            Assert.That(c.Comp.ActivePairs * c.Comp.HeatPerPair, Is.EqualTo(128f));
+            Assert.That(c.Comp.ActivePairs * c.Comp.HeatPerPair, Is.EqualTo(240f));
             Assert.That(c.Comp.LinkedHeatSinks, Has.Count.EqualTo(14), "both sink lines linked as chains");
-            sys.SetHeat(c, 1000f);
-            for (var i = 0; i < 40; i++)
+            // Cold nitrogen, 1 atm and 150 K, in every sink: equilibrium is near heat 1030,
+            // well under the meltdown threshold.
+            sys.SetHeat(c, 1500f);
+            for (var i = 0; i < 60; i++)
             {
                 foreach (var sink in c.Comp.LinkedHeatSinks)
                 {
@@ -1238,7 +1240,9 @@ public sealed class KamertonReactorTest
                 }
                 sys.Step(c, 0.5f);
             }
-            Assert.That(c.Comp.Heat, Is.LessThan(1000f), "the sinks remove more than 128 heat/s at heat 1000");
+            Assert.That(c.Comp.Heat, Is.LessThan(1300f), "the sinks remove more than 240 heat/s above heat 1100");
+            Assert.That(c.Comp.Heat, Is.GreaterThan(900f), "and less than 240 heat/s below heat 1000");
+            Assert.That(c.Comp.Meltdown, Is.False);
             Assert.That(c.Comp.Collapsed, Is.False);
         });
 

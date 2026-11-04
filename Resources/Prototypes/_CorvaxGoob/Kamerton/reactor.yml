@@ -980,9 +980,10 @@
     entity: KamertonReactorCore
     cost:
       Steel: 3000
-      Plasteel: 1500
-      Gold: 1000
+      Plasteel: 2500
+      Gold: 1500
       Plasma: 1000
+      Silver: 500
   - type: StaticPrice
     price: 300
 
@@ -1000,8 +1001,9 @@
     entity: KamertonStableFuelArray
     cost:
       Steel: 1500
-      Plasteel: 500
-      Silver: 500
+      Plasteel: 1500
+      Silver: 1000
+      Gold: 500
   - type: StaticPrice
     price: 300
 
@@ -1019,9 +1021,11 @@
     entity: KamertonUnstableFuelArray
     cost:
       Steel: 1500
-      Plasteel: 500
+      Plasteel: 1500
       Plasma: 500
       Uranium: 500
+      Gold: 500
+      Silver: 500
   - type: StaticPrice
     price: 300
 
@@ -1040,7 +1044,9 @@
     cost:
       Steel: 1000
       Glass: 500
-      Gold: 500
+      Gold: 1000
+      Plasteel: 1000
+      Silver: 500
   - type: StaticPrice
     price: 300
 
@@ -1058,7 +1064,9 @@
     entity: KamertonHeatSink
     cost:
       Steel: 1000
-      Plasteel: 500
+      Plasteel: 1500
+      Gold: 500
+      Silver: 500
   - type: StaticPrice
     price: 300
 
@@ -1077,6 +1085,9 @@
     cost:
       Steel: 1000
       Glass: 1000
+      Plasteel: 1000
+      Gold: 500
+      Silver: 500
   - type: StaticPrice
     price: 300
 
@@ -1094,7 +1105,9 @@
     entity: KamertonSuppressor
     cost:
       Steel: 1500
-      Plasteel: 1000
+      Plasteel: 2000
+      Gold: 500
+      Silver: 500
   - type: StaticPrice
     price: 300
 
@@ -1112,8 +1125,9 @@
     entity: KamertonPowerUnit
     cost:
       Steel: 1500
-      Gold: 500
-      Silver: 500
+      Gold: 1000
+      Silver: 1000
+      Plasteel: 1000
   - type: StaticPrice
     price: 300
 
@@ -1132,7 +1146,9 @@
     cost:
       Steel: 1000
       Glass: 1000
-      Gold: 500
+      Gold: 1000
+      Plasteel: 1000
+      Silver: 500
   - type: StaticPrice
     price: 300
 
@@ -1150,7 +1166,9 @@
     entity: KamertonFuelStorage
     cost:
       Steel: 1500
-      Plasteel: 500
+      Plasteel: 1500
+      Gold: 500
+      Silver: 500
   - type: StaticPrice
     price: 300
 
@@ -1168,8 +1186,9 @@
     entity: KamertonSzk
     cost:
       Steel: 2000
-      Plasteel: 500
-      Gold: 200
+      Plasteel: 1500
+      Gold: 700
+      Silver: 500
   - type: StaticPrice
     price: 300
 

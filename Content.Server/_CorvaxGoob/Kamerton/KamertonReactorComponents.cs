@@ -101,7 +101,7 @@ public sealed partial class KamertonReactorCoreComponent : Component
 
     /// <summary>Heat units per second per active pair.</summary>
     [DataField]
-    public float HeatPerPair = 8f;
+    public float HeatPerPair = 15f;
 
     /// <summary>Heat limit without radiators; reaching the limit collapses the reactor.</summary>
     [DataField]

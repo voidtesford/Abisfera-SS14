@@ -11,7 +11,7 @@ kamerton-converter-mode-create = Mode: create.
 kamerton-converter-mode-destroy = Mode: destroy.
 kamerton-converter-verb-create = Create
 kamerton-converter-verb-destroy = Destroy
-kamerton-converter-need-crystals = Needs { $count } bluespace crystals.
+kamerton-converter-need-crystals = Not enough bluespace crystals in the rack.
 kamerton-converter-empty = Nothing to grind.
 kamerton-converter-no-cell = No cell inserted.
 kamerton-converter-cell-already-charged = The cell is already charged.
@@ -19,7 +19,7 @@ kamerton-converter-not-enough-stable = Not enough stable energy: need { $need },
 kamerton-converter-not-enough-unstable = Not enough unstable energy: need { $need }, have { $have }.
 kamerton-converter-cell-charged = Cell charged.
 kamerton-converter-not-enough-power = Not enough machine power: need { $need }, have { $have }.
-kamerton-converter-not-enough-materials = Needs { $count } sheets each of plasma and uranium.
+kamerton-converter-not-enough-materials = Not enough plasma and uranium.
 kamerton-converter-examine-mode-create = Mode: [color=#39C6FF]create[/color].
 kamerton-converter-examine-mode-destroy = Mode: [color=#E0304A]destroy[/color].
 kamerton-converter-examine-crystals = Crystals: bluespace { $bluespace }, redspace { $redspace } of { $max }.
@@ -40,7 +40,7 @@ kamerton-converter-window-stable = Stable energy:
 kamerton-converter-window-unstable = Unstable energy:
 kamerton-converter-window-power = Machine power:
 kamerton-converter-window-materials = Plasma / uranium sheets:
-kamerton-converter-window-materials-value = { $plasma } / { $uranium }, a print takes { $cost } each
+kamerton-converter-window-materials-value = { $plasma } / { $uranium }
 kamerton-converter-window-cell = Cell:
 kamerton-converter-window-cell-none = none
 kamerton-converter-window-cell-charged = { $name }, charged
