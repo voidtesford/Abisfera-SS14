@@ -1,0 +1,10 @@
+cmd-ftldisk-bad-coordinates = Не удалось прочитать координаты { $x } { $y }.
+cmd-ftldisk-bad-direction = Неизвестное направление { $direction }. Допустимо: north, south, east, west или север, юг, восток, запад.
+cmd-ftldisk-exact = Диск ведёт на карту { $map }: консоль шаттла встанет в { $x } { $y } и будет смотреть на { $direction }.
+cmd-ftldisk-direction-north = север
+cmd-ftldisk-direction-south = юг
+cmd-ftldisk-direction-east = восток
+cmd-ftldisk-direction-west = запад
+cmd-ftldisk-hint-x = X консоли шаттла или ещё одна карта
+cmd-ftldisk-hint-y = Y консоли шаттла
+cmd-ftldisk-hint-direction = Куда смотрит консоль шаттла

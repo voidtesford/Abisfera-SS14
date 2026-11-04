@@ -182,6 +182,17 @@ public sealed partial class ShuttleConsoleSystem
             return;
         }
 
+        // CorvaxGoob: a disk with an exact target overrides the point picked on the map.
+        if (TryExactDiskArrival(ent.Owner, consoleUid.Value, targetMap, out var exactCoordinates, out var exactAngle))
+        {
+            var exactTagEv = new FTLTagEvent();
+            RaiseLocalEvent(shuttleUid.Value, ref exactTagEv);
+            var exactEv = new ShuttleConsoleFTLTravelStartEvent(ent.Owner);
+            RaiseLocalEvent(ref exactEv);
+            _shuttle.FTLToCoordinates(shuttleUid.Value, shuttleComp, exactCoordinates, exactAngle);
+            return;
+        }
+
         List<ShuttleExclusionObject>? exclusions = null;
         GetExclusions(ref exclusions);
 

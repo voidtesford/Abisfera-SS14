@@ -140,3 +140,14 @@ kamerton-reactor-window-vacuum = core in vacuum
 kamerton-reactor-window-hint-vacuum = Core in vacuum: raise the pressure around the core to at least 10 kPa to start the reactor.
 kamerton-reactor-popup-controls-unresponsive = The control circuits do not respond.
 kamerton-reactor-popup-crackle = The reactor hull crackles and sparks.
+
+cmd-kamertontech-desc = Opens or closes the Kamerton research. The state is global and kept between rounds and server restarts.
+cmd-kamertontech-help = kamertontech <open|close|status> - open shows the technology in research consoles, close hides it, status prints the current state.
+cmd-kamertontech-opened = Kamerton research is open. It is visible in research consoles this round and in the following ones.
+cmd-kamertontech-closed = Kamerton research is closed and hidden from research consoles. Recipes already unlocked stay.
+cmd-kamertontech-status-open = Kamerton research is open. The state is stored in { $path } in the server data.
+cmd-kamertontech-status-closed = Kamerton research is closed. The state is stored in { $path } in the server data.
+cmd-kamertontech-hint = Action
+cmd-kamertontech-hint-open = open the technology
+cmd-kamertontech-hint-close = close and hide the technology
+cmd-kamertontech-hint-status = show the state

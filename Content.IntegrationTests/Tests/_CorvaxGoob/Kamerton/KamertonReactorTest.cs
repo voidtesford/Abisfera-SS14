@@ -119,6 +119,28 @@ public sealed class KamertonReactorTest
         SetAir(entMan, map, Atmospherics.NitrogenMolesStandard, Atmospherics.OxygenMolesStandard);
     }
 
+    /// <summary>
+    /// Atmos sets up the tiles of a freshly built floor over several ticks, so right after building the core
+    /// tile can still have no air of its own. Keeps filling the air until the core really is out of vacuum.
+    /// </summary>
+    private static async Task WaitForAir(TestPair pair, IEntityManager entMan, TestMapData map, KamertonReactorSystem sys, Reactor r)
+    {
+        for (var i = 0; i < 60; i++)
+        {
+            var ok = false;
+            await pair.Server.WaitPost(() =>
+            {
+                Breathable(entMan, map);
+                ok = !sys.CoreInVacuum(Core(entMan, r));
+            });
+            if (ok)
+                return;
+            await pair.RunTicksSync(1);
+        }
+
+        Assert.Fail("the core tile never got air");
+    }
+
     private static void Floor(IEntityManager entMan, TestMapData map, int radius)
     {
         var tiles = new List<(Vector2i, Tile)>();
@@ -437,6 +459,7 @@ public sealed class KamertonReactorTest
         });
         // The parts link into one node group on the next node update.
         await pair.RunTicksSync(3);
+        await WaitForAir(pair, entMan, map, sys, r);
 
         await server.WaitPost(() =>
         {

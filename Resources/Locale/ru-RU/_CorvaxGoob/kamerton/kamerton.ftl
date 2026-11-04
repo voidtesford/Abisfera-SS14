@@ -140,3 +140,14 @@ kamerton-reactor-window-vacuum = ядро в вакууме
 kamerton-reactor-window-hint-vacuum = Ядро в вакууме: чтобы запустить реактор, поднимите давление вокруг ядра хотя бы до 10 кПа.
 kamerton-reactor-popup-controls-unresponsive = Цепи управления не отвечают.
 kamerton-reactor-popup-crackle = Корпус реактора трещит и искрит.
+
+cmd-kamertontech-desc = Открывает или закрывает изучение технологии Камертона. Состояние общее и сохраняется между раундами и перезапусками сервера.
+cmd-kamertontech-help = kamertontech <open|close|status> — open открывает технологию в консолях исследований, close скрывает её, status показывает текущее состояние.
+cmd-kamertontech-opened = Технология Камертона открыта. Она видна в консолях исследований этого и следующих раундов.
+cmd-kamertontech-closed = Технология Камертона закрыта и скрыта из консолей исследований. Уже открытые рецепты остаются.
+cmd-kamertontech-status-open = Технология Камертона открыта. Состояние хранится в { $path } в данных сервера.
+cmd-kamertontech-status-closed = Технология Камертона закрыта. Состояние хранится в { $path } в данных сервера.
+cmd-kamertontech-hint = Действие
+cmd-kamertontech-hint-open = открыть технологию
+cmd-kamertontech-hint-close = закрыть и скрыть технологию
+cmd-kamertontech-hint-status = показать состояние

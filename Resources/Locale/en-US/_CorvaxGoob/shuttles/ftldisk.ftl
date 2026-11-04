@@ -1,0 +1,10 @@
+cmd-ftldisk-bad-coordinates = Could not read the coordinates { $x } { $y }.
+cmd-ftldisk-bad-direction = Unknown direction { $direction }. Use north, south, east or west.
+cmd-ftldisk-exact = The disk leads to map { $map }: the shuttle console will stand at { $x } { $y } facing { $direction }.
+cmd-ftldisk-direction-north = north
+cmd-ftldisk-direction-south = south
+cmd-ftldisk-direction-east = east
+cmd-ftldisk-direction-west = west
+cmd-ftldisk-hint-x = Shuttle console X or another map
+cmd-ftldisk-hint-y = Shuttle console Y
+cmd-ftldisk-hint-direction = Direction the shuttle console faces

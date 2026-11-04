@@ -45,6 +45,8 @@ using Robust.Shared.Network;
 using Robust.Shared.Prototypes;
 using Robust.Shared.Random;
 
+using Content.Shared._CorvaxGoob.Research; // CorvaxGoob
+
 namespace Content.Shared.Research.TechnologyDisk.Systems;
 
 public sealed class TechnologyDiskSystem : EntitySystem
@@ -79,6 +81,12 @@ public sealed class TechnologyDiskSystem : EntitySystem
         foreach (var tech in _protoMan.EnumeratePrototypes<TechnologyPrototype>())
         {
             if (tech.Tier != tier)
+                continue;
+
+            // CorvaxGoob: event-locked technologies stay off the disks while closed
+            var hiddenEv = new TechnologyHiddenEvent(tech);
+            RaiseLocalEvent(ref hiddenEv);
+            if (hiddenEv.Hidden)
                 continue;
 
             techs.UnionWith(tech.RecipeUnlocks);
