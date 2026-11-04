@@ -1,7 +1,7 @@
 {
   "version": 1,
   "license": "CC-BY-SA-3.0",
-  "copyright": "Original pixel art for CorvaxGoob Kamerton reactor (stage 6.1)",
+  "copyright": "Original pixel art for CorvaxGoob Kamerton reactor (stage 6.1, stage 8)",
   "size": {
     "x": 32,
     "y": 32
@@ -150,6 +150,54 @@
     },
     {
       "name": "heat_15"
+    },
+    {
+      "name": "sinklink_0"
+    },
+    {
+      "name": "sinklink_1"
+    },
+    {
+      "name": "sinklink_2"
+    },
+    {
+      "name": "sinklink_3"
+    },
+    {
+      "name": "sinklink_4"
+    },
+    {
+      "name": "sinklink_5"
+    },
+    {
+      "name": "sinklink_6"
+    },
+    {
+      "name": "sinklink_7"
+    },
+    {
+      "name": "sinklink_8"
+    },
+    {
+      "name": "sinklink_9"
+    },
+    {
+      "name": "sinklink_10"
+    },
+    {
+      "name": "sinklink_11"
+    },
+    {
+      "name": "sinklink_12"
+    },
+    {
+      "name": "sinklink_13"
+    },
+    {
+      "name": "sinklink_14"
+    },
+    {
+      "name": "sinklink_15"
     }
   ]
 }

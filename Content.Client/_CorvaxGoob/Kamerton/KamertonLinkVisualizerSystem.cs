@@ -40,27 +40,36 @@ public sealed class KamertonLinkVisualizerSystem : VisualizerSystem<KamertonLink
             SetCorner(ent, KamertonReactorVisualLayers.HullNW, component, "nw", local, Direction.North, Direction.NorthWest, Direction.West);
         }
 
-        if (AppearanceSystem.TryGetData<int>(uid, KamertonReactorVisuals.HeatLinks, out var heat, args.Component)
-            && SpriteSystem.LayerMapTryGet(ent, KamertonReactorVisualLayers.HeatLink, out var layer, false))
+        if (AppearanceSystem.TryGetData<int>(uid, KamertonReactorVisuals.HeatLinks, out var heat, args.Component))
         {
-            var local = 0;
-            for (var i = 0; i < 4; i++)
-            {
-                if ((heat & (1 << i)) == 0)
-                    continue;
-
-                local |= ToLocal(Dirs[i], rot) switch
-                {
-                    Direction.North => 1,
-                    Direction.South => 2,
-                    Direction.East => 4,
-                    _ => 8,
-                };
-            }
-
-            SpriteSystem.LayerSetRsiState(ent, layer, $"{component.HeatStatePrefix}{local}");
-            SpriteSystem.LayerSetVisible(ent, layer, local != 0);
+            // Bits 0-3: heat pipes to radiators; bits 4-7: joints between chained heat sinks.
+            SetHeatLayer(ent, KamertonReactorVisualLayers.HeatLink, component.HeatStatePrefix, heat & 15, rot);
+            SetHeatLayer(ent, KamertonReactorVisualLayers.SinkLink, component.SinkStatePrefix, (heat >> 4) & 15, rot);
         }
+    }
+
+    private void SetHeatLayer(Entity<SpriteComponent> ent, KamertonReactorVisualLayers key, string prefix, int world, Angle rot)
+    {
+        if (!SpriteSystem.LayerMapTryGet(ent.AsNullable(), key, out var layer, false))
+            return;
+
+        var local = 0;
+        for (var i = 0; i < 4; i++)
+        {
+            if ((world & (1 << i)) == 0)
+                continue;
+
+            local |= ToLocal(Dirs[i], rot) switch
+            {
+                Direction.North => 1,
+                Direction.South => 2,
+                Direction.East => 4,
+                _ => 8,
+            };
+        }
+
+        SpriteSystem.LayerSetRsiState(ent.AsNullable(), layer, $"{prefix}{local}");
+        SpriteSystem.LayerSetVisible(ent.AsNullable(), layer, local != 0);
     }
 
     private static Direction ToLocal(Direction world, Angle rot)

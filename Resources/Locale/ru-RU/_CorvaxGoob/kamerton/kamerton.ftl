@@ -91,47 +91,52 @@ kamerton-reactor-window-cooling = Охлаждение. Радиаторов н�
 kamerton-reactor-window-sink = Теплоотвод { $index }: { $flow } моль/с, { $tin } K → { $tout } K, { $kw } кВт
 kamerton-reactor-window-no-sinks = Нет подключённых теплоотводов.
 kamerton-reactor-window-hint-unlinked = Поставьте консоль в кольцо подавителей вокруг ядра реактора.
-kamerton-reactor-window-hint-hot = Опасно: ядро близко к схлопыванию!
 kamerton-reactor-window-hint-ring = Кольцо разомкнуто: вокруг реактора сочится красный космос.
 kamerton-reactor-window-start = Пуск
 kamerton-reactor-window-stop = Стоп
 kamerton-reactor-window-scram = АЗ
 
-## Хранилище топлива и дрон РДЗТ
+## Хранилище топлива и СЗК
 kamerton-storage-empty-cell = В хранилище кладутся только заряженные ячейки.
 kamerton-storage-full = В хранилище нет места для этой ячейки.
 kamerton-storage-loaded = Ячейка загружена. Стабильных: {$stable}/{$capacity}, нестабильных: {$unstable}/{$capacity}.
 kamerton-storage-examine = В хранилище: [color=#39C6FF]стабильных {$stable}/{$capacity}[/color], [color=#E0304A]нестабильных {$unstable}/{$capacity}[/color].
-kamerton-drone-examine = Состояние дрона: {$state}. Автозаправка {$auto ->
-    [1] включена
-   *[0] выключена
-}.
-kamerton-drone-state-idle = простаивает
-kamerton-drone-state-working = работает
-kamerton-drone-state-returning = возвращается к ядру
-kamerton-drone-missing = У этого реактора нет дрона РДЗТ.
-kamerton-reactor-window-drone = Дрон РДЗТ и хранилище топлива
-kamerton-reactor-window-drone-status = Дрон:
-kamerton-reactor-window-drone-none = дрона нет
-kamerton-reactor-window-drone-idle = простаивает
-kamerton-reactor-window-drone-loading = работает: загрузка массивов
-kamerton-reactor-window-drone-unloading = работает: выгрузка отработанных ячеек
-kamerton-reactor-window-drone-returning = возвращается к ядру
 kamerton-reactor-window-storage = Хранилище топлива:
 kamerton-reactor-window-storage-value = стабильных {$stable}/{$capacity}, нестабильных {$unstable}/{$capacity}
 kamerton-reactor-window-storage-none = нет в обшивке
 kamerton-reactor-window-slots = Массивы:
 kamerton-reactor-window-slots-value = свободно: стаб. {$stable}, нестаб. {$unstable}; отработанных: {$spent}
-kamerton-reactor-window-drone-load = Загрузить массивы
-kamerton-reactor-window-drone-unload = Выгрузить отработанные
-kamerton-reactor-window-drone-return = Вернуть / стоп
-kamerton-reactor-window-drone-auto = Автозаправка
+kamerton-szk-examine-deployed = Решётка рельсов развёрнута над реактором. Автоматический режим {$auto ->
+    [1] включён
+   *[0] выключен
+}.
+kamerton-szk-examine-folded = Решётка свёрнута: СЗК должна быть закреплена в обшивке собранного реактора.
+kamerton-szk-missing = В обшивке этого реактора нет СЗК.
+kamerton-reactor-window-szk = СЗК и хранилище топлива
+kamerton-reactor-window-szk-status = СЗК:
+kamerton-reactor-window-szk-none = нет в обшивке, массивы не заправить
+kamerton-reactor-window-szk-folded = решётка свёрнута
+kamerton-reactor-window-szk-idle = простаивает
+kamerton-reactor-window-szk-loading = работает: загрузка массивов
+kamerton-reactor-window-szk-unloading = работает: выгрузка отработанных ячеек
+kamerton-reactor-window-szk-parking = остановка, каретка едет к хранилищу
+kamerton-reactor-window-szk-carriage = Каретка:
+kamerton-reactor-window-szk-carriage-value = x {$x}, y {$y} от ядра, {$load}
+kamerton-reactor-window-szk-load-empty = пустая
+kamerton-reactor-window-szk-load-stable = несёт стабильную ячейку
+kamerton-reactor-window-szk-load-unstable = несёт нестабильную ячейку
+kamerton-reactor-window-szk-load-spent = несёт отработанную ячейку
+kamerton-reactor-window-szk-load = Загрузить
+kamerton-reactor-window-szk-unload = Выгрузить
+kamerton-reactor-window-szk-stop = Стоп
+kamerton-reactor-window-szk-auto = Автоматический режим
 
 ## Этап 7: нагрев и расплав
 kamerton-reactor-examine-heat = Нагрев ядра: [color=orange]{ $heat }[/color] из { $max }.
-kamerton-reactor-examine-meltdown = [color=red]Ядро в расплаве![/color]
-kamerton-reactor-popup-meltdown = Ядро «Камертона» уходит в расплав!
-kamerton-reactor-popup-meltdown-locked = Ядро в расплаве: остановить реактор нельзя, пока он не остынет.
-kamerton-reactor-window-meltdown-threshold = Порог расплава:
-kamerton-reactor-window-meltdown = РАСПЛАВ ЯДРА: стоп и АЗ заблокированы, охладите ядро ниже порога!
-kamerton-reactor-window-hint-meltdown = Расплав: вокруг реактора бьют молнии. Охлаждайте теплоотводы!
+
+kamerton-reactor-popup-vacuum = Ядро в вакууме: без среды реакция не запустится.
+kamerton-reactor-popup-vacuum-stop = Ядро потеряло атмосферу: реакция останавливается.
+kamerton-reactor-window-vacuum = ядро в вакууме
+kamerton-reactor-window-hint-vacuum = Ядро в вакууме: чтобы запустить реактор, поднимите давление вокруг ядра хотя бы до 10 кПа.
+kamerton-reactor-popup-controls-unresponsive = Цепи управления не отвечают.
+kamerton-reactor-popup-crackle = Корпус реактора трещит и искрит.

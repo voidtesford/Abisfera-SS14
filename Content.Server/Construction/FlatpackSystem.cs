@@ -124,7 +124,7 @@ public sealed class FlatpackSystem : SharedFlatpackSystem
         if (!_itemSlots.TryGetSlot(uid, comp.SlotId, out var itemSlot) || itemSlot.Item is not { } board)
             return;
 
-        // CorvaxGoob-Kamerton-Start: the board names a ready flatpack (its own sprite, drone and all).
+        // CorvaxGoob-Kamerton-Start: the board names a ready flatpack (with its own sprite).
         if (TryGetKamertonBoard(board, out var kamerton, out var kamertonCost))
         {
             if (!MaterialStorage.TryChangeMaterialAmount((ent, null), kamertonCost))

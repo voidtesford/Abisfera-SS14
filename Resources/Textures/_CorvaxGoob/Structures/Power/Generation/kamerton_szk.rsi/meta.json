@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Original pixel art for CorvaxGoob Kamerton reactor (stage 6.1, stage 8)",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "rail_0"
+    },
+    {
+      "name": "rail_1"
+    },
+    {
+      "name": "rail_2"
+    },
+    {
+      "name": "rail_3"
+    },
+    {
+      "name": "rail_4"
+    },
+    {
+      "name": "rail_5"
+    },
+    {
+      "name": "rail_6"
+    },
+    {
+      "name": "rail_7"
+    },
+    {
+      "name": "rail_8"
+    },
+    {
+      "name": "rail_9"
+    },
+    {
+      "name": "rail_10"
+    },
+    {
+      "name": "rail_11"
+    },
+    {
+      "name": "rail_12"
+    },
+    {
+      "name": "rail_13"
+    },
+    {
+      "name": "rail_14"
+    },
+    {
+      "name": "rail_15"
+    },
+    {
+      "name": "carriage"
+    },
+    {
+      "name": "carriage_lights"
+    },
+    {
+      "name": "load_stable"
+    },
+    {
+      "name": "load_unstable"
+    },
+    {
+      "name": "load_spent"
+    },
+    {
+      "name": "fx_pickup",
+      "delays": [
+        [
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ]
+      ]
+    },
+    {
+      "name": "fx_zap",
+      "delays": [
+        [
+          0.1,
+          0.1,
+          0.1,
+          0.1
+        ]
+      ]
+    }
+  ]
+}

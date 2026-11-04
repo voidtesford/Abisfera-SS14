@@ -91,47 +91,52 @@ kamerton-reactor-window-cooling = Cooling. Radiators on heat lines: { $radiators
 kamerton-reactor-window-sink = Heat sink { $index }: { $flow } mol/s, { $tin } K → { $tout } K, { $kw } kW
 kamerton-reactor-window-no-sinks = No heat sinks linked.
 kamerton-reactor-window-hint-unlinked = Place the console in the suppressor ring of a reactor core.
-kamerton-reactor-window-hint-hot = Danger: the core is close to collapse!
 kamerton-reactor-window-hint-ring = The ring is broken: redspace is leaking around the reactor.
 kamerton-reactor-window-start = Start
 kamerton-reactor-window-stop = Stop
 kamerton-reactor-window-scram = SCRAM
 
-## Fuel storage and the RDZT drone
+## Fuel storage and the SZK
 kamerton-storage-empty-cell = Only charged cells go into the fuel storage.
 kamerton-storage-full = No room for this cell in the fuel storage.
 kamerton-storage-loaded = Cell stored. Stable: {$stable}/{$capacity}, unstable: {$unstable}/{$capacity}.
 kamerton-storage-examine = Stored cells: [color=#39C6FF]stable {$stable}/{$capacity}[/color], [color=#E0304A]unstable {$unstable}/{$capacity}[/color].
-kamerton-drone-examine = The drone is {$state}. Auto-refuel is {$auto ->
-    [1] on
-   *[0] off
-}.
-kamerton-drone-state-idle = idle
-kamerton-drone-state-working = working
-kamerton-drone-state-returning = returning to the core
-kamerton-drone-missing = This reactor has no RDZT drone.
-kamerton-reactor-window-drone = RDZT drone and fuel storage
-kamerton-reactor-window-drone-status = Drone:
-kamerton-reactor-window-drone-none = no drone
-kamerton-reactor-window-drone-idle = idle
-kamerton-reactor-window-drone-loading = working: loading arrays
-kamerton-reactor-window-drone-unloading = working: removing spent cells
-kamerton-reactor-window-drone-returning = returning to the core
 kamerton-reactor-window-storage = Fuel storage:
 kamerton-reactor-window-storage-value = stable {$stable}/{$capacity}, unstable {$unstable}/{$capacity}
 kamerton-reactor-window-storage-none = not in the shell
 kamerton-reactor-window-slots = Arrays:
 kamerton-reactor-window-slots-value = free slots: stable {$stable}, unstable {$unstable}; spent cells: {$spent}
-kamerton-reactor-window-drone-load = Load arrays
-kamerton-reactor-window-drone-unload = Unload spent
-kamerton-reactor-window-drone-return = Return / stop
-kamerton-reactor-window-drone-auto = Auto-refuel
+kamerton-szk-examine-deployed = The rail lattice is laid over the reactor. Auto mode is {$auto ->
+    [1] on
+   *[0] off
+}.
+kamerton-szk-examine-folded = The lattice is folded: the SZK has to stand anchored in the shell of an assembled reactor.
+kamerton-szk-missing = This reactor has no SZK in its shell.
+kamerton-reactor-window-szk = SZK and fuel storage
+kamerton-reactor-window-szk-status = SZK:
+kamerton-reactor-window-szk-none = not in the shell, the arrays cannot be refuelled
+kamerton-reactor-window-szk-folded = lattice folded
+kamerton-reactor-window-szk-idle = idle
+kamerton-reactor-window-szk-loading = working: loading arrays
+kamerton-reactor-window-szk-unloading = working: removing spent cells
+kamerton-reactor-window-szk-parking = stopping, the carriage parks at the storage
+kamerton-reactor-window-szk-carriage = Carriage:
+kamerton-reactor-window-szk-carriage-value = x {$x}, y {$y} from the core, {$load}
+kamerton-reactor-window-szk-load-empty = empty
+kamerton-reactor-window-szk-load-stable = carries a stable cell
+kamerton-reactor-window-szk-load-unstable = carries an unstable cell
+kamerton-reactor-window-szk-load-spent = carries a spent cell
+kamerton-reactor-window-szk-load = Load
+kamerton-reactor-window-szk-unload = Unload
+kamerton-reactor-window-szk-stop = Stop
+kamerton-reactor-window-szk-auto = Auto mode
 
-## Stage 7: heat and meltdown
+## Stage 7: heat
 kamerton-reactor-examine-heat = Core heat: [color=orange]{ $heat }[/color] of { $max }.
-kamerton-reactor-examine-meltdown = [color=red]The core is in meltdown![/color]
-kamerton-reactor-popup-meltdown = The Kamerton core goes into meltdown!
-kamerton-reactor-popup-meltdown-locked = The core is in meltdown: the reactor cannot be stopped until it cools down.
-kamerton-reactor-window-meltdown-threshold = Meltdown threshold:
-kamerton-reactor-window-meltdown = CORE MELTDOWN: stop and SCRAM locked, cool the core below the threshold!
-kamerton-reactor-window-hint-meltdown = Meltdown: lightning strikes around the reactor. Cool the heat sinks!
+
+kamerton-reactor-popup-vacuum = The core is in vacuum: the reaction will not start without a medium.
+kamerton-reactor-popup-vacuum-stop = The core has lost its atmosphere: the reaction stops.
+kamerton-reactor-window-vacuum = core in vacuum
+kamerton-reactor-window-hint-vacuum = Core in vacuum: raise the pressure around the core to at least 10 kPa to start the reactor.
+kamerton-reactor-popup-controls-unresponsive = The control circuits do not respond.
+kamerton-reactor-popup-crackle = The reactor hull crackles and sparks.

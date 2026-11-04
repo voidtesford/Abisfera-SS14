@@ -53,7 +53,7 @@ public sealed class KamertonReactorSystem : EntitySystem
     [Dependency] private readonly SharedPointLightSystem _light = default!;
     [Dependency] private readonly TransformSystem _transform = default!;
     [Dependency] private readonly UserInterfaceSystem _ui = default!;
-    [Dependency] private readonly KamertonDroneSystem _drone = default!;
+    [Dependency] private readonly KamertonSzkSystem _szk = default!;
 
     public const float StepInterval = 1f;
 
@@ -131,13 +131,13 @@ public sealed class KamertonReactorSystem : EntitySystem
     }
 
     /// <summary>
-    /// Shell parts close the reactor off: suppressors, the console, the power unit, the fuel storage and the heat
+    /// Shell parts close the reactor off: suppressors, the console, the power unit, the fuel storage, the SZK and the heat
     /// sinks, which sit on the edge so their pipes can leave the reactor.
     /// </summary>
     public static bool IsShell(KamertonPartKind kind)
     {
         return kind is KamertonPartKind.Suppressor or KamertonPartKind.Console or KamertonPartKind.PowerUnit
-            or KamertonPartKind.HeatSink or KamertonPartKind.FuelStorage;
+            or KamertonPartKind.HeatSink or KamertonPartKind.FuelStorage or KamertonPartKind.Szk;
     }
 
     /// <summary>Parts that carry heat to each other through heat pipes: radiators and heat sinks.</summary>
@@ -177,6 +177,8 @@ public sealed class KamertonReactorSystem : EntitySystem
         comp.Console = null;
         comp.PowerUnit = null;
         comp.Storage = null;
+        comp.Szk = null;
+        comp.Footprint.Clear();
         comp.Slave = false;
         comp.Oversized = false;
         comp.RingMissing = 8;
@@ -256,6 +258,10 @@ public sealed class KamertonReactorSystem : EntitySystem
                     comp.Storage ??= uid;
                     comp.RingParts.Add(uid);
                     break;
+                case KamertonPartKind.Szk:
+                    comp.Szk ??= uid;
+                    comp.RingParts.Add(uid);
+                    break;
                 case KamertonPartKind.Synchronizer:
                     syncTiles.TryAdd(tile, uid);
                     comp.Synchronizers.Add(uid);
@@ -276,6 +282,11 @@ public sealed class KamertonReactorSystem : EntitySystem
         }
 
         comp.RingMissing = missing.Count;
+        foreach (var (tile, (uid, _)) in tiles)
+        {
+            comp.Footprint[tile] = uid;
+        }
+
         TraceHeatLines(tiles, comp);
 
         // Every array goes to the first synchronizer of the group next to it (N, S, E, W).
@@ -302,8 +313,8 @@ public sealed class KamertonReactorSystem : EntitySystem
 
     /// <summary>
     /// Heat path: core and arrays -> radiators -> heat sinks -> gas. A radiator only carries heat away when a
-    /// chain of neighbouring radiators (N/S/E/W) ends at a heat sink; a heat sink only takes heat when a linked
-    /// radiator touches it. Unlinked radiators still add heat capacity but dump nothing.
+    /// chain of neighbouring radiators (N/S/E/W) ends at a heat sink; a heat sink takes heat when a linked radiator
+    /// touches it or a chain of heat sinks (N/S/E/W) joins it to such a sink. Unlinked radiators still add heat capacity but dump nothing.
     /// </summary>
     private static void TraceHeatLines(
         Dictionary<Vector2i, (EntityUid Uid, KamertonReactorPartComponent Part)> tiles,
@@ -335,7 +346,10 @@ public sealed class KamertonReactorSystem : EntitySystem
             }
         }
 
-        foreach (var (tile, (uid, part)) in tiles)
+        // Heat sinks fed by a linked radiator start the second pass; from them the heat spreads into every
+        // heat sink chained to them side by side (N/S/E/W), so a row of sinks works as one heat exchanger.
+        var sinkQueue = new Queue<Vector2i>();
+        foreach (var (tile, (_, part)) in tiles)
         {
             if (part.Kind != KamertonPartKind.HeatSink)
                 continue;
@@ -344,9 +358,22 @@ public sealed class KamertonReactorSystem : EntitySystem
             {
                 if (tiles.TryGetValue(tile + off, out var n) && comp.LinkedRadiators.Contains(n.Uid))
                 {
-                    comp.LinkedHeatSinks.Add(uid);
+                    sinkQueue.Enqueue(tile);
                     break;
                 }
+            }
+        }
+
+        while (sinkQueue.TryDequeue(out var tile))
+        {
+            if (!comp.LinkedHeatSinks.Add(tiles[tile].Uid))
+                continue;
+
+            foreach (var off in Cardinals)
+            {
+                if (tiles.TryGetValue(tile + off, out var n) && n.Part.Kind == KamertonPartKind.HeatSink
+                    && !comp.LinkedHeatSinks.Contains(n.Uid))
+                    sinkQueue.Enqueue(tile + off);
             }
         }
     }
@@ -360,8 +387,8 @@ public sealed class KamertonReactorSystem : EntitySystem
     /// <summary>
     /// Sets the hull smoothing of every part in the group, like the AME shielding joins into one structure:
     /// <see cref="KamertonReactorVisuals.Links"/> holds the 8 neighbours that belong to the same node group,
-    /// <see cref="KamertonReactorVisuals.HeatLinks"/> the N/S/E/W heat-pipe joints (radiator-radiator and
-    /// radiator-heat sink).
+    /// <see cref="KamertonReactorVisuals.HeatLinks"/> the N/S/E/W heat-pipe joints (bits 0-3: radiator-radiator
+    /// and radiator-heat sink; bits 4-7: heat sink to heat sink, the sink chains).
     /// </summary>
     public void UpdateLinkVisuals(KamertonNodeGroup group)
     {
@@ -392,9 +419,13 @@ public sealed class KamertonReactorSystem : EntitySystem
 
                         // Radiator-radiator and radiator-heat sink joints carry a heat pipe.
                         var otherKind = CompOrNull<KamertonReactorPartComponent>(other)?.Kind;
-                        if (i < 4 && kind is { } a && otherKind is { } b && IsHeatPart(a) && IsHeatPart(b)
-                            && (a == KamertonPartKind.Radiator || b == KamertonPartKind.Radiator))
-                            heatFlags |= 1 << i;
+                        if (i < 4 && kind is { } a && otherKind is { } b && IsHeatPart(a) && IsHeatPart(b))
+                        {
+                            if (a == KamertonPartKind.Radiator || b == KamertonPartKind.Radiator)
+                                heatFlags |= 1 << i;
+                            else
+                                heatFlags |= 1 << (i + 4); // heat sink chain joint
+                        }
                         break;
                     }
                 }
@@ -552,6 +583,15 @@ public sealed class KamertonReactorSystem : EntitySystem
         if (comp.Working && !IsAssembled(comp))
             comp.Working = false;
 
+        // Vacuum at the core: the reaction needs a medium, so the reactor stops itself. In meltdown the
+        // vacuum changes nothing: the reaction runs on, the pairs keep heating and the arcs go on.
+        comp.InVacuum = CoreInVacuum(core);
+        if (comp.InVacuum && comp.Working && !comp.Meltdown)
+        {
+            comp.Working = false;
+            _popup.PopupEntity(Loc.GetString("kamerton-reactor-popup-vacuum-stop"), core, PopupType.LargeCaution);
+        }
+
         var pairs = comp.Working ? CountPairs(core) : 0;
         if (!comp.Working)
             comp.SyncPairs.Clear();
@@ -591,6 +631,16 @@ public sealed class KamertonReactorSystem : EntitySystem
         UpdateUi(core);
     }
 
+    /// <summary>
+    /// True when the core tile is space, has no air or the pressure there is below
+    /// <see cref="KamertonReactorCoreComponent.VacuumPressure"/> (10 kPa by default).
+    /// </summary>
+    public bool CoreInVacuum(Entity<KamertonReactorCoreComponent> core)
+    {
+        var mix = _atmos.GetContainingMixture(core.Owner, ignoreExposed: true);
+        return mix == null || mix.Pressure < core.Comp.VacuumPressure;
+    }
+
     /// <summary>Sets the core heat directly (admin tools and tests); the next step reacts to it.</summary>
     public void SetHeat(Entity<KamertonReactorCoreComponent> core, float heat)
     {
@@ -625,13 +675,14 @@ public sealed class KamertonReactorSystem : EntitySystem
 
         comp.Meltdown = meltdown;
         if (meltdown)
-            _popup.PopupEntity(Loc.GetString("kamerton-reactor-popup-meltdown"), core, PopupType.LargeCaution);
+            _popup.PopupEntity(Loc.GetString("kamerton-reactor-popup-crackle"), core, PopupType.MediumCaution);
     }
 
     /// <summary>Heat moving from the core into gas, never past equilibrium. Returns joules.</summary>
     private float Exchange(KamertonReactorCoreComponent comp, GasMixture gas, float fraction)
     {
-        var gasCap = _atmos.GetHeatCapacity(gas, true);
+        // Real (unscaled) heat capacity: the sink exchanges honest joules with the core.
+        var gasCap = _atmos.GetHeatCapacity(gas, false);
         if (gasCap <= 0f)
             return 0f;
 
@@ -720,6 +771,13 @@ public sealed class KamertonReactorSystem : EntitySystem
             return false;
         }
 
+        comp.InVacuum = CoreInVacuum(core);
+        if (comp.InVacuum)
+        {
+            reason = "kamerton-reactor-popup-vacuum";
+            return false;
+        }
+
         comp.Working = true;
         UpdateVisuals(core);
         return true;
@@ -731,7 +789,7 @@ public sealed class KamertonReactorSystem : EntitySystem
         reason = null;
         if (core.Comp.Meltdown)
         {
-            reason = "kamerton-reactor-popup-meltdown-locked";
+            reason = "kamerton-reactor-popup-controls-unresponsive";
             return false;
         }
 
@@ -745,7 +803,7 @@ public sealed class KamertonReactorSystem : EntitySystem
         reason = null;
         if (core.Comp.Meltdown)
         {
-            reason = "kamerton-reactor-popup-meltdown-locked";
+            reason = "kamerton-reactor-popup-controls-unresponsive";
             return false;
         }
 
@@ -869,9 +927,8 @@ public sealed class KamertonReactorSystem : EntitySystem
         var state = new KamertonReactorBoundUserInterfaceState(true, IsAssembled(comp), comp.Working, comp.ScramCooldown,
             comp.Heat, GetMaxHeat(comp), comp.TotalPower, max, comp.ActivePairs, comp.Synchronizers.Count,
             RingComplete(comp), comp.RingMissing, comp.PowerUnit != null, supplied, arrays, sinks, comp.LinkedRadiators.Count);
-        state.Drone = _drone.BuildInfo(core);
-        state.MeltdownHeat = GetMeltdownHeat(comp);
-        state.Meltdown = comp.Meltdown;
+        state.Szk = _szk.BuildInfo(core);
+        state.CoreInVacuum = comp.InVacuum;
         return state;
     }
 
@@ -1003,8 +1060,6 @@ public sealed class KamertonReactorSystem : EntitySystem
         using (args.PushGroup(nameof(KamertonReactorCoreComponent)))
         {
             args.PushMarkup(Loc.GetString("kamerton-reactor-examine-heat", ("heat", MathF.Round(comp.Heat)), ("max", GetMaxHeat(comp))));
-            if (comp.Meltdown)
-                args.PushMarkup(Loc.GetString("kamerton-reactor-examine-meltdown"));
             args.PushMarkup(Loc.GetString("kamerton-reactor-examine-power", ("power", MathF.Round(comp.TotalPower / 1000f, 1)), ("pairs", comp.ActivePairs)));
             args.PushMarkup(Loc.GetString(comp.Working ? "kamerton-reactor-examine-running" : "kamerton-reactor-examine-stopped"));
             args.PushMarkup(RingComplete(comp)

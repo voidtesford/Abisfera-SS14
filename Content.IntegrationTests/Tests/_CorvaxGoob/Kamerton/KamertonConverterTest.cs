@@ -61,7 +61,7 @@ public sealed class KamertonConverterTest
     private static readonly string[] FlatpackParts =
     {
         "KamertonReactorCore", "KamertonStableFuelArray", "KamertonUnstableFuelArray", "KamertonSynchronizer", "KamertonHeatSink",
-        "KamertonRadiator", "KamertonSuppressor", "KamertonPowerUnit", "KamertonControlModule", "KamertonFuelStorage",
+        "KamertonRadiator", "KamertonSuppressor", "KamertonPowerUnit", "KamertonControlModule", "KamertonFuelStorage", "KamertonSzk",
     };
 
     /// <summary>The flatpacker takes the Kamerton boards and the converter board, and charges each its own materials.</summary>

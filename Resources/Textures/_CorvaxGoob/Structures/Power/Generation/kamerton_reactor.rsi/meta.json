@@ -1,7 +1,7 @@
 {
   "version": 1,
   "license": "CC-BY-SA-3.0",
-  "copyright": "Original pixel art for CorvaxGoob Kamerton reactor (stage 6.1)",
+  "copyright": "Original pixel art for CorvaxGoob Kamerton reactor (stage 6.1, stage 8)",
   "size": {
     "x": 32,
     "y": 32
@@ -182,6 +182,24 @@
     },
     {
       "name": "storage_unstable_5"
+    },
+    {
+      "name": "szk"
+    },
+    {
+      "name": "szk_on",
+      "delays": [
+        [
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12,
+          0.12
+        ]
+      ]
     }
   ]
 }

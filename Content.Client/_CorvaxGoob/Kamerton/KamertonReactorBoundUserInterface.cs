@@ -21,7 +21,7 @@ public sealed class KamertonReactorBoundUserInterface : BoundUserInterface
         _window.Start += () => SendMessage(new KamertonReactorStartMessage());
         _window.Stop += () => SendMessage(new KamertonReactorStopMessage());
         _window.Scram += () => SendMessage(new KamertonReactorScramMessage());
-        _window.DroneCommand += command => SendMessage(new KamertonDroneCommandMessage(command));
+        _window.SzkCommand += command => SendMessage(new KamertonSzkCommandMessage(command));
     }
 
     protected override void UpdateState(BoundUserInterfaceState state)

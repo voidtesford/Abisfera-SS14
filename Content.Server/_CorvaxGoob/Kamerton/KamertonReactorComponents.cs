@@ -48,13 +48,17 @@ public sealed partial class KamertonHeatSinkComponent : Component
     [DataField]
     public string PipeName = "pipe";
 
-    /// <summary>Litres of pipe gas that exchange heat with the core per second.</summary>
+    /// <summary>
+    /// Litres of pipe gas that exchange heat with the core per second. A full reactor (16 pairs, 128 heat/s,
+    /// about 2.56 MW) is held by 14 linked heat sinks on nitrogen at 1 atm and 150 K: about 16 mol/s per sink,
+    /// 220 kW per sink at heat 1000; plasma or a higher pipe pressure does it with a large margin.
+    /// </summary>
     [DataField]
-    public float TransferRate = 100f;
+    public float TransferRate = 200f;
 
     /// <summary>Fraction of the core/gas temperature gap the exchanged gas closes.</summary>
     [DataField]
-    public float Efficiency = 0.5f;
+    public float Efficiency = 0.6f;
 
     [ViewVariables] public float LastFlow;
     [ViewVariables] public float LastInletTemperature;
@@ -82,7 +86,7 @@ public sealed partial class KamertonControlModuleComponent : Component
 /// Kamerton reactor core: the layout anchor and holder of the reactor state
 /// (temperature, total power, assembly).
 /// </summary>
-[RegisterComponent, Access(typeof(KamertonReactorSystem), typeof(KamertonDroneSystem), typeof(KamertonMeltdownSystem))]
+[RegisterComponent, Access(typeof(KamertonReactorSystem), typeof(KamertonSzkSystem), typeof(KamertonMeltdownSystem))]
 public sealed partial class KamertonReactorCoreComponent : Component
 {
     #region Settings
@@ -97,7 +101,7 @@ public sealed partial class KamertonReactorCoreComponent : Component
 
     /// <summary>Heat units per second per active pair.</summary>
     [DataField]
-    public float HeatPerPair = 1f;
+    public float HeatPerPair = 8f;
 
     /// <summary>Heat limit without radiators; reaching the limit collapses the reactor.</summary>
     [DataField]
@@ -181,6 +185,17 @@ public sealed partial class KamertonReactorCoreComponent : Component
     [ViewVariables]
     public bool Working;
 
+    /// <summary>
+    /// Below this pressure (kPa) at the core tile, or on a space tile, the core counts as being in vacuum:
+    /// the reactor stops itself and refuses to start.
+    /// </summary>
+    [DataField]
+    public float VacuumPressure = 10f;
+
+    /// <summary>Set every step: the core tile is in vacuum.</summary>
+    [ViewVariables]
+    public bool InVacuum;
+
     [ViewVariables]
     public float ScramCooldown;
 
@@ -210,7 +225,8 @@ public sealed partial class KamertonReactorCoreComponent : Component
     /// <summary>Radiators linked to a heat sink through a chain of radiators.</summary>
     [ViewVariables] public readonly HashSet<EntityUid> LinkedRadiators = new();
 
-    /// <summary>Heat sinks touched by a linked radiator; only these take heat into their gas.</summary>
+    /// <summary>Heat sinks touched by a linked radiator or chained to such a sink through other heat sinks; only these
+    /// take heat into their gas.</summary>
     [ViewVariables] public readonly HashSet<EntityUid> LinkedHeatSinks = new();
     [ViewVariables] public readonly List<EntityUid> RingParts = new();
     [ViewVariables] public int RingMissing;
@@ -220,8 +236,11 @@ public sealed partial class KamertonReactorCoreComponent : Component
     /// <summary>Fuel storage in the shell (the first one found).</summary>
     [ViewVariables] public EntityUid? Storage;
 
-    /// <summary>The RDZT maintenance drone that came with this core.</summary>
-    [ViewVariables] public EntityUid? Drone;
+    /// <summary>The SZK refuelling system in the shell (the first one found).</summary>
+    [ViewVariables] public EntityUid? Szk;
+
+    /// <summary>Grid tile of every part of the reactor, the core included (last scan); the SZK lays its rails over it.</summary>
+    [ViewVariables] public readonly Dictionary<Vector2i, EntityUid> Footprint = new();
 
     /// <summary>Another core leads this node group; this one stays idle.</summary>
     [ViewVariables] public bool Slave;

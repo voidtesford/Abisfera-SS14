@@ -16,6 +16,8 @@ public enum KamertonPartKind : byte
     Console,
     PowerUnit,
     FuelStorage,
+    /// <summary>SZK, the Kamerton refuelling system: a shell part that lays a rail lattice over the reactor.</summary>
+    Szk,
 }
 
 [Serializable, NetSerializable]
@@ -35,12 +37,17 @@ public enum KamertonReactorVisuals : byte
     Cells,
     /// <summary>int 0..255: world-space neighbours in the same reactor node group (N=1, S=2, E=4, W=8, NE=16, NW=32, SE=64, SW=128), for hull smoothing.</summary>
     Links,
-    /// <summary>int 0..15: like <see cref="Links"/>, but for heat-pipe joints (radiator-radiator, radiator-heat sink).</summary>
+    /// <summary>int 0..255: like <see cref="Links"/>, but for heat-pipe joints; bits 0-3 radiator-radiator and
+    /// radiator-heat sink, bits 4-7 heat sink to heat sink (sink chains).</summary>
     HeatLinks,
     /// <summary>int 0..5: charged stable cells in a fuel storage, in steps of two.</summary>
     StorageStable,
     /// <summary>int 0..5: charged unstable cells in a fuel storage, in steps of two.</summary>
     StorageUnstable,
+    /// <summary>int 0..15: rail neighbours of an SZK rail tile (N=1, S=2, E=4, W=8).</summary>
+    Rails,
+    /// <summary>int <see cref="KamertonSzkCarriageLook"/>: what the SZK carriage carries.</summary>
+    Carriage,
 }
 
 [Serializable, NetSerializable]
@@ -56,6 +63,11 @@ public enum KamertonReactorVisualLayers : byte
     HeatLink,
     StorageStable,
     StorageUnstable,
+    /// <summary>Joints between chained heat sinks (<c>sinklink_0</c>..<c>sinklink_15</c>).</summary>
+    SinkLink,
+    /// <summary>Rail lattice tile / carriage load.</summary>
+    Rails,
+    Load,
 }
 
 /// <summary>
@@ -71,6 +83,9 @@ public sealed partial class KamertonLinkVisualsComponent : Component
 
     [DataField]
     public string HeatStatePrefix = "heat_";
+
+    [DataField]
+    public string SinkStatePrefix = "sinklink_";
 }
 
 /// <summary>One fuel array as the console shows it.</summary>
@@ -137,46 +152,61 @@ public sealed class KamertonReactorBoundUserInterfaceState(
     public readonly List<KamertonHeatSinkInfo> HeatSinks = heatSinks;
     public readonly int Radiators = radiators;
 
-    /// <summary>Fuel storage and RDZT drone section of the console.</summary>
-    public KamertonDroneInfo Drone = new();
+    /// <summary>Fuel storage and SZK section of the console.</summary>
+    public KamertonSzkInfo Szk = new();
 
-    /// <summary>Heat where meltdown starts (stop and SCRAM refused).</summary>
-    public float MeltdownHeat;
-
-    public bool Meltdown;
+    /// <summary>The core tile is in vacuum: the reactor is stopped and will not start.</summary>
+    public bool CoreInVacuum;
 }
 
 [Serializable, NetSerializable]
-public enum KamertonDroneState : byte
+public enum KamertonSzkState : byte
 {
-    /// <summary>Wanders around the reactor, never far from the core.</summary>
+    /// <summary>Carriage parked at the fuel storage, nothing to do.</summary>
     Idle,
-    /// <summary>Docked at the fuel storage and moving cells.</summary>
+    /// <summary>Running a Load or Unload job.</summary>
     Working,
-    /// <summary>Walking back to the core.</summary>
-    Returning,
+    /// <summary>Stopped: the carriage puts back what it holds and parks at the storage.</summary>
+    Parking,
 }
 
 [Serializable, NetSerializable]
-public enum KamertonDroneCommand : byte
+public enum KamertonSzkCommand : byte
 {
-    /// <summary>Fill free array slots from the storage.</summary>
+    /// <summary>Fill free array slots with charged cells from the storage.</summary>
     Load,
-    /// <summary>Pull spent cells out of the arrays.</summary>
+    /// <summary>Take spent cells out of the arrays.</summary>
     Unload,
-    /// <summary>Drop the job, switch auto-refuel off and come back to the core.</summary>
-    Return,
+    /// <summary>Drop the job, switch auto mode off and park at the storage.</summary>
+    Stop,
     ToggleAuto,
 }
 
-/// <summary>Console view of the fuel storage and the RDZT drone.</summary>
+/// <summary>What the SZK carriage is carrying, for its sprite.</summary>
 [Serializable, NetSerializable]
-public sealed class KamertonDroneInfo
+public enum KamertonSzkCarriageLook : byte
 {
-    public bool HasDrone;
-    public KamertonDroneState State;
-    public KamertonDroneCommand? Task;
-    public bool AutoRefuel;
+    Empty,
+    Stable,
+    Unstable,
+    Spent,
+}
+
+/// <summary>Console view of the fuel storage and the SZK.</summary>
+[Serializable, NetSerializable]
+public sealed class KamertonSzkInfo
+{
+    public bool HasSzk;
+    /// <summary>The rail lattice is laid over the reactor.</summary>
+    public bool Deployed;
+    public KamertonSzkState State;
+    public KamertonSzkCommand? Task;
+    public bool Auto;
+    /// <summary>Carriage tile relative to the core.</summary>
+    public int CarriageX;
+    public int CarriageY;
+    /// <summary>Carriage cargo.</summary>
+    public KamertonSzkCarriageLook Holding;
     public bool HasStorage;
     public int StorageStable;
     public int StorageUnstable;
@@ -189,22 +219,9 @@ public sealed class KamertonDroneInfo
 }
 
 [Serializable, NetSerializable]
-public sealed class KamertonDroneCommandMessage(KamertonDroneCommand command) : BoundUserInterfaceMessage
+public sealed class KamertonSzkCommandMessage(KamertonSzkCommand command) : BoundUserInterfaceMessage
 {
-    public readonly KamertonDroneCommand Command = command;
-}
-
-[Serializable, NetSerializable]
-public enum KamertonDroneVisuals : byte
-{
-    /// <summary>bool: walking (plays the walk animation).</summary>
-    Moving,
-}
-
-[Serializable, NetSerializable]
-public enum KamertonDroneVisualLayers : byte
-{
-    Base,
+    public readonly KamertonSzkCommand Command = command;
 }
 
 [Serializable, NetSerializable]

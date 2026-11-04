@@ -67,7 +67,7 @@ public sealed class KamertonMeltdownSystem : EntitySystem
         _lookup.GetEntitiesInRange(origin, core.Comp.ArcRange, _targets);
         foreach (var t in _targets)
         {
-            if (t.Owner == core.Owner || HasComp<KamertonReactorPartComponent>(t) || HasComp<KamertonDroneComponent>(t))
+            if (t.Owner == core.Owner || HasComp<KamertonReactorPartComponent>(t) || HasComp<KamertonSzkRailComponent>(t) || HasComp<KamertonSzkCarriageComponent>(t))
                 continue;
             _candidates.Add(t.Owner);
         }

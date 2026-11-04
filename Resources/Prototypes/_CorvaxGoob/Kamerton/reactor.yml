@@ -15,8 +15,9 @@
 #   H  R  A- Y  A+ R  H
 #   H  Q  Q  P  Q  Q  H
 # C core, Y synchronizer, A+/A- stable/unstable fuel array, H heat sink, R radiator,
-# Q suppressor, K control module, P power unit, F fuel storage (a shell part next to the console;
-# the RDZT drone that comes out of the core flatpack refuels the arrays from it).
+# Q suppressor, K control module, P power unit, F fuel storage (a shell part next to the console).
+# Add an SZK anywhere in the shell (for example in place of a suppressor next to the storage): its carriage
+# refuels the arrays from the storage; without it the walled-in arrays cannot be refuelled.
 
 - type: entity
   abstract: true
@@ -326,6 +327,10 @@
       map: [ "enum.KamertonReactorVisualLayers.On" ]
       shader: unshaded
       visible: false
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: sinklink_0
+      map: [ "enum.KamertonReactorVisualLayers.SinkLink" ]
+      visible: false
   - type: Transform
     noRot: false
   - type: Rotatable
@@ -506,6 +511,8 @@
   - type: KamertonReactorPart
     kind: PowerUnit
   - type: KamertonPowerUnit
+  # Without this the hull corners never get the neighbour mask: the power unit stood out as a framed box.
+  - type: KamertonLinkVisuals
 
 - type: entity
   parent: KamertonReactorPartBase
@@ -570,67 +577,160 @@
         nodeGroupID: KamertonReactor
   - type: KamertonLinkVisuals
 
-# RDZT («РДЗТ»), the spider-like refuelling drone. Comes out of the core flatpack together with the core.
+# SZK («СЗК», Kamerton refuelling system): a shell part. Anchored in the shell of an assembled reactor it lays
+# a rail lattice over the whole reactor and runs a manipulator carriage on it between the fuel storage and the
+# arrays. The arrays are walled in, so a reactor without an SZK cannot be refuelled.
 - type: entity
-  id: KamertonDroneRDZT
-  name: RDZT
-  description: A Kamerton refuelling maintenance drone. A spider-like engineering robot that tends the reactor fuel.
+  parent: KamertonReactorPartBase
+  id: KamertonSzk
+  name: SZK
+  description: The Kamerton refuelling system. Built into the reactor shell, it lays a rail lattice over the reactor; a manipulator carriage carries cells between the fuel storage and the arrays.
   components:
   - type: Sprite
-    sprite: _CorvaxGoob/Mobs/Silicon/kamerton_drone.rsi
-    drawdepth: Overdoors
     layers:
-    - state: idle
-      map: [ "enum.KamertonDroneVisualLayers.Base" ]
-    - state: eyes
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - state: szk
+    - state: szk_on
+      map: [ "enum.KamertonReactorVisualLayers.On" ]
       shader: unshaded
+      visible: false
+  - type: ContainerContainer
+    containers:
+      szk_carriage: !type:ContainerSlot
+  - type: KamertonSzk
+  - type: KamertonReactorPart
+    kind: Szk
+  - type: StaticPrice
+    price: 1500
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
+
+- type: entity
+  id: KamertonSzkRail
+  name: SZK rails
+  description: The rail lattice of the Kamerton refuelling system, above the reactor modules.
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Transform
+    noRot: true
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_szk.rsi
+    drawdepth: LargeObjects
+    noRot: true
+    layers:
+    - state: rail_0
+      map: [ "enum.KamertonReactorVisualLayers.Rails" ]
+  - type: Appearance
   - type: GenericVisualizer
     visuals:
-      enum.KamertonDroneVisuals.Moving:
-        enum.KamertonDroneVisualLayers.Base:
-          True: { state: walk }
-          False: { state: idle }
+      enum.KamertonReactorVisuals.Rails:
+        enum.KamertonReactorVisualLayers.Rails:
+          0: { state: rail_0 }
+          1: { state: rail_1 }
+          2: { state: rail_2 }
+          3: { state: rail_3 }
+          4: { state: rail_4 }
+          5: { state: rail_5 }
+          6: { state: rail_6 }
+          7: { state: rail_7 }
+          8: { state: rail_8 }
+          9: { state: rail_9 }
+          10: { state: rail_10 }
+          11: { state: rail_11 }
+          12: { state: rail_12 }
+          13: { state: rail_13 }
+          14: { state: rail_14 }
+          15: { state: rail_15 }
+  - type: KamertonSzkRail
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+- type: entity
+  id: KamertonSzkCarriage
+  name: SZK carriage
+  description: The manipulator carriage of the Kamerton refuelling system. It rides the rails and swaps the cells in the arrays.
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Transform
+    noRot: true
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_szk.rsi
+    drawdepth: BelowMobs
+    noRot: true
+    layers:
+    - state: carriage
+    - state: load_stable
+      map: [ "enum.KamertonReactorVisualLayers.Load" ]
+      shader: unshaded
+      visible: false
+    - state: carriage_lights
+      shader: unshaded
   - type: Appearance
-  - type: Clickable
-  - type: InteractionOutline
-  - type: Physics
-    bodyType: Dynamic
-  - type: Fixtures
-    fixtures:
-      fix1:
-        shape:
-          !type:PhysShapeCircle
-          radius: 0.3
-        density: 60
-        mask:
-        - SmallMobMask
-        layer:
-        - SmallMobLayer
-  - type: Damageable
-    damageContainer: Inorganic
-  - type: Destructible
-    thresholds:
-    - trigger:
-        !type:DamageTrigger
-        damage: 150
-      behaviors:
-      - !type:PlaySoundBehavior
-        sound:
-          collection: MetalBreak
-      - !type:SpawnEntitiesBehavior
-        spawn:
-          SheetSteel1:
-            min: 1
-            max: 2
-      - !type:DoActsBehavior
-        acts: [ "Destruction" ]
+  - type: GenericVisualizer
+    visuals:
+      enum.KamertonReactorVisuals.Carriage:
+        enum.KamertonReactorVisualLayers.Load:
+          0: { visible: false }
+          1: { visible: true, state: load_stable }
+          2: { visible: true, state: load_unstable }
+          3: { visible: true, state: load_spent }
   - type: PointLight
     radius: 1.2
     energy: 0.6
     color: "#39C6FF"
-  - type: KamertonDrone
-  - type: StaticPrice
-    price: 1500
+  - type: KamertonSzkCarriage
+
+- type: entity
+  id: KamertonSzkPickupEffect
+  name: cell pickup
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_szk.rsi
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - state: fx_pickup
+      shader: unshaded
+  - type: TimedDespawn
+    lifetime: 0.4
+  - type: Tag
+    tags:
+    - HideContextMenu
+
+- type: entity
+  id: KamertonSzkInsertEffect
+  name: manipulator zap
+  categories: [ HideSpawnMenu ]
+  components:
+  - type: Sprite
+    sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_szk.rsi
+    drawdepth: Effects
+    noRot: true
+    layers:
+    - state: fx_zap
+      shader: unshaded
+  - type: TimedDespawn
+    lifetime: 0.4
+  - type: Tag
+    tags:
+    - HideContextMenu
 
 # Flatpacks (multitool to unpack, like the AME flatpack).
 
@@ -656,7 +756,6 @@
   components:
   - type: Flatpack
     entity: KamertonReactorCore
-  - type: KamertonDroneSpawner
   - type: Sprite
     layers:
     - state: base
@@ -778,6 +877,19 @@
     layers:
     - state: base
     - state: icon-storage
+
+- type: entity
+  parent: KamertonFlatpackBase
+  id: KamertonSzkFlatpack
+  name: SZK flatpack
+  description: A flatpack used for constructing the Kamerton refuelling system.
+  components:
+  - type: Flatpack
+    entity: KamertonSzk
+  - type: Sprite
+    layers:
+    - state: base
+    - state: icon-szk
 
 # Meltdown arcs: thin red and blue lightning running from the core, drawn like Gilbert's phase-2 bolts.
 - type: entity
@@ -1042,6 +1154,25 @@
   - type: StaticPrice
     price: 300
 
+- type: entity
+  parent: BaseElectronics
+  id: KamertonSzkFlatpackBoard
+  name: SZK flatpack board
+  description: A circuit board for the flatpacker. It packs the Kamerton refuelling system; machine frames do not take it.
+  components:
+  - type: Sprite
+    sprite: Objects/Misc/module.rsi
+    state: engineering
+  - type: KamertonFlatpackBoard
+    flatpack: KamertonSzkFlatpack
+    entity: KamertonSzk
+    cost:
+      Steel: 2000
+      Plasteel: 500
+      Gold: 200
+  - type: StaticPrice
+    price: 300
+
 - type: latheRecipe
   id: KamertonReactorCoreFlatpackBoard
   result: KamertonReactorCoreFlatpackBoard
@@ -1126,6 +1257,15 @@
 - type: latheRecipe
   id: KamertonFuelStorageFlatpackBoard
   result: KamertonFuelStorageFlatpackBoard
+  completetime: 4
+  materials:
+    Steel: 100
+    Glass: 500
+    Gold: 300
+
+- type: latheRecipe
+  id: KamertonSzkFlatpackBoard
+  result: KamertonSzkFlatpackBoard
   completetime: 4
   materials:
     Steel: 100

@@ -17,7 +17,7 @@ public sealed partial class KamertonReactorWindow : FancyWindow
     public event Action? Start;
     public event Action? Stop;
     public event Action? Scram;
-    public event Action<KamertonDroneCommand>? DroneCommand;
+    public event Action<KamertonSzkCommand>? SzkCommand;
 
     public KamertonReactorWindow()
     {
@@ -27,10 +27,10 @@ public sealed partial class KamertonReactorWindow : FancyWindow
         StopButton.OnPressed += _ => Stop?.Invoke();
         ScramButton.OnPressed += _ => Scram?.Invoke();
         ScramButton.ModulateSelfOverride = Unstable;
-        DroneLoadButton.OnPressed += _ => DroneCommand?.Invoke(KamertonDroneCommand.Load);
-        DroneUnloadButton.OnPressed += _ => DroneCommand?.Invoke(KamertonDroneCommand.Unload);
-        DroneReturnButton.OnPressed += _ => DroneCommand?.Invoke(KamertonDroneCommand.Return);
-        DroneAutoCheck.OnPressed += _ => DroneCommand?.Invoke(KamertonDroneCommand.ToggleAuto);
+        SzkLoadButton.OnPressed += _ => SzkCommand?.Invoke(KamertonSzkCommand.Load);
+        SzkUnloadButton.OnPressed += _ => SzkCommand?.Invoke(KamertonSzkCommand.Unload);
+        SzkStopButton.OnPressed += _ => SzkCommand?.Invoke(KamertonSzkCommand.Stop);
+        SzkAutoCheck.OnPressed += _ => SzkCommand?.Invoke(KamertonSzkCommand.ToggleAuto);
     }
 
     private static string N(float value) => MathF.Round(value).ToString("0", CultureInfo.InvariantCulture);
@@ -47,8 +47,6 @@ public sealed partial class KamertonReactorWindow : FancyWindow
             StatusLabel.FontColorOverride = Unstable;
             TempBar.Value = 0f;
             TempLabel.Text = "-";
-            ThresholdLabel.Text = "-";
-            MeltdownLabel.Visible = false;
             PowerBar.Value = 0f;
             PowerLabel.Text = "-";
             PairsLabel.Text = "-";
@@ -59,21 +57,19 @@ public sealed partial class KamertonReactorWindow : FancyWindow
             StartButton.Disabled = true;
             StopButton.Disabled = true;
             ScramButton.Disabled = true;
-            UpdateDrone(new KamertonDroneInfo());
+            UpdateSzk(new KamertonSzkInfo());
             return;
         }
 
         StatusLabel.Text = Loc.GetString(s.Running ? "kamerton-reactor-window-running"
+            : s.CoreInVacuum ? "kamerton-reactor-window-vacuum"
             : s.ScramCooldown > 0f ? "kamerton-reactor-window-scrammed"
             : s.Assembled ? "kamerton-reactor-window-stopped"
             : "kamerton-reactor-window-not-assembled", ("seconds", N(s.ScramCooldown)));
-        StatusLabel.FontColorOverride = s.Running ? Ok : s.ScramCooldown > 0f ? Unstable : null;
+        StatusLabel.FontColorOverride = s.Running ? Ok : s.ScramCooldown > 0f || s.CoreInVacuum ? Unstable : null;
 
         TempBar.Value = s.MaxHeat > 0f ? Math.Clamp(s.Heat / s.MaxHeat, 0f, 1f) : 0f;
         TempLabel.Text = $"{N(s.Heat)} / {N(s.MaxHeat)}";
-        TempLabel.FontColorOverride = s.Meltdown ? Unstable : null;
-        ThresholdLabel.Text = N(s.MeltdownHeat);
-        MeltdownLabel.Visible = s.Meltdown;
 
         PowerBar.Value = s.MaxPower > 0f ? Math.Clamp(s.TotalPower / s.MaxPower, 0f, 1f) : 0f;
         PowerLabel.Text = $"{Kw(s.TotalPower)} / {Kw(s.MaxPower)} kW";
@@ -114,31 +110,40 @@ public sealed partial class KamertonReactorWindow : FancyWindow
         if (s.HeatSinks.Count == 0)
             SinksBox.AddChild(new Label { Text = Loc.GetString("kamerton-reactor-window-no-sinks") });
 
-        HintLabel.Text = s.Meltdown
-            ? Loc.GetString("kamerton-reactor-window-hint-meltdown")
-            : s.Heat > s.MeltdownHeat * 0.8f
-            ? Loc.GetString("kamerton-reactor-window-hint-hot")
+        HintLabel.Text = s.CoreInVacuum
+            ? Loc.GetString("kamerton-reactor-window-hint-vacuum")
             : !s.RingComplete && s.Running ? Loc.GetString("kamerton-reactor-window-hint-ring") : string.Empty;
 
-        StartButton.Disabled = s.Running || !s.Assembled || s.ScramCooldown > 0f;
-        StopButton.Disabled = !s.Running || s.Meltdown;
-        ScramButton.Disabled = s.Meltdown;
-        UpdateDrone(s.Drone);
+        StartButton.Disabled = s.Running || !s.Assembled || s.ScramCooldown > 0f || s.CoreInVacuum;
+        StopButton.Disabled = !s.Running;
+        ScramButton.Disabled = false;
+        UpdateSzk(s.Szk);
     }
 
-    private void UpdateDrone(KamertonDroneInfo d)
+    private void UpdateSzk(KamertonSzkInfo d)
     {
-        DroneStatusLabel.Text = !d.HasDrone
-            ? Loc.GetString("kamerton-reactor-window-drone-none")
-            : Loc.GetString(d.State switch
+        SzkStatusLabel.Text = Loc.GetString(!d.HasSzk ? "kamerton-reactor-window-szk-none"
+            : !d.Deployed ? "kamerton-reactor-window-szk-folded"
+            : d.State switch
             {
-                KamertonDroneState.Working => d.Task == KamertonDroneCommand.Unload
-                    ? "kamerton-reactor-window-drone-unloading"
-                    : "kamerton-reactor-window-drone-loading",
-                KamertonDroneState.Returning => "kamerton-reactor-window-drone-returning",
-                _ => "kamerton-reactor-window-drone-idle",
+                KamertonSzkState.Working => d.Task == KamertonSzkCommand.Unload
+                    ? "kamerton-reactor-window-szk-unloading"
+                    : "kamerton-reactor-window-szk-loading",
+                KamertonSzkState.Parking => "kamerton-reactor-window-szk-parking",
+                _ => "kamerton-reactor-window-szk-idle",
             });
-        DroneStatusLabel.FontColorOverride = !d.HasDrone ? Unstable : d.State == KamertonDroneState.Working ? Ok : null;
+        SzkStatusLabel.FontColorOverride = !d.HasSzk || !d.Deployed ? Unstable : d.State == KamertonSzkState.Working ? Ok : null;
+
+        SzkCarriageLabel.Text = d.HasSzk && d.Deployed
+            ? Loc.GetString("kamerton-reactor-window-szk-carriage-value", ("x", d.CarriageX), ("y", d.CarriageY),
+                ("load", Loc.GetString(d.Holding switch
+                {
+                    KamertonSzkCarriageLook.Stable => "kamerton-reactor-window-szk-load-stable",
+                    KamertonSzkCarriageLook.Unstable => "kamerton-reactor-window-szk-load-unstable",
+                    KamertonSzkCarriageLook.Spent => "kamerton-reactor-window-szk-load-spent",
+                    _ => "kamerton-reactor-window-szk-load-empty",
+                })))
+            : "-";
 
         StorageLabel.Text = d.HasStorage
             ? Loc.GetString("kamerton-reactor-window-storage-value", ("stable", d.StorageStable),
@@ -148,11 +153,11 @@ public sealed partial class KamertonReactorWindow : FancyWindow
         SlotsLabel.Text = Loc.GetString("kamerton-reactor-window-slots-value", ("stable", d.FreeStable),
             ("unstable", d.FreeUnstable), ("spent", d.Spent));
 
-        var usable = d.HasDrone && d.HasStorage;
-        DroneLoadButton.Disabled = !usable;
-        DroneUnloadButton.Disabled = !usable;
-        DroneReturnButton.Disabled = !d.HasDrone;
-        DroneAutoCheck.Disabled = !d.HasDrone;
-        DroneAutoCheck.Pressed = d.AutoRefuel;
+        var usable = d.HasSzk && d.Deployed && d.HasStorage;
+        SzkLoadButton.Disabled = !usable;
+        SzkUnloadButton.Disabled = !usable;
+        SzkStopButton.Disabled = !d.HasSzk || !d.Deployed;
+        SzkAutoCheck.Disabled = !d.HasSzk;
+        SzkAutoCheck.Pressed = d.Auto;
     }
 }

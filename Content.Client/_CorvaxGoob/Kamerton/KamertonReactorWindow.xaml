@@ -13,11 +13,6 @@
             <Label Name="TempLabel" Margin="6 0 0 0" MinWidth="110"/>
         </BoxContainer>
         <BoxContainer Orientation="Horizontal">
-            <Label Text="{Loc 'kamerton-reactor-window-meltdown-threshold'}" MinWidth="190"/>
-            <Label Name="ThresholdLabel" HorizontalExpand="True"/>
-        </BoxContainer>
-        <Label Name="MeltdownLabel" FontColorOverride="#FF3050" Visible="False" Text="{Loc 'kamerton-reactor-window-meltdown'}"/>
-        <BoxContainer Orientation="Horizontal">
             <Label Text="{Loc 'kamerton-reactor-window-power'}" MinWidth="190"/>
             <ProgressBar Name="PowerBar" HorizontalExpand="True" MinValue="0" MaxValue="1" SetHeight="18"/>
             <Label Name="PowerLabel" Margin="6 0 0 0" MinWidth="110"/>
@@ -44,10 +39,14 @@
         <BoxContainer Name="SinksBox" Orientation="Vertical"/>
 
         <controls:HLine Color="#39C6FF" Thickness="1"/>
-        <Label Text="{Loc 'kamerton-reactor-window-drone'}" FontColorOverride="#8C98B0"/>
+        <Label Text="{Loc 'kamerton-reactor-window-szk'}" FontColorOverride="#8C98B0"/>
         <BoxContainer Orientation="Horizontal">
-            <Label Text="{Loc 'kamerton-reactor-window-drone-status'}" MinWidth="190"/>
-            <Label Name="DroneStatusLabel" HorizontalExpand="True"/>
+            <Label Text="{Loc 'kamerton-reactor-window-szk-status'}" MinWidth="190"/>
+            <Label Name="SzkStatusLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-szk-carriage'}" MinWidth="190"/>
+            <Label Name="SzkCarriageLabel" HorizontalExpand="True"/>
         </BoxContainer>
         <BoxContainer Orientation="Horizontal">
             <Label Text="{Loc 'kamerton-reactor-window-storage'}" MinWidth="190"/>
@@ -58,11 +57,11 @@
             <Label Name="SlotsLabel" HorizontalExpand="True"/>
         </BoxContainer>
         <BoxContainer Orientation="Horizontal" SeparationOverride="4">
-            <Button Name="DroneLoadButton" Text="{Loc 'kamerton-reactor-window-drone-load'}" HorizontalExpand="True" StyleClasses="OpenRight"/>
-            <Button Name="DroneUnloadButton" Text="{Loc 'kamerton-reactor-window-drone-unload'}" HorizontalExpand="True" StyleClasses="OpenBoth"/>
-            <Button Name="DroneReturnButton" Text="{Loc 'kamerton-reactor-window-drone-return'}" HorizontalExpand="True" StyleClasses="OpenLeft"/>
+            <Button Name="SzkLoadButton" Text="{Loc 'kamerton-reactor-window-szk-load'}" HorizontalExpand="True" StyleClasses="OpenRight"/>
+            <Button Name="SzkUnloadButton" Text="{Loc 'kamerton-reactor-window-szk-unload'}" HorizontalExpand="True" StyleClasses="OpenBoth"/>
+            <Button Name="SzkStopButton" Text="{Loc 'kamerton-reactor-window-szk-stop'}" HorizontalExpand="True" StyleClasses="OpenLeft"/>
         </BoxContainer>
-        <CheckBox Name="DroneAutoCheck" Text="{Loc 'kamerton-reactor-window-drone-auto'}"/>
+        <CheckBox Name="SzkAutoCheck" Text="{Loc 'kamerton-reactor-window-szk-auto'}"/>
 
         <Label Name="HintLabel" FontColorOverride="#E0304A"/>
 
