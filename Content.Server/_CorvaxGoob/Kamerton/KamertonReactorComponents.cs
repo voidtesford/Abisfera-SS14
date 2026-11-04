@@ -62,20 +62,16 @@ public sealed partial class KamertonHeatSinkComponent : Component
     [ViewVariables] public float LastHeatRemoved;
 }
 
-/// <summary>Radiator: extra heat capacity for the core and a slow heat leak into its pipe.</summary>
+/// <summary>
+/// Radiator: extra heat capacity for the core. Carries heat on to the heat sinks when a chain of radiators
+/// links it to one; otherwise it only buffers heat.
+/// </summary>
 [RegisterComponent]
 public sealed partial class KamertonRadiatorComponent : Component
 {
-    [DataField]
-    public string PipeName = "pipe";
-
     /// <summary>J/K added to the core.</summary>
     [DataField]
     public float HeatCapacity = 25000f;
-
-    /// <summary>Fraction of the core/gas gap the pipe gas closes each second.</summary>
-    [DataField]
-    public float Efficiency = 0.05f;
 }
 
 /// <summary>HV output of the reactor: its PowerSupplier gets the core's total power.</summary>
@@ -191,6 +187,12 @@ public sealed partial class KamertonReactorCoreComponent : Component
     [ViewVariables] public readonly List<EntityUid> UnstableArrays = new();
     [ViewVariables] public readonly List<EntityUid> HeatSinks = new();
     [ViewVariables] public readonly List<EntityUid> Radiators = new();
+
+    /// <summary>Radiators linked to a heat sink through a chain of radiators.</summary>
+    [ViewVariables] public readonly HashSet<EntityUid> LinkedRadiators = new();
+
+    /// <summary>Heat sinks touched by a linked radiator; only these take heat into their gas.</summary>
+    [ViewVariables] public readonly HashSet<EntityUid> LinkedHeatSinks = new();
     [ViewVariables] public readonly List<EntityUid> RingParts = new();
     [ViewVariables] public int RingMissing;
     [ViewVariables] public EntityUid? Console;

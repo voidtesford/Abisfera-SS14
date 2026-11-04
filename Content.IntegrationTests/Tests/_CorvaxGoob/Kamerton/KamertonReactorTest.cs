@@ -59,14 +59,20 @@ public sealed class KamertonReactorTest
         "KamertonHeatSink", "KamertonRadiator", "KamertonSuppressor", "KamertonPowerUnit", "KamertonControlModule",
     };
 
-    /// <summary>Standard layout, rows from y = +2 down to y = -2 (S = stable, U = unstable, Y = sync, H = heat sink, R = radiator, C = core).</summary>
+    /// <summary>
+    /// Standard layout, rows from y = +3 down to y = -3 (S = stable, U = unstable, Y = sync, H = heat sink,
+    /// R = radiator, C = core, Q = suppressor, K = console, P = power unit). Two parallel lines on each side:
+    /// radiators inside, heat sinks on the edge (their pipes run north-south and leave the reactor).
+    /// </summary>
     private static readonly string[] Layout =
     {
-        "HSYUH",
-        "URRRS",
-        "YRCRY",
-        "SRRRU",
-        "HUYSH",
+        "HQQKQQH",
+        "HRSYURH",
+        "HRUYSRH",
+        "HRRCRRH",
+        "HRSYURH",
+        "HRUYSRH",
+        "HQQPQQH",
     };
 
     private sealed class Reactor
@@ -76,6 +82,7 @@ public sealed class KamertonReactorTest
         public readonly List<EntityUid> Ring = new();
         public EntityUid Console;
         public EntityUid PowerUnit;
+        public readonly List<Vector2i> Skipped = new();
     }
 
     private static EntityCoordinates Tile(TestMapData map, int x, int y) => new(map.Grid.Owner, x + 0.5f, y + 0.5f);
@@ -89,68 +96,61 @@ public sealed class KamertonReactorTest
         entMan.System<SharedMapSystem>().SetTiles(map.Grid.Owner, map.Grid.Comp, tiles);
     }
 
-    /// <summary>Builds the standard layout plus the ring (console at (0,3), power unit at (0,-3)), skipping <paramref name="skipRing"/> tiles.</summary>
+    /// <summary>
+    /// Builds the standard layout; <paramref name="ring"/> = false leaves out the suppressors, console and power
+    /// unit, <paramref name="skipRing"/> leaves out that many suppressors.
+    /// </summary>
     private static Reactor Build(IEntityManager entMan, TestMapData map, bool fillCells, int skipRing = 0, bool ring = true)
     {
         var r = new Reactor();
         var slots = entMan.System<ItemSlotsSystem>();
-        for (var row = 0; row < 5; row++)
-        for (var col = 0; col < 5; col++)
+        var skipped = 0;
+        for (var row = 0; row < 7; row++)
+        for (var col = 0; col < 7; col++)
         {
-            var x = col - 2;
-            var y = 2 - row;
-            var id = Layout[row][col] switch
+            var x = col - 3;
+            var y = 3 - row;
+            var ch = Layout[row][col];
+            var id = ch switch
             {
                 'H' => "KamertonHeatSink",
                 'S' => "KamertonStableFuelArray",
                 'U' => "KamertonUnstableFuelArray",
                 'Y' => "KamertonSynchronizer",
                 'R' => "KamertonRadiator",
+                'Q' => "KamertonSuppressor",
+                'K' => "KamertonControlModule",
+                'P' => "KamertonPowerUnit",
                 _ => "KamertonReactorCore",
             };
-            var uid = entMan.SpawnEntity(id, Tile(map, x, y));
-            r.At[new Vector2i(x, y)] = uid;
-            if (id == "KamertonReactorCore")
-                r.Core = uid;
-
-            if (!fillCells || id is not ("KamertonStableFuelArray" or "KamertonUnstableFuelArray"))
+            var isRing = ch is 'Q' or 'K' or 'P';
+            if (isRing && !ring)
                 continue;
 
-            var cell = id == "KamertonStableFuelArray" ? StableFull : UnstableFull;
-            for (var i = 1; i <= 4; i++)
-                Assert.That(slots.TryInsert(uid, KamertonReactorSystem.SlotId(i), entMan.SpawnEntity(cell, Tile(map, x, y)), null), Is.True);
-        }
-
-        if (!ring)
-            return r;
-
-        var skipped = 0;
-        for (var x = -3; x <= 3; x++)
-        for (var y = -3; y <= 3; y++)
-        {
-            if (Math.Max(Math.Abs(x), Math.Abs(y)) != 3)
-                continue;
-            if (x == 0 && y == 3)
-            {
-                r.Console = entMan.SpawnEntity("KamertonControlModule", Tile(map, x, y));
-                r.Ring.Add(r.Console);
-                continue;
-            }
-
-            if (x == 0 && y == -3)
-            {
-                r.PowerUnit = entMan.SpawnEntity("KamertonPowerUnit", Tile(map, x, y));
-                r.Ring.Add(r.PowerUnit);
-                continue;
-            }
-
-            if (skipped < skipRing)
+            if (ch == 'Q' && skipped < skipRing)
             {
                 skipped++;
+                r.Skipped.Add(new Vector2i(x, y));
                 continue;
             }
 
-            r.Ring.Add(entMan.SpawnEntity("KamertonSuppressor", Tile(map, x, y)));
+            var uid = entMan.SpawnEntity(id, Tile(map, x, y));
+            r.At[new Vector2i(x, y)] = uid;
+            if (isRing)
+                r.Ring.Add(uid);
+            if (ch == 'C')
+                r.Core = uid;
+            else if (ch == 'K')
+                r.Console = uid;
+            else if (ch == 'P')
+                r.PowerUnit = uid;
+
+            if (!fillCells || ch is not ('S' or 'U'))
+                continue;
+
+            var cell = ch == 'S' ? StableFull : UnstableFull;
+            for (var i = 1; i <= 4; i++)
+                Assert.That(slots.TryInsert(uid, KamertonReactorSystem.SlotId(i), entMan.SpawnEntity(cell, Tile(map, x, y)), null), Is.True);
         }
 
         return r;
@@ -251,8 +251,10 @@ public sealed class KamertonReactorTest
             Assert.That(c.Synchronizers, Has.Count.EqualTo(4));
             Assert.That(c.StableArrays, Has.Count.EqualTo(4));
             Assert.That(c.UnstableArrays, Has.Count.EqualTo(4));
-            Assert.That(c.HeatSinks, Has.Count.EqualTo(4));
-            Assert.That(c.Radiators, Has.Count.EqualTo(8));
+            Assert.That(c.HeatSinks, Has.Count.EqualTo(14));
+            Assert.That(c.Radiators, Has.Count.EqualTo(12));
+            Assert.That(c.LinkedRadiators, Has.Count.EqualTo(12), "every radiator is on a heat line");
+            Assert.That(c.LinkedHeatSinks, Has.Count.EqualTo(10), "the 2x5 sinks next to radiators; corner sinks only carry the pipe");
             Assert.That(c.RingMissing, Is.Zero);
             Assert.That(c.Console, Is.EqualTo(r.Console));
             Assert.That(c.PowerUnit, Is.EqualTo(r.PowerUnit));
@@ -350,7 +352,7 @@ public sealed class KamertonReactorTest
             Assert.That(c.Item2.TotalPower, Is.EqualTo(200000f), "200 kW cap per synchronizer");
             Assert.That(c.Item2.HeatSinks, Is.EquivalentTo(new[] { sinkLinked }), "only linked heat sinks count");
             Assert.That(sys.GetGroup(sinkLoose), Is.Not.SameAs(sys.GetGroup(core)));
-            Assert.That(c.Item2.RingMissing, Is.EqualTo(18), "every empty tile around the inner parts");
+            Assert.That(c.Item2.RingMissing, Is.EqualTo(15), "every empty tile around the inner parts (the heat sink is a shell part)");
             sys.Stop(c);
         });
 
@@ -445,12 +447,21 @@ public sealed class KamertonReactorTest
             sys.Step(core, 10f);
             var expected = 16 * c.HeatPerPair * 10f / sys.GetHeatCapacity(c);
             Assert.That(c.Temperature - t0, Is.EqualTo(expected).Within(0.5f), "heats up without cooling");
-            Assert.That(c.Temperature, Is.GreaterThan(t0 + 50f));
+            Assert.That(c.Temperature, Is.GreaterThan(t0 + 40f));
 
-            // Stop at 1200 K and push cold nitrogen into one corner heat sink.
+            // Heat-pipe joints: radiator-radiator and radiator-heat sink (N=1, S=2, E=4, W=8).
+            var appearance = entMan.System<SharedAppearanceSystem>();
+            int HeatLinks(EntityUid u) => appearance.TryGetData<int>(u, KamertonReactorVisuals.HeatLinks, out var f) ? f : 0;
+            Assert.That(HeatLinks(r.At[new Vector2i(-2, 0)]), Is.EqualTo(15), "radiator: heat pipes all round");
+            Assert.That(Links(entMan, r.At[new Vector2i(-2, 0)]), Is.EqualTo(255), "hull joined to all 8 neighbours");
+            Assert.That(HeatLinks(r.At[new Vector2i(-3, 2)]), Is.EqualTo(4), "edge heat sink: heat pipe to its radiator");
+            Assert.That(Links(entMan, r.At[new Vector2i(-3, 2)]), Is.EqualTo(1 | 2 | 4 | 16 | 64), "edge of the hull: nothing to the west");
+            Assert.That(HeatLinks(r.Core), Is.Zero);
+
+            // Stop at 1200 K and push cold nitrogen into the west heat sink line (pipes run north -> south).
             sys.Stop(core);
             sys.SetTemperature(core, 1200f);
-            var sink = r.At[new Vector2i(-2, 2)];
+            var sink = r.At[new Vector2i(-3, 2)];
             Assert.That(nodes.TryGetNode(sink, "inlet", out PipeNode? inlet), Is.True);
             Assert.That(nodes.TryGetNode(sink, "outlet", out PipeNode? outlet), Is.True);
             inlet!.Air.AdjustMoles(Gas.Nitrogen, 2000f);
@@ -468,6 +479,102 @@ public sealed class KamertonReactorTest
                 sys.Step(core, 1f);
             Assert.That(c.Temperature, Is.LessThan(before));
             Assert.That(c.Temperature, Is.GreaterThanOrEqualTo(80f), "never below the coolant");
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    [Test]
+    public async Task UnlinkedRadiatorsDoNotDissipate()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var entMan = server.EntMan;
+        var map = await pair.CreateTestMap();
+        var sys = server.System<KamertonReactorSystem>();
+        var nodes = server.System<NodeContainerSystem>();
+        Reactor r = default!;
+
+        await server.WaitPost(() =>
+        {
+            Floor(entMan, map, 4);
+            // S Y U over H C R: the radiator at (1,0) does not touch the heat sink at (-1,0).
+            r = BuildSmall(entMan, map);
+        });
+        await pair.RunTicksSync(5);
+
+        await server.WaitAssertion(() =>
+        {
+            var core = Core(entMan, r);
+            var c = core.Comp;
+            sys.Scan(core);
+            Assert.That(c.Radiators, Has.Count.EqualTo(1));
+            Assert.That(c.LinkedRadiators, Is.Empty, "no heat sink at the end of the radiator line");
+            Assert.That(c.LinkedHeatSinks, Is.Empty, "no radiator brings heat to the heat sink");
+            Assert.That(sys.GetHeatCapacity(c), Is.EqualTo(c.BaseHeatCapacity + 25000f).Within(1f), "the radiator still buffers heat");
+
+            sys.SetTemperature(core, 1200f);
+            var sink = r.At[new Vector2i(-1, 0)];
+            Assert.That(nodes.TryGetNode(sink, "inlet", out PipeNode? inlet), Is.True);
+            inlet!.Air.AdjustMoles(Gas.Nitrogen, 2000f);
+            inlet.Air.Temperature = 80f;
+
+            for (var i = 0; i < 5; i++)
+                sys.Step(core, 1f);
+            Assert.That(c.Temperature, Is.EqualTo(1200f).Within(0.01f), "unlinked radiators dump nothing");
+            Assert.That(entMan.GetComponent<KamertonHeatSinkComponent>(sink).LastHeatRemoved, Is.Zero);
+            Assert.That(inlet.Air.Temperature, Is.EqualTo(80f).Within(0.01f), "the gas stays cold");
+            sys.SetTemperature(core, c.AmbientTemperature);
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    [Test]
+    public async Task EdgeHeatSinksCountAsShell()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var entMan = server.EntMan;
+        var map = await pair.CreateTestMap();
+        var sys = server.System<KamertonReactorSystem>();
+        EntityUid core = default, edge = default;
+
+        await server.WaitPost(() =>
+        {
+            Floor(entMan, map, 4);
+            core = entMan.SpawnEntity("KamertonReactorCore", Tile(map, 0, 0));
+            for (var x = -1; x <= 1; x++)
+            for (var y = -1; y <= 1; y++)
+            {
+                if (x == 0 && y == 0)
+                    continue;
+                var uid = entMan.SpawnEntity(x == 1 && y == 0 ? "KamertonHeatSink" : "KamertonSuppressor", Tile(map, x, y));
+                if (x == 1 && y == 0)
+                    edge = uid;
+            }
+        });
+        await pair.RunTicksSync(5);
+
+        await server.WaitAssertion(() =>
+        {
+            var c = (core, entMan.GetComponent<KamertonReactorCoreComponent>(core));
+            sys.Scan(c);
+            Assert.That(c.Item2.HeatSinks, Is.EquivalentTo(new[] { edge }));
+            Assert.That(c.Item2.RingMissing, Is.Zero, "a heat sink on the edge closes the shell like a suppressor");
+
+            // A radiator in the same spot is an inner part: its outer neighbours must be filled too.
+            entMan.DeleteEntity(edge);
+            entMan.SpawnEntity("KamertonRadiator", Tile(map, 1, 0));
+        });
+        await pair.RunTicksSync(3);
+
+        await server.WaitAssertion(() =>
+        {
+            var c = (core, entMan.GetComponent<KamertonReactorCoreComponent>(core));
+            sys.Scan(c);
+            Assert.That(c.Item2.Radiators, Has.Count.EqualTo(1));
+            Assert.That(c.Item2.RingMissing, Is.EqualTo(3), "(2,-1), (2,0), (2,1) are open");
         });
 
         await pair.CleanReturnAsync();
@@ -511,9 +618,7 @@ public sealed class KamertonReactorTest
             Assert.That(Dmg(immune), Is.Zero, "redspace-immune are spared");
 
             // Close the ring: the leak stops.
-            var missing = Enumerable.Range(-3, 7).SelectMany(x => Enumerable.Range(-3, 7).Select(y => new Vector2i(x, y)))
-                .First(p => Math.Max(Math.Abs(p.X), Math.Abs(p.Y)) == 3
-                            && !r.Ring.Any(e => entMan.GetComponent<TransformComponent>(e).Coordinates.Position.Floored() == p));
+            var missing = r.Skipped[0];
             r.Ring.Add(entMan.SpawnEntity("KamertonSuppressor", Tile(map, missing.X, missing.Y)));
         });
 
@@ -647,9 +752,9 @@ public sealed class KamertonReactorTest
             Assert.That(c.PowerUnit, Is.EqualTo(r.PowerUnit));
             Assert.That(sys.IsAssembled(c) && sys.RingComplete(c), Is.True);
 
-            // Link couplings (N=1, S=2, E=4, W=8): the core is linked on all four sides, a shell corner on two.
-            Assert.That(Links(entMan, r.Core), Is.EqualTo(15));
-            Assert.That(Links(entMan, r.At[new Vector2i(-2, 2)]), Is.EqualTo(2 | 4));
+            // Hull neighbours (N=1, S=2, E=4, W=8, NE=16, NW=32, SE=64, SW=128): the core is surrounded, a shell corner has S, E and SE.
+            Assert.That(Links(entMan, r.Core), Is.EqualTo(255));
+            Assert.That(Links(entMan, r.At[new Vector2i(-2, 2)]), Is.EqualTo(2 | 4 | 64));
             Assert.That(Links(entMan, stray), Is.Zero);
 
             Assert.That(sys.TryStart(core, out var reason), Is.True, reason);
@@ -706,7 +811,7 @@ public sealed class KamertonReactorTest
             Assert.That(c.ActivePairs, Is.Zero);
             Assert.That(c.TotalPower, Is.Zero);
             Assert.That(Links(entMan, stable), Is.Zero);
-            Assert.That(Links(entMan, sync), Is.EqualTo(1 | 2 | 4), "the synchronizer lost its west coupling");
+            Assert.That(Links(entMan, sync), Is.EqualTo(255 & ~8), "the synchronizer's hull opens to the west");
 
             // Cutting the synchronizer out leaves no synchronizers: not assembled, the reactor stops.
             entMan.System<SharedTransformSystem>().Unanchor(sync);

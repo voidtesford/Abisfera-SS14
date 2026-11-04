@@ -12,6 +12,18 @@
     snapCardinals: true
     sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_control.rsi
     layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
     - state: off
     - state: on
       map: [ "enum.PowerDeviceVisualLayers.Powered" ]
@@ -19,10 +31,6 @@
       visible: false
     - state: panel_open
       map: [ "enum.WiresVisualLayers.MaintenancePanel" ]
-      visible: false
-    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
-      state: link_0
-      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: Transform
     anchored: true

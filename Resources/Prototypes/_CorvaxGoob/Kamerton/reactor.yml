@@ -1,15 +1,19 @@
 # Kamerton reactor. Parts link up like the AME shielding: every part has an AdjacentNode on the
 # KamertonReactor node group, so anchored parts side by side (N/E/S/W) form one reactor around its core.
-# Any shape works as long as every inner part (core, arrays, synchronizers, heat sinks, radiators) has all
-# 8 neighbours taken by reactor parts, i.e. the inner parts are walled in by suppressors, the console and
-# the power unit. Each fuel array pairs with a synchronizer next to it. The standard layout:
-#   Q  Q  Q  K  Q  Q  Q
-#   Q  H  A+ Y  A- H  Q
-#   Q  A- R  R  R  A+ Q
-#   Q  Y  R  C  R  Y  Q
-#   Q  A+ R  R  R  A- Q
-#   Q  H  A- Y  A+ H  Q
-#   Q  Q  Q  P  Q  Q  Q
+# Any shape works as long as every inner part (core, arrays, synchronizers, radiators) has all 8 neighbours
+# taken by reactor parts, i.e. the inner parts are walled in by shell parts: suppressors, the console, the
+# power unit and the heat sinks. Each fuel array pairs with a synchronizer next to it.
+# Heat path: core/arrays -> radiators -> heat sinks -> gas. A radiator only carries heat away when a chain
+# of radiators links it to a heat sink (heat pipes); unlinked radiators only buffer heat.
+# The standard layout: two parallel lines on each side, radiators inside, heat sinks on the edge. The heat
+# sink columns are pipes (inlet north, outlet south) that leave the reactor at the top and bottom.
+#   H  Q  Q  K  Q  Q  H
+#   H  R  A+ Y  A- R  H
+#   H  R  A- Y  A+ R  H
+#   H  R  R  C  R  R  H
+#   H  R  A+ Y  A- R  H
+#   H  R  A- Y  A+ R  H
+#   H  Q  Q  P  Q  Q  H
 # C core, Y synchronizer, A+/A- stable/unstable fuel array, H heat sink, R radiator,
 # Q suppressor, K control module, P power unit.
 
@@ -57,6 +61,18 @@
   components:
   - type: Sprite
     layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
     - state: core
     - state: core_on
       map: [ "enum.KamertonReactorVisualLayers.On" ]
@@ -65,10 +81,6 @@
     - state: core_heat_1
       map: [ "enum.KamertonReactorVisualLayers.Heat" ]
       shader: unshaded
-      visible: false
-    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
-      state: link_0
-      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: GenericVisualizer
     visuals:
@@ -131,14 +143,22 @@
   components:
   - type: Sprite
     layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
     - state: array_stable
     - state: cells_stable_1
       map: [ "enum.KamertonReactorVisualLayers.Cells" ]
       shader: unshaded
-      visible: false
-    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
-      state: link_0
-      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: GenericVisualizer
     visuals:
@@ -178,14 +198,22 @@
   components:
   - type: Sprite
     layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
     - state: array_unstable
     - state: cells_unstable_1
       map: [ "enum.KamertonReactorVisualLayers.Cells" ]
       shader: unshaded
-      visible: false
-    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
-      state: link_0
-      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: GenericVisualizer
     visuals:
@@ -225,14 +253,22 @@
   components:
   - type: Sprite
     layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
     - state: sync
     - state: sync_on
       map: [ "enum.KamertonReactorVisualLayers.On" ]
       shader: unshaded
-      visible: false
-    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
-      state: link_0
-      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: GenericVisualizer
     visuals:
@@ -258,20 +294,32 @@
   parent: KamertonReactorPartBase
   id: KamertonHeatSink
   name: Kamerton heat sink
-  description: Pumps gas from its inlet pipe to its outlet pipe and dumps the reactor heat into it. Must be linked into the reactor.
+  description: Pumps gas from its inlet pipe to its outlet pipe and dumps the heat its radiators bring into it. Sits on the reactor edge and needs a radiator line next to it.
   components:
   - type: Sprite
     noRot: false
     snapCardinals: false
     layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: heat_0
+      map: [ "enum.KamertonReactorVisualLayers.HeatLink" ]
+      visible: false
     - state: heatsink
     - state: heatsink_on
       map: [ "enum.KamertonReactorVisualLayers.On" ]
       shader: unshaded
-      visible: false
-    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
-      state: link_0
-      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: Transform
     noRot: false
@@ -304,20 +352,32 @@
   parent: KamertonReactorPartBase
   id: KamertonRadiator
   name: Kamerton radiator
-  description: Soaks up reactor heat and slowly hands it to the gas in its pipe.
+  description: Soaks up reactor heat and passes it along a line of radiators to a heat sink. Without a heat sink at the end of its line it only buffers heat.
   components:
   - type: Sprite
     noRot: false
     snapCardinals: false
     layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: heat_0
+      map: [ "enum.KamertonReactorVisualLayers.HeatLink" ]
+      visible: false
     - state: radiator
     - state: radiator_heat_1
       map: [ "enum.KamertonReactorVisualLayers.Heat" ]
       shader: unshaded
-      visible: false
-    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
-      state: link_0
-      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: Transform
     noRot: false
@@ -335,10 +395,6 @@
       kamerton:
         !type:AdjacentNode
         nodeGroupID: KamertonReactor
-      pipe:
-        !type:PipeNode
-        nodeGroupID: Pipe
-        pipeDirection: Longitudinal
   - type: KamertonReactorPart
     kind: Radiator
   - type: KamertonRadiator
@@ -352,14 +408,22 @@
   components:
   - type: Sprite
     layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
     - state: suppressor
     - state: suppressor_on
       map: [ "enum.KamertonReactorVisualLayers.On" ]
       shader: unshaded
-      visible: false
-    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
-      state: link_0
-      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: GenericVisualizer
     visuals:
@@ -391,14 +455,22 @@
   components:
   - type: Sprite
     layers:
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_ne_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_se_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSE" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_sw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullSW" ]
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_hull.rsi
+      state: hull_nw_0
+      map: [ "enum.KamertonReactorVisualLayers.HullNW" ]
     - state: powerunit
     - state: powerunit_on
       map: [ "enum.KamertonReactorVisualLayers.On" ]
       shader: unshaded
-      visible: false
-    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
-      state: link_0
-      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: GenericVisualizer
     visuals:

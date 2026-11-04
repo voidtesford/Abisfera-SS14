@@ -128,16 +128,26 @@ public sealed class KamertonReactorSystem : EntitySystem
         return node.NodeGroup as KamertonNodeGroup;
     }
 
-    /// <summary>Shell parts close the reactor off: suppressors, the console and the power unit.</summary>
+    /// <summary>
+    /// Shell parts close the reactor off: suppressors, the console, the power unit and the heat sinks, which sit
+    /// on the edge so their pipes can leave the reactor.
+    /// </summary>
     public static bool IsShell(KamertonPartKind kind)
     {
-        return kind is KamertonPartKind.Suppressor or KamertonPartKind.Console or KamertonPartKind.PowerUnit;
+        return kind is KamertonPartKind.Suppressor or KamertonPartKind.Console or KamertonPartKind.PowerUnit
+            or KamertonPartKind.HeatSink;
+    }
+
+    /// <summary>Parts that carry heat to each other through heat pipes: radiators and heat sinks.</summary>
+    public static bool IsHeatPart(KamertonPartKind kind)
+    {
+        return kind is KamertonPartKind.Radiator or KamertonPartKind.HeatSink;
     }
 
     /// <summary>
     /// Re-reads the reactor from the core's node group, like the AME reads its shielding group: every anchored
     /// part linked to the core through neighbouring parts belongs to it, whatever the shape. Each inner part
-    /// (core, arrays, synchronizers, heat sinks, radiators) must have all 8 neighbours taken by parts of the
+    /// (core, arrays, synchronizers, radiators) must have all 8 neighbours taken by parts of the
     /// group, the same test the AME uses to find its cores, so the inner parts end up walled in by shell parts;
     /// every empty neighbour tile counts towards <see cref="KamertonReactorCoreComponent.RingMissing"/>.
     /// </summary>
@@ -159,6 +169,8 @@ public sealed class KamertonReactorSystem : EntitySystem
         comp.UnstableArrays.Clear();
         comp.HeatSinks.Clear();
         comp.Radiators.Clear();
+        comp.LinkedRadiators.Clear();
+        comp.LinkedHeatSinks.Clear();
         comp.RingParts.Clear();
         comp.Console = null;
         comp.PowerUnit = null;
@@ -257,6 +269,7 @@ public sealed class KamertonReactorSystem : EntitySystem
         }
 
         comp.RingMissing = missing.Count;
+        TraceHeatLines(tiles, comp);
 
         // Every array goes to the first synchronizer of the group next to it (N, S, E, W).
         foreach (var (tile, uid) in arrayTiles)
@@ -281,8 +294,67 @@ public sealed class KamertonReactorSystem : EntitySystem
     }
 
     /// <summary>
-    /// Sets the link couplings of every part in the group: a coupling is drawn towards each N/S/E/W neighbour
-    /// that is linked into the same node group, like the AME shielding joins up with its neighbours.
+    /// Heat path: core and arrays -> radiators -> heat sinks -> gas. A radiator only carries heat away when a
+    /// chain of neighbouring radiators (N/S/E/W) ends at a heat sink; a heat sink only takes heat when a linked
+    /// radiator touches it. Unlinked radiators still add heat capacity but dump nothing.
+    /// </summary>
+    private static void TraceHeatLines(
+        Dictionary<Vector2i, (EntityUid Uid, KamertonReactorPartComponent Part)> tiles,
+        KamertonReactorCoreComponent comp)
+    {
+        var queue = new Queue<Vector2i>();
+        foreach (var (tile, (_, part)) in tiles)
+        {
+            if (part.Kind != KamertonPartKind.HeatSink)
+                continue;
+
+            foreach (var off in Cardinals)
+            {
+                if (tiles.TryGetValue(tile + off, out var n) && n.Part.Kind == KamertonPartKind.Radiator)
+                    queue.Enqueue(tile + off);
+            }
+        }
+
+        while (queue.TryDequeue(out var tile))
+        {
+            if (!comp.LinkedRadiators.Add(tiles[tile].Uid))
+                continue;
+
+            foreach (var off in Cardinals)
+            {
+                if (tiles.TryGetValue(tile + off, out var n) && n.Part.Kind == KamertonPartKind.Radiator
+                    && !comp.LinkedRadiators.Contains(n.Uid))
+                    queue.Enqueue(tile + off);
+            }
+        }
+
+        foreach (var (tile, (uid, part)) in tiles)
+        {
+            if (part.Kind != KamertonPartKind.HeatSink)
+                continue;
+
+            foreach (var off in Cardinals)
+            {
+                if (tiles.TryGetValue(tile + off, out var n) && comp.LinkedRadiators.Contains(n.Uid))
+                {
+                    comp.LinkedHeatSinks.Add(uid);
+                    break;
+                }
+            }
+        }
+    }
+
+    /// <summary>Neighbour offsets in <see cref="KamertonReactorVisuals.Links"/> bit order: N, S, E, W, NE, NW, SE, SW.</summary>
+    private static readonly Vector2i[] Neighbours =
+    {
+        new(0, 1), new(0, -1), new(1, 0), new(-1, 0), new(1, 1), new(-1, 1), new(1, -1), new(-1, -1),
+    };
+
+    /// <summary>
+    /// Sets the hull smoothing of every part in the group, like the AME shielding joins into one structure:
+    /// <see cref="KamertonReactorVisuals.Links"/> holds the 8 neighbours that belong to the same node group,
+    /// <see cref="KamertonReactorVisuals.HeatLinks"/> the N/S/E/W heat-pipe joints (radiator-radiator and
+    /// radiator-heat sink).
     /// </summary>
     public void UpdateLinkVisuals(KamertonNodeGroup group)
     {
@@ -295,25 +367,34 @@ public sealed class KamertonReactorSystem : EntitySystem
         foreach (var uid in members)
         {
             var flags = 0;
+            var heatFlags = 0;
+            var kind = CompOrNull<KamertonReactorPartComponent>(uid)?.Kind;
             var xform = Transform(uid);
             if (xform.Anchored && xform.GridUid is { } gridUid && TryComp<MapGridComponent>(gridUid, out var grid))
             {
                 var tile = _map.TileIndicesFor(gridUid, grid, xform.Coordinates);
-                for (var i = 0; i < Cardinals.Length; i++)
+                for (var i = 0; i < Neighbours.Length; i++)
                 {
-                    var anchored = _map.GetAnchoredEntitiesEnumerator(gridUid, grid, tile + Cardinals[i]);
+                    var anchored = _map.GetAnchoredEntitiesEnumerator(gridUid, grid, tile + Neighbours[i]);
                     while (anchored.MoveNext(out var ent))
                     {
                         if (ent is not { } other || !members.Contains(other))
                             continue;
 
                         flags |= 1 << i;
+
+                        // Radiator-radiator and radiator-heat sink joints carry a heat pipe.
+                        var otherKind = CompOrNull<KamertonReactorPartComponent>(other)?.Kind;
+                        if (i < 4 && kind is { } a && otherKind is { } b && IsHeatPart(a) && IsHeatPart(b)
+                            && (a == KamertonPartKind.Radiator || b == KamertonPartKind.Radiator))
+                            heatFlags |= 1 << i;
                         break;
                     }
                 }
             }
 
             _appearance.SetData(uid, KamertonReactorVisuals.Links, flags);
+            _appearance.SetData(uid, KamertonReactorVisuals.HeatLinks, heatFlags);
         }
     }
 
@@ -478,7 +559,6 @@ public sealed class KamertonReactorSystem : EntitySystem
         var capacity = GetHeatCapacity(comp);
         comp.Temperature += pairs * comp.HeatPerPair * dt / capacity;
         CoolHeatSinks(core, capacity, dt);
-        CoolRadiators(core, capacity, dt);
 
         // Power.
         if (comp.PowerUnit is { } unit && TryComp<PowerSupplierComponent>(unit, out var supplier))
@@ -545,6 +625,13 @@ public sealed class KamertonReactorSystem : EntitySystem
             sink.LastFlow = 0f;
             sink.LastHeatRemoved = 0f;
 
+            // No radiator line feeds this heat sink: it has no heat to hand to its gas.
+            if (!core.Comp.LinkedHeatSinks.Contains(uid))
+            {
+                SetOn(uid, false);
+                continue;
+            }
+
             if (!_nodes.TryGetNodes(uid, sink.InletName, sink.OutletName, out PipeNode? inlet, out PipeNode? outlet))
             {
                 SetOn(uid, false);
@@ -566,18 +653,6 @@ public sealed class KamertonReactorSystem : EntitySystem
             sink.LastOutletTemperature = removed.Temperature;
             _atmos.Merge(outlet.Air, removed);
             SetOn(uid, true);
-        }
-    }
-
-    private void CoolRadiators(Entity<KamertonReactorCoreComponent> core, float capacity, float dt)
-    {
-        foreach (var uid in core.Comp.Radiators)
-        {
-            if (!TryComp<KamertonRadiatorComponent>(uid, out var rad))
-                continue;
-
-            if (_nodes.TryGetNode(uid, rad.PipeName, out PipeNode? pipe) && pipe.Air.TotalMoles > 0f)
-                Exchange(core.Comp, capacity, pipe.Air, rad.Efficiency * dt);
         }
     }
 
@@ -725,7 +800,7 @@ public sealed class KamertonReactorSystem : EntitySystem
 
         return new KamertonReactorBoundUserInterfaceState(true, IsAssembled(comp), comp.Working, comp.ScramCooldown,
             comp.Temperature, comp.CollapseTemperature, comp.TotalPower, max, comp.ActivePairs, comp.Synchronizers.Count,
-            RingComplete(comp), comp.RingMissing, comp.PowerUnit != null, supplied, arrays, sinks, comp.Radiators.Count);
+            RingComplete(comp), comp.RingMissing, comp.PowerUnit != null, supplied, arrays, sinks, comp.LinkedRadiators.Count);
     }
 
     private void UpdateUi(Entity<KamertonReactorCoreComponent> core)

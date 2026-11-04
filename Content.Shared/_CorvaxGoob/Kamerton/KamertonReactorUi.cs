@@ -32,8 +32,10 @@ public enum KamertonReactorVisuals : byte
     Heat,
     /// <summary>int 0..4: cells in a fuel array.</summary>
     Cells,
-    /// <summary>int 0..15: world-space cardinal links to parts of the same reactor node group (N=1, S=2, E=4, W=8).</summary>
+    /// <summary>int 0..255: world-space neighbours in the same reactor node group (N=1, S=2, E=4, W=8, NE=16, NW=32, SE=64, SW=128), for hull smoothing.</summary>
     Links,
+    /// <summary>int 0..15: like <see cref="Links"/>, but for heat-pipe joints (radiator-radiator, radiator-heat sink).</summary>
+    HeatLinks,
 }
 
 [Serializable, NetSerializable]
@@ -42,18 +44,26 @@ public enum KamertonReactorVisualLayers : byte
     On,
     Heat,
     Cells,
-    Link,
+    HullNE,
+    HullSE,
+    HullSW,
+    HullNW,
+    HeatLink,
 }
 
 /// <summary>
-/// Draws the Kamerton link couplings (<c>link_0</c>..<c>link_15</c>) on the
-/// <see cref="KamertonReactorVisualLayers.Link"/> layer from <see cref="KamertonReactorVisuals.Links"/>.
+/// AME-style hull smoothing of a Kamerton part: four corner layers (<c>hull_ne_0</c>..<c>hull_nw_7</c>) picked
+/// from <see cref="KamertonReactorVisuals.Links"/>, plus the heat-pipe channels (<c>heat_0</c>..<c>heat_15</c>)
+/// from <see cref="KamertonReactorVisuals.HeatLinks"/>. The part's own look sits on other layers on top.
 /// </summary>
 [RegisterComponent]
 public sealed partial class KamertonLinkVisualsComponent : Component
 {
     [DataField]
-    public string StatePrefix = "link_";
+    public string HullStatePrefix = "hull_";
+
+    [DataField]
+    public string HeatStatePrefix = "heat_";
 }
 
 /// <summary>One fuel array as the console shows it.</summary>
@@ -68,7 +78,7 @@ public sealed class KamertonArrayInfo(bool stable, int charged, int empty, int s
     public readonly float MinRemaining = minRemaining;
 }
 
-/// <summary>One corner heat sink as the console shows it.</summary>
+/// <summary>One heat sink as the console shows it.</summary>
 [Serializable, NetSerializable]
 public sealed class KamertonHeatSinkInfo(float flowMoles, float inletTemperature, float outletTemperature, float heatRemoved)
 {

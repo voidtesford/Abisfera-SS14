@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "license": "CC-BY-SA-3.0",
+  "copyright": "Original pixel art for CorvaxGoob Kamerton reactor",
+  "size": {
+    "x": 32,
+    "y": 32
+  },
+  "states": [
+    {
+      "name": "hull_ne_0"
+    },
+    {
+      "name": "hull_ne_1"
+    },
+    {
+      "name": "hull_ne_2"
+    },
+    {
+      "name": "hull_ne_3"
+    },
+    {
+      "name": "hull_ne_4"
+    },
+    {
+      "name": "hull_ne_5"
+    },
+    {
+      "name": "hull_ne_6"
+    },
+    {
+      "name": "hull_ne_7"
+    },
+    {
+      "name": "hull_se_0"
+    },
+    {
+      "name": "hull_se_1"
+    },
+    {
+      "name": "hull_se_2"
+    },
+    {
+      "name": "hull_se_3"
+    },
+    {
+      "name": "hull_se_4"
+    },
+    {
+      "name": "hull_se_5"
+    },
+    {
+      "name": "hull_se_6"
+    },
+    {
+      "name": "hull_se_7"
+    },
+    {
+      "name": "hull_sw_0"
+    },
+    {
+      "name": "hull_sw_1"
+    },
+    {
+      "name": "hull_sw_2"
+    },
+    {
+      "name": "hull_sw_3"
+    },
+    {
+      "name": "hull_sw_4"
+    },
+    {
+      "name": "hull_sw_5"
+    },
+    {
+      "name": "hull_sw_6"
+    },
+    {
+      "name": "hull_sw_7"
+    },
+    {
+      "name": "hull_nw_0"
+    },
+    {
+      "name": "hull_nw_1"
+    },
+    {
+      "name": "hull_nw_2"
+    },
+    {
+      "name": "hull_nw_3"
+    },
+    {
+      "name": "hull_nw_4"
+    },
+    {
+      "name": "hull_nw_5"
+    },
+    {
+      "name": "hull_nw_6"
+    },
+    {
+      "name": "hull_nw_7"
+    },
+    {
+      "name": "heat_0"
+    },
+    {
+      "name": "heat_1"
+    },
+    {
+      "name": "heat_2"
+    },
+    {
+      "name": "heat_3"
+    },
+    {
+      "name": "heat_4"
+    },
+    {
+      "name": "heat_5"
+    },
+    {
+      "name": "heat_6"
+    },
+    {
+      "name": "heat_7"
+    },
+    {
+      "name": "heat_8"
+    },
+    {
+      "name": "heat_9"
+    },
+    {
+      "name": "heat_10"
+    },
+    {
+      "name": "heat_11"
+    },
+    {
+      "name": "heat_12"
+    },
+    {
+      "name": "heat_13"
+    },
+    {
+      "name": "heat_14"
+    },
+    {
+      "name": "heat_15"
+    }
+  ]
+}
