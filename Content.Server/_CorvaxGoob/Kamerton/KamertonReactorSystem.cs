@@ -52,6 +52,7 @@ public sealed class KamertonReactorSystem : EntitySystem
     [Dependency] private readonly SharedPointLightSystem _light = default!;
     [Dependency] private readonly TransformSystem _transform = default!;
     [Dependency] private readonly UserInterfaceSystem _ui = default!;
+    [Dependency] private readonly KamertonDroneSystem _drone = default!;
 
     public const float StepInterval = 1f;
 
@@ -129,13 +130,13 @@ public sealed class KamertonReactorSystem : EntitySystem
     }
 
     /// <summary>
-    /// Shell parts close the reactor off: suppressors, the console, the power unit and the heat sinks, which sit
-    /// on the edge so their pipes can leave the reactor.
+    /// Shell parts close the reactor off: suppressors, the console, the power unit, the fuel storage and the heat
+    /// sinks, which sit on the edge so their pipes can leave the reactor.
     /// </summary>
     public static bool IsShell(KamertonPartKind kind)
     {
         return kind is KamertonPartKind.Suppressor or KamertonPartKind.Console or KamertonPartKind.PowerUnit
-            or KamertonPartKind.HeatSink;
+            or KamertonPartKind.HeatSink or KamertonPartKind.FuelStorage;
     }
 
     /// <summary>Parts that carry heat to each other through heat pipes: radiators and heat sinks.</summary>
@@ -174,6 +175,7 @@ public sealed class KamertonReactorSystem : EntitySystem
         comp.RingParts.Clear();
         comp.Console = null;
         comp.PowerUnit = null;
+        comp.Storage = null;
         comp.Slave = false;
         comp.Oversized = false;
         comp.RingMissing = 8;
@@ -247,6 +249,10 @@ public sealed class KamertonReactorSystem : EntitySystem
                     break;
                 case KamertonPartKind.PowerUnit:
                     comp.PowerUnit ??= uid;
+                    comp.RingParts.Add(uid);
+                    break;
+                case KamertonPartKind.FuelStorage:
+                    comp.Storage ??= uid;
                     comp.RingParts.Add(uid);
                     break;
                 case KamertonPartKind.Synchronizer:
@@ -707,7 +713,7 @@ public sealed class KamertonReactorSystem : EntitySystem
         _popup.PopupEntity(Loc.GetString("kamerton-reactor-popup-scram"), core, PopupType.LargeCaution);
     }
 
-    private Entity<KamertonReactorCoreComponent>? ConsoleCore(EntityUid console)
+    public Entity<KamertonReactorCoreComponent>? ConsoleCore(EntityUid console)
     {
         if (TryComp<KamertonReactorPartComponent>(console, out var part)
             && part.Core is { } c
@@ -798,12 +804,14 @@ public sealed class KamertonReactorSystem : EntitySystem
 
         var max = comp.Synchronizers.Count * comp.MaxPairsPerSynchronizer * comp.PowerPerPair;
 
-        return new KamertonReactorBoundUserInterfaceState(true, IsAssembled(comp), comp.Working, comp.ScramCooldown,
+        var state = new KamertonReactorBoundUserInterfaceState(true, IsAssembled(comp), comp.Working, comp.ScramCooldown,
             comp.Temperature, comp.CollapseTemperature, comp.TotalPower, max, comp.ActivePairs, comp.Synchronizers.Count,
             RingComplete(comp), comp.RingMissing, comp.PowerUnit != null, supplied, arrays, sinks, comp.LinkedRadiators.Count);
+        state.Drone = _drone.BuildInfo(core);
+        return state;
     }
 
-    private void UpdateUi(Entity<KamertonReactorCoreComponent> core)
+    public void UpdateUi(Entity<KamertonReactorCoreComponent> core)
     {
         if (core.Comp.Console is not { } console || !_ui.IsUiOpen(console, KamertonReactorUiKey.Key))
             return;

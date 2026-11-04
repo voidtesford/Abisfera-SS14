@@ -90,7 +90,7 @@ public sealed partial class KamertonControlModuleComponent : Component
 /// Kamerton reactor core: the layout anchor and holder of the reactor state
 /// (temperature, total power, assembly).
 /// </summary>
-[RegisterComponent, Access(typeof(KamertonReactorSystem))]
+[RegisterComponent, Access(typeof(KamertonReactorSystem), typeof(KamertonDroneSystem))]
 public sealed partial class KamertonReactorCoreComponent : Component
 {
     #region Settings
@@ -197,6 +197,12 @@ public sealed partial class KamertonReactorCoreComponent : Component
     [ViewVariables] public int RingMissing;
     [ViewVariables] public EntityUid? Console;
     [ViewVariables] public EntityUid? PowerUnit;
+
+    /// <summary>Fuel storage in the shell (the first one found).</summary>
+    [ViewVariables] public EntityUid? Storage;
+
+    /// <summary>The RDZT maintenance drone that came with this core.</summary>
+    [ViewVariables] public EntityUid? Drone;
 
     /// <summary>Another core leads this node group; this one stays idle.</summary>
     [ViewVariables] public bool Slave;

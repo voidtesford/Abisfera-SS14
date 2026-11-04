@@ -129,6 +129,39 @@
           0.1
         ]
       ]
+    },
+    {
+      "name": "storage"
+    },
+    {
+      "name": "storage_stable_1"
+    },
+    {
+      "name": "storage_unstable_1"
+    },
+    {
+      "name": "storage_stable_2"
+    },
+    {
+      "name": "storage_unstable_2"
+    },
+    {
+      "name": "storage_stable_3"
+    },
+    {
+      "name": "storage_unstable_3"
+    },
+    {
+      "name": "storage_stable_4"
+    },
+    {
+      "name": "storage_unstable_4"
+    },
+    {
+      "name": "storage_stable_5"
+    },
+    {
+      "name": "storage_unstable_5"
     }
   ]
 }

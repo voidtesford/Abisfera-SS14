@@ -36,6 +36,9 @@
     },
     {
       "name": "icon-console"
+    },
+    {
+      "name": "icon-storage"
     }
   ]
 }

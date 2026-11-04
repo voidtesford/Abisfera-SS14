@@ -97,3 +97,33 @@ kamerton-reactor-window-hint-ring = Кольцо разомкнуто: вокр�
 kamerton-reactor-window-start = Пуск
 kamerton-reactor-window-stop = Стоп
 kamerton-reactor-window-scram = АЗ
+
+## Хранилище топлива и дрон РДЗТ
+kamerton-storage-empty-cell = В хранилище кладутся только заряженные ячейки.
+kamerton-storage-full = В хранилище нет места для этой ячейки.
+kamerton-storage-loaded = Ячейка загружена. Стабильных: {$stable}/{$capacity}, нестабильных: {$unstable}/{$capacity}.
+kamerton-storage-examine = В хранилище: [color=#39C6FF]стабильных {$stable}/{$capacity}[/color], [color=#E0304A]нестабильных {$unstable}/{$capacity}[/color].
+kamerton-drone-examine = Состояние дрона: {$state}. Автозаправка {$auto ->
+    [1] включена
+   *[0] выключена
+}.
+kamerton-drone-state-idle = простаивает
+kamerton-drone-state-working = работает
+kamerton-drone-state-returning = возвращается к ядру
+kamerton-drone-missing = У этого реактора нет дрона РДЗТ.
+kamerton-reactor-window-drone = Дрон РДЗТ и хранилище топлива
+kamerton-reactor-window-drone-status = Дрон:
+kamerton-reactor-window-drone-none = дрона нет
+kamerton-reactor-window-drone-idle = простаивает
+kamerton-reactor-window-drone-loading = работает: загрузка массивов
+kamerton-reactor-window-drone-unloading = работает: выгрузка отработанных ячеек
+kamerton-reactor-window-drone-returning = возвращается к ядру
+kamerton-reactor-window-storage = Хранилище топлива:
+kamerton-reactor-window-storage-value = стабильных {$stable}/{$capacity}, нестабильных {$unstable}/{$capacity}
+kamerton-reactor-window-storage-none = нет в обшивке
+kamerton-reactor-window-slots = Массивы:
+kamerton-reactor-window-slots-value = свободно: стаб. {$stable}, нестаб. {$unstable}; отработанных: {$spent}
+kamerton-reactor-window-drone-load = Загрузить массивы
+kamerton-reactor-window-drone-unload = Выгрузить отработанные
+kamerton-reactor-window-drone-return = Вернуть / стоп
+kamerton-reactor-window-drone-auto = Автозаправка

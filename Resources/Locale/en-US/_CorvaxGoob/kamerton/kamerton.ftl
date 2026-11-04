@@ -97,3 +97,33 @@ kamerton-reactor-window-hint-ring = The ring is broken: redspace is leaking arou
 kamerton-reactor-window-start = Start
 kamerton-reactor-window-stop = Stop
 kamerton-reactor-window-scram = SCRAM
+
+## Fuel storage and the RDZT drone
+kamerton-storage-empty-cell = Only charged cells go into the fuel storage.
+kamerton-storage-full = No room for this cell in the fuel storage.
+kamerton-storage-loaded = Cell stored. Stable: {$stable}/{$capacity}, unstable: {$unstable}/{$capacity}.
+kamerton-storage-examine = Stored cells: [color=#39C6FF]stable {$stable}/{$capacity}[/color], [color=#E0304A]unstable {$unstable}/{$capacity}[/color].
+kamerton-drone-examine = The drone is {$state}. Auto-refuel is {$auto ->
+    [1] on
+   *[0] off
+}.
+kamerton-drone-state-idle = idle
+kamerton-drone-state-working = working
+kamerton-drone-state-returning = returning to the core
+kamerton-drone-missing = This reactor has no RDZT drone.
+kamerton-reactor-window-drone = RDZT drone and fuel storage
+kamerton-reactor-window-drone-status = Drone:
+kamerton-reactor-window-drone-none = no drone
+kamerton-reactor-window-drone-idle = idle
+kamerton-reactor-window-drone-loading = working: loading arrays
+kamerton-reactor-window-drone-unloading = working: removing spent cells
+kamerton-reactor-window-drone-returning = returning to the core
+kamerton-reactor-window-storage = Fuel storage:
+kamerton-reactor-window-storage-value = stable {$stable}/{$capacity}, unstable {$unstable}/{$capacity}
+kamerton-reactor-window-storage-none = not in the shell
+kamerton-reactor-window-slots = Arrays:
+kamerton-reactor-window-slots-value = free slots: stable {$stable}, unstable {$unstable}; spent cells: {$spent}
+kamerton-reactor-window-drone-load = Load arrays
+kamerton-reactor-window-drone-unload = Unload spent
+kamerton-reactor-window-drone-return = Return / stop
+kamerton-reactor-window-drone-auto = Auto-refuel

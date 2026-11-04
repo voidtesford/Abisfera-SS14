@@ -1,7 +1,7 @@
 <controls:FancyWindow xmlns="https://spacestation14.io"
                       xmlns:controls="clr-namespace:Content.Client.UserInterface.Controls"
                       Title="{Loc 'kamerton-reactor-window-title'}"
-                      MinSize="480 520">
+                      MinSize="480 680">
     <BoxContainer Orientation="Vertical" Margin="8" SeparationOverride="6">
         <BoxContainer Orientation="Horizontal">
             <Label Text="{Loc 'kamerton-reactor-window-status'}" MinWidth="190"/>
@@ -37,6 +37,27 @@
         <controls:HLine Color="#39C6FF" Thickness="1"/>
         <Label Name="CoolingHeader" FontColorOverride="#8C98B0"/>
         <BoxContainer Name="SinksBox" Orientation="Vertical"/>
+
+        <controls:HLine Color="#39C6FF" Thickness="1"/>
+        <Label Text="{Loc 'kamerton-reactor-window-drone'}" FontColorOverride="#8C98B0"/>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-drone-status'}" MinWidth="190"/>
+            <Label Name="DroneStatusLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-storage'}" MinWidth="190"/>
+            <Label Name="StorageLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal">
+            <Label Text="{Loc 'kamerton-reactor-window-slots'}" MinWidth="190"/>
+            <Label Name="SlotsLabel" HorizontalExpand="True"/>
+        </BoxContainer>
+        <BoxContainer Orientation="Horizontal" SeparationOverride="4">
+            <Button Name="DroneLoadButton" Text="{Loc 'kamerton-reactor-window-drone-load'}" HorizontalExpand="True" StyleClasses="OpenRight"/>
+            <Button Name="DroneUnloadButton" Text="{Loc 'kamerton-reactor-window-drone-unload'}" HorizontalExpand="True" StyleClasses="OpenBoth"/>
+            <Button Name="DroneReturnButton" Text="{Loc 'kamerton-reactor-window-drone-return'}" HorizontalExpand="True" StyleClasses="OpenLeft"/>
+        </BoxContainer>
+        <CheckBox Name="DroneAutoCheck" Text="{Loc 'kamerton-reactor-window-drone-auto'}"/>
 
         <Label Name="HintLabel" FontColorOverride="#E0304A"/>
 

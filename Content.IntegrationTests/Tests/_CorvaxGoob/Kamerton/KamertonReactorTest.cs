@@ -57,16 +57,17 @@ public sealed class KamertonReactorTest
     {
         "KamertonReactorCore", "KamertonStableFuelArray", "KamertonUnstableFuelArray", "KamertonSynchronizer",
         "KamertonHeatSink", "KamertonRadiator", "KamertonSuppressor", "KamertonPowerUnit", "KamertonControlModule",
+        "KamertonFuelStorage",
     };
 
     /// <summary>
     /// Standard layout, rows from y = +3 down to y = -3 (S = stable, U = unstable, Y = sync, H = heat sink,
-    /// R = radiator, C = core, Q = suppressor, K = console, P = power unit). Two parallel lines on each side:
+    /// R = radiator, C = core, Q = suppressor, K = console, P = power unit, F = fuel storage). Two parallel lines on each side:
     /// radiators inside, heat sinks on the edge (their pipes run north-south and leave the reactor).
     /// </summary>
     private static readonly string[] Layout =
     {
-        "HQQKQQH",
+        "HQFKQQH",
         "HRSYURH",
         "HRUYSRH",
         "HRRCRRH",
@@ -82,6 +83,7 @@ public sealed class KamertonReactorTest
         public readonly List<EntityUid> Ring = new();
         public EntityUid Console;
         public EntityUid PowerUnit;
+        public EntityUid Storage;
         public readonly List<Vector2i> Skipped = new();
     }
 
@@ -121,9 +123,10 @@ public sealed class KamertonReactorTest
                 'Q' => "KamertonSuppressor",
                 'K' => "KamertonControlModule",
                 'P' => "KamertonPowerUnit",
+                'F' => "KamertonFuelStorage",
                 _ => "KamertonReactorCore",
             };
-            var isRing = ch is 'Q' or 'K' or 'P';
+            var isRing = ch is 'Q' or 'K' or 'P' or 'F';
             if (isRing && !ring)
                 continue;
 
@@ -144,6 +147,8 @@ public sealed class KamertonReactorTest
                 r.Console = uid;
             else if (ch == 'P')
                 r.PowerUnit = uid;
+            else if (ch == 'F')
+                r.Storage = uid;
 
             if (!fillCells || ch is not ('S' or 'U'))
                 continue;
@@ -215,12 +220,21 @@ public sealed class KamertonReactorTest
                          "core", "core_on", "core_heat_1", "core_heat_2", "core_heat_3", "array_stable", "array_unstable",
                          "cells_stable_4", "cells_unstable_4", "sync", "sync_on", "heatsink", "heatsink_on", "radiator",
                          "radiator_heat_3", "suppressor", "suppressor_on", "powerunit", "powerunit_on",
+                         "storage", "storage_stable_5", "storage_unstable_5",
                      })
                 Assert.That(reactor.TryGetState(s, out _), Is.True, s);
 
             var box = res.GetResource<RSIResource>(new ResPath("/Textures/_CorvaxGoob/Objects/Devices/kamerton_flatpack.rsi")).RSI;
-            foreach (var s in new[] { "base", "icon-core", "icon-stable", "icon-unstable", "icon-sync", "icon-heatsink", "icon-radiator", "icon-suppressor", "icon-powerunit", "icon-console" })
+            foreach (var s in new[] { "base", "icon-core", "icon-stable", "icon-unstable", "icon-sync", "icon-heatsink", "icon-radiator", "icon-suppressor", "icon-powerunit", "icon-console", "icon-storage" })
                 Assert.That(box.TryGetState(s, out _), Is.True, s);
+
+            var drone = res.GetResource<RSIResource>(new ResPath("/Textures/_CorvaxGoob/Mobs/Silicon/kamerton_drone.rsi")).RSI;
+            foreach (var s in new[] { "idle", "walk", "eyes" })
+            {
+                Assert.That(drone.TryGetState(s, out var st), Is.True, s);
+                Assert.That(st!.RsiDirections, Is.EqualTo(Robust.Shared.Graphics.RSI.RsiDirectionType.Dir4), s);
+            }
+            Assert.That(drone.TryGetState("walk", out var walk) && walk!.DelayCount >= 4, Is.True, "walk animation has 4 frames");
         });
 
         await pair.CleanReturnAsync();
@@ -899,6 +913,163 @@ public sealed class KamertonReactorTest
             foreach (var uid in spawned)
                 entMan.DeleteEntity(uid);
             server.System<RedspaceMapSystem>().SetRedspace(map.MapUid, null);
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    [Test]
+    public async Task FuelStorageShellAndCapacity()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var entMan = server.EntMan;
+        var map = await pair.CreateTestMap();
+        var sys = server.System<KamertonReactorSystem>();
+        var drones = server.System<KamertonDroneSystem>();
+        Reactor r = default!;
+
+        await server.WaitPost(() =>
+        {
+            Floor(entMan, map, 5);
+            r = Build(entMan, map, fillCells: false);
+        });
+        await pair.RunTicksSync(5);
+
+        await server.WaitAssertion(() =>
+        {
+            var c = Core(entMan, r);
+            sys.Scan(c);
+            Assert.That(c.Comp.RingMissing, Is.Zero, "the fuel storage is a shell part");
+            Assert.That(c.Comp.Storage, Is.EqualTo(r.Storage));
+
+            var st = (r.Storage, entMan.GetComponent<KamertonFuelStorageComponent>(r.Storage));
+            Assert.That(drones.TryStore(st, entMan.SpawnEntity(StableEmpty, Tile(map, 0, 5))), Is.False, "spent cells are not stored");
+            for (var i = 0; i < 10; i++)
+            {
+                Assert.That(drones.TryStore(st, entMan.SpawnEntity(StableFull, Tile(map, 0, 5))), Is.True);
+                Assert.That(drones.TryStore(st, entMan.SpawnEntity(UnstableFull, Tile(map, 0, 5))), Is.True);
+            }
+            Assert.That(drones.TryStore(st, entMan.SpawnEntity(StableFull, Tile(map, 0, 5))), Is.False, "10 stable max");
+            Assert.That(drones.TryStore(st, entMan.SpawnEntity(UnstableFull, Tile(map, 0, 5))), Is.False, "10 unstable max");
+            Assert.That(drones.CountStored(st, KamertonCellKind.Stable), Is.EqualTo(10));
+            Assert.That(drones.CountStored(st, KamertonCellKind.Unstable), Is.EqualTo(10));
+
+            var info = drones.BuildInfo(c.Comp);
+            Assert.That(info.HasStorage && !info.HasDrone, Is.True);
+            Assert.That(info.FreeStable, Is.EqualTo(16));
+            Assert.That(info.FreeUnstable, Is.EqualTo(16));
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    [Test]
+    public async Task DroneRefuelsAndUnloadsSpentCells()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var entMan = server.EntMan;
+        var map = await pair.CreateTestMap();
+        var sys = server.System<KamertonReactorSystem>();
+        var drones = server.System<KamertonDroneSystem>();
+        var slots = server.System<ItemSlotsSystem>();
+        Reactor r = default!;
+        EntityUid drone = default;
+
+        await server.WaitPost(() =>
+        {
+            Floor(entMan, map, 5);
+            r = Build(entMan, map, fillCells: false);
+        });
+        await pair.RunTicksSync(5);
+
+        await server.WaitAssertion(() =>
+        {
+            var c = Core(entMan, r);
+            sys.Scan(c);
+            var st = (r.Storage, entMan.GetComponent<KamertonFuelStorageComponent>(r.Storage));
+            for (var i = 0; i < 3; i++)
+                Assert.That(drones.TryStore(st, entMan.SpawnEntity(StableFull, Tile(map, -1, 3))), Is.True);
+
+            drone = drones.SpawnDrone(c, Tile(map, -1, 4));
+            Assert.That(c.Comp.Drone, Is.EqualTo(drone));
+            var d = (drone, entMan.GetComponent<KamertonDroneComponent>(drone));
+            Assert.That(d.Item2.Core, Is.EqualTo(r.Core));
+
+            for (var i = 0; i < 6; i++)
+                drones.Think(d, 1f);
+
+            Assert.That(drones.CountStored(st, KamertonCellKind.Stable), Is.Zero, "all three cells went into the arrays");
+            Assert.That(drones.BuildInfo(c.Comp).FreeStable, Is.EqualTo(13));
+            Assert.That(d.Item2.State, Is.EqualTo(KamertonDroneState.Idle));
+
+            // Swap one loaded cell for a spent one: the drone pulls it out and drops it outside.
+            var array = c.Comp.StableArrays.First(a => slots.GetItemOrNull(a, KamertonReactorSystem.SlotId(1)) != null);
+            slots.TryEject(array, KamertonReactorSystem.SlotId(1), null, out var full);
+            entMan.DeleteEntity(full);
+            Assert.That(slots.TryInsert(array, KamertonReactorSystem.SlotId(1), entMan.SpawnEntity(StableEmpty, Tile(map, 0, 5)), null), Is.True);
+            Assert.That(drones.BuildInfo(c.Comp).Spent, Is.EqualTo(1));
+            Assert.That(drones.PickTask(c.Comp), Is.EqualTo(KamertonDroneCommand.Unload));
+
+            for (var i = 0; i < 3; i++)
+                drones.Think(d, 1f);
+
+            Assert.That(drones.BuildInfo(c.Comp).Spent, Is.Zero);
+            var spent = entMan.EntityQuery<KamertonCellComponent>().Select(x => x.Owner)
+                .Where(x => entMan.GetComponent<MetaDataComponent>(x).EntityPrototype?.ID == StableEmpty).ToList();
+            Assert.That(spent, Has.Count.EqualTo(1));
+            Assert.That(entMan.GetComponent<TransformComponent>(spent[0]).ParentUid, Is.EqualTo(map.Grid.Owner), "dropped on the floor, not in a container");
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    [Test]
+    public async Task DroneSpawnerLeashAndReturn()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var entMan = server.EntMan;
+        var map = await pair.CreateTestMap();
+        var proto = server.ResolveDependency<IPrototypeManager>();
+        var factory = server.ResolveDependency<IComponentFactory>();
+        var drones = server.System<KamertonDroneSystem>();
+        var xforms = server.System<SharedTransformSystem>();
+        EntityUid core = default, drone = default;
+
+        await server.WaitAssertion(() =>
+        {
+            var flat = proto.Index<EntityPrototype>("KamertonReactorCoreFlatpack");
+            Assert.That(flat.TryGetComponent<KamertonDroneSpawnerComponent>(out var sp, factory), Is.True);
+            Assert.That(sp!.Drone.Id, Is.EqualTo("KamertonDroneRDZT"));
+            var dp = proto.Index<EntityPrototype>("KamertonDroneRDZT");
+            Assert.That(dp.TryGetComponent<KamertonDroneComponent>(out var dc, factory), Is.True);
+            Assert.That(dc!.WanderRadius, Is.EqualTo(6f));
+            Assert.That(dc.LeashRadius, Is.EqualTo(8f));
+
+            Floor(entMan, map, 14);
+            core = entMan.SpawnEntity("KamertonReactorCore", Tile(map, 0, 0));
+            drone = drones.SpawnDrone((core, entMan.GetComponent<KamertonReactorCoreComponent>(core)), Tile(map, 12, 0));
+            var d = (drone, entMan.GetComponent<KamertonDroneComponent>(drone));
+            drones.Think(d, 0.1f);
+            Assert.That(d.Item2.State, Is.EqualTo(KamertonDroneState.Returning), "beyond the 8-tile leash");
+
+            xforms.SetCoordinates(drone, Tile(map, 1, 0));
+            drones.Think(d, 0.1f);
+            Assert.That(d.Item2.State, Is.EqualTo(KamertonDroneState.Idle));
+
+            for (var i = 0; i < 20; i++)
+            {
+                drones.Think(d, 1f);
+                if (d.Item2.Goal is { } g)
+                    Assert.That((g - xforms.GetWorldPosition(core)).Length(), Is.LessThanOrEqualTo(6.01f), "wanders within 6 tiles");
+            }
+
+            drones.Command(d, KamertonDroneCommand.Return);
+            Assert.That(d.Item2.State == KamertonDroneState.Returning && !d.Item2.AutoRefuel, Is.True);
+            drones.Command(d, KamertonDroneCommand.ToggleAuto);
+            Assert.That(d.Item2.AutoRefuel, Is.True);
         });
 
         await pair.CleanReturnAsync();

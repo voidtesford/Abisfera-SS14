@@ -15,6 +15,7 @@ public enum KamertonPartKind : byte
     Suppressor,
     Console,
     PowerUnit,
+    FuelStorage,
 }
 
 [Serializable, NetSerializable]
@@ -36,6 +37,10 @@ public enum KamertonReactorVisuals : byte
     Links,
     /// <summary>int 0..15: like <see cref="Links"/>, but for heat-pipe joints (radiator-radiator, radiator-heat sink).</summary>
     HeatLinks,
+    /// <summary>int 0..5: charged stable cells in a fuel storage, in steps of two.</summary>
+    StorageStable,
+    /// <summary>int 0..5: charged unstable cells in a fuel storage, in steps of two.</summary>
+    StorageUnstable,
 }
 
 [Serializable, NetSerializable]
@@ -49,6 +54,8 @@ public enum KamertonReactorVisualLayers : byte
     HullSW,
     HullNW,
     HeatLink,
+    StorageStable,
+    StorageUnstable,
 }
 
 /// <summary>
@@ -127,6 +134,70 @@ public sealed class KamertonReactorBoundUserInterfaceState(
     public readonly List<KamertonArrayInfo> Arrays = arrays;
     public readonly List<KamertonHeatSinkInfo> HeatSinks = heatSinks;
     public readonly int Radiators = radiators;
+
+    /// <summary>Fuel storage and RDZT drone section of the console.</summary>
+    public KamertonDroneInfo Drone = new();
+}
+
+[Serializable, NetSerializable]
+public enum KamertonDroneState : byte
+{
+    /// <summary>Wanders around the reactor, never far from the core.</summary>
+    Idle,
+    /// <summary>Docked at the fuel storage and moving cells.</summary>
+    Working,
+    /// <summary>Walking back to the core.</summary>
+    Returning,
+}
+
+[Serializable, NetSerializable]
+public enum KamertonDroneCommand : byte
+{
+    /// <summary>Fill free array slots from the storage.</summary>
+    Load,
+    /// <summary>Pull spent cells out of the arrays.</summary>
+    Unload,
+    /// <summary>Drop the job, switch auto-refuel off and come back to the core.</summary>
+    Return,
+    ToggleAuto,
+}
+
+/// <summary>Console view of the fuel storage and the RDZT drone.</summary>
+[Serializable, NetSerializable]
+public sealed class KamertonDroneInfo
+{
+    public bool HasDrone;
+    public KamertonDroneState State;
+    public KamertonDroneCommand? Task;
+    public bool AutoRefuel;
+    public bool HasStorage;
+    public int StorageStable;
+    public int StorageUnstable;
+    public int StorageCapacity;
+    /// <summary>Free array slots by cell kind.</summary>
+    public int FreeStable;
+    public int FreeUnstable;
+    /// <summary>Spent (empty) cells still sitting in arrays.</summary>
+    public int Spent;
+}
+
+[Serializable, NetSerializable]
+public sealed class KamertonDroneCommandMessage(KamertonDroneCommand command) : BoundUserInterfaceMessage
+{
+    public readonly KamertonDroneCommand Command = command;
+}
+
+[Serializable, NetSerializable]
+public enum KamertonDroneVisuals : byte
+{
+    /// <summary>bool: walking (plays the walk animation).</summary>
+    Moving,
+}
+
+[Serializable, NetSerializable]
+public enum KamertonDroneVisualLayers : byte
+{
+    Base,
 }
 
 [Serializable, NetSerializable]

@@ -17,6 +17,7 @@ public sealed partial class KamertonReactorWindow : FancyWindow
     public event Action? Start;
     public event Action? Stop;
     public event Action? Scram;
+    public event Action<KamertonDroneCommand>? DroneCommand;
 
     public KamertonReactorWindow()
     {
@@ -26,6 +27,10 @@ public sealed partial class KamertonReactorWindow : FancyWindow
         StopButton.OnPressed += _ => Stop?.Invoke();
         ScramButton.OnPressed += _ => Scram?.Invoke();
         ScramButton.ModulateSelfOverride = Unstable;
+        DroneLoadButton.OnPressed += _ => DroneCommand?.Invoke(KamertonDroneCommand.Load);
+        DroneUnloadButton.OnPressed += _ => DroneCommand?.Invoke(KamertonDroneCommand.Unload);
+        DroneReturnButton.OnPressed += _ => DroneCommand?.Invoke(KamertonDroneCommand.Return);
+        DroneAutoCheck.OnPressed += _ => DroneCommand?.Invoke(KamertonDroneCommand.ToggleAuto);
     }
 
     private static string N(float value) => MathF.Round(value).ToString("0", CultureInfo.InvariantCulture);
@@ -52,6 +57,7 @@ public sealed partial class KamertonReactorWindow : FancyWindow
             StartButton.Disabled = true;
             StopButton.Disabled = true;
             ScramButton.Disabled = true;
+            UpdateDrone(new KamertonDroneInfo());
             return;
         }
 
@@ -111,5 +117,36 @@ public sealed partial class KamertonReactorWindow : FancyWindow
         StartButton.Disabled = s.Running || !s.Assembled || s.ScramCooldown > 0f;
         StopButton.Disabled = !s.Running;
         ScramButton.Disabled = false;
+        UpdateDrone(s.Drone);
+    }
+
+    private void UpdateDrone(KamertonDroneInfo d)
+    {
+        DroneStatusLabel.Text = !d.HasDrone
+            ? Loc.GetString("kamerton-reactor-window-drone-none")
+            : Loc.GetString(d.State switch
+            {
+                KamertonDroneState.Working => d.Task == KamertonDroneCommand.Unload
+                    ? "kamerton-reactor-window-drone-unloading"
+                    : "kamerton-reactor-window-drone-loading",
+                KamertonDroneState.Returning => "kamerton-reactor-window-drone-returning",
+                _ => "kamerton-reactor-window-drone-idle",
+            });
+        DroneStatusLabel.FontColorOverride = !d.HasDrone ? Unstable : d.State == KamertonDroneState.Working ? Ok : null;
+
+        StorageLabel.Text = d.HasStorage
+            ? Loc.GetString("kamerton-reactor-window-storage-value", ("stable", d.StorageStable),
+                ("unstable", d.StorageUnstable), ("capacity", d.StorageCapacity))
+            : Loc.GetString("kamerton-reactor-window-storage-none");
+        StorageLabel.FontColorOverride = d.HasStorage ? null : Unstable;
+        SlotsLabel.Text = Loc.GetString("kamerton-reactor-window-slots-value", ("stable", d.FreeStable),
+            ("unstable", d.FreeUnstable), ("spent", d.Spent));
+
+        var usable = d.HasDrone && d.HasStorage;
+        DroneLoadButton.Disabled = !usable;
+        DroneUnloadButton.Disabled = !usable;
+        DroneReturnButton.Disabled = !d.HasDrone;
+        DroneAutoCheck.Disabled = !d.HasDrone;
+        DroneAutoCheck.Pressed = d.AutoRefuel;
     }
 }
