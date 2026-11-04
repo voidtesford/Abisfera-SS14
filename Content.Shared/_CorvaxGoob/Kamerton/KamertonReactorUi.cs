@@ -32,6 +32,8 @@ public enum KamertonReactorVisuals : byte
     Heat,
     /// <summary>int 0..4: cells in a fuel array.</summary>
     Cells,
+    /// <summary>int 0..15: world-space cardinal links to parts of the same reactor node group (N=1, S=2, E=4, W=8).</summary>
+    Links,
 }
 
 [Serializable, NetSerializable]
@@ -40,6 +42,18 @@ public enum KamertonReactorVisualLayers : byte
     On,
     Heat,
     Cells,
+    Link,
+}
+
+/// <summary>
+/// Draws the Kamerton link couplings (<c>link_0</c>..<c>link_15</c>) on the
+/// <see cref="KamertonReactorVisualLayers.Link"/> layer from <see cref="KamertonReactorVisuals.Links"/>.
+/// </summary>
+[RegisterComponent]
+public sealed partial class KamertonLinkVisualsComponent : Component
+{
+    [DataField]
+    public string StatePrefix = "link_";
 }
 
 /// <summary>One fuel array as the console shows it.</summary>

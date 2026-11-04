@@ -3,6 +3,7 @@ using System.Numerics;
 using Content.Server._CorvaxGoob.Redspace.Physics;
 using Content.Server.Atmos.EntitySystems;
 using Content.Server.Atmos.Piping.Components;
+using Content.Shared.NodeContainer;
 using Content.Server.NodeContainer.EntitySystems;
 using Content.Server.NodeContainer.Nodes;
 using Content.Server.Popups;
@@ -26,9 +27,9 @@ using Robust.Shared.Random;
 namespace Content.Server._CorvaxGoob.Kamerton;
 
 /// <summary>
-/// Kamerton reactor. The <see cref="KamertonReactorCoreComponent">core</see> reads the 5x5 block around it
-/// (fuel arrays, synchronizers, corner heat sinks, radiators) and the 7x7 suppressor ring around that block
-/// (suppressors, the console and the power unit stand in the ring), then once a second:
+/// Kamerton reactor. Parts link up like the AME shielding through the <see cref="KamertonNodeGroup"/>; the
+/// <see cref="KamertonReactorCoreComponent">core</see> reads its group (fuel arrays, synchronizers, heat sinks,
+/// radiators inside, suppressors, the console and the power unit as the shell around them), then once a second:
 /// pairs charged stable/unstable cells per synchronizer (50 kW each, 4 per synchronizer), drains them,
 /// heats up, lets the heat sinks and radiators carry the heat away, feeds the power unit's HV supplier,
 /// leaks weak redspace if the ring is broken and collapses above 2000 K.
@@ -110,9 +111,35 @@ public sealed class KamertonReactorSystem : EntitySystem
 
     #region Assembly
 
+    public const string NodeName = "kamerton";
+
+    private static readonly Vector2i[] Cardinals =
+    {
+        new(0, 1), new(0, -1), new(1, 0), new(-1, 0),
+    };
+
+    /// <summary>Gets the reactor node group <paramref name="uid"/> is in.</summary>
+    public KamertonNodeGroup? GetGroup(EntityUid uid)
+    {
+        if (!TryComp<NodeContainerComponent>(uid, out var container)
+            || !_nodes.TryGetNode<Node>(container, NodeName, out var node))
+            return null;
+
+        return node.NodeGroup as KamertonNodeGroup;
+    }
+
+    /// <summary>Shell parts close the reactor off: suppressors, the console and the power unit.</summary>
+    public static bool IsShell(KamertonPartKind kind)
+    {
+        return kind is KamertonPartKind.Suppressor or KamertonPartKind.Console or KamertonPartKind.PowerUnit;
+    }
+
     /// <summary>
-    /// Re-reads the layout around <paramref name="core"/>: parts in the (2*MaxPartRange+1)^2 block and the ring
-    /// at Chebyshev distance <see cref="KamertonReactorCoreComponent.RingRadius"/>.
+    /// Re-reads the reactor from the core's node group, like the AME reads its shielding group: every anchored
+    /// part linked to the core through neighbouring parts belongs to it, whatever the shape. Each inner part
+    /// (core, arrays, synchronizers, heat sinks, radiators) must have all 8 neighbours taken by parts of the
+    /// group, the same test the AME uses to find its cores, so the inner parts end up walled in by shell parts;
+    /// every empty neighbour tile counts towards <see cref="KamertonReactorCoreComponent.RingMissing"/>.
     /// </summary>
     public void Scan(Entity<KamertonReactorCoreComponent> core)
     {
@@ -135,102 +162,109 @@ public sealed class KamertonReactorSystem : EntitySystem
         comp.RingParts.Clear();
         comp.Console = null;
         comp.PowerUnit = null;
-
-        var ringTiles = 8 * comp.RingRadius;
-        comp.RingMissing = ringTiles;
+        comp.Slave = false;
+        comp.Oversized = false;
+        comp.RingMissing = 8;
 
         var xform = Transform(core);
         if (!xform.Anchored || xform.GridUid is not { } gridUid || !TryComp<MapGridComponent>(gridUid, out var grid))
             return;
 
-        var center = _map.TileIndicesFor(gridUid, grid, xform.Coordinates);
-        var syncTiles = new Dictionary<Vector2i, EntityUid>();
-        var arrayTiles = new List<(Vector2i Tile, EntityUid Uid)>();
-        var range = Math.Max(comp.MaxPartRange, comp.RingRadius);
+        var group = GetGroup(core);
+        if (group == null)
+            return;
 
-        for (var dx = -range; dx <= range; dx++)
+        if (group.MasterCore != core.Owner)
         {
-            for (var dy = -range; dy <= range; dy++)
-            {
-                if (dx == 0 && dy == 0)
-                    continue;
-
-                var dist = Math.Max(Math.Abs(dx), Math.Abs(dy));
-                var inBlock = dist <= comp.MaxPartRange;
-                var inRing = dist == comp.RingRadius;
-                if (!inBlock && !inRing)
-                    continue;
-
-                var tile = center + new Vector2i(dx, dy);
-                var ringFilled = false;
-                var anchored = _map.GetAnchoredEntitiesEnumerator(gridUid, grid, tile);
-                while (anchored.MoveNext(out var ent))
-                {
-                    if (ent is not { } uid || !TryComp<KamertonReactorPartComponent>(uid, out var part))
-                        continue;
-
-                    if (inRing)
-                    {
-                        switch (part.Kind)
-                        {
-                            case KamertonPartKind.Suppressor:
-                                break;
-                            case KamertonPartKind.Console:
-                                comp.Console ??= uid;
-                                break;
-                            case KamertonPartKind.PowerUnit:
-                                comp.PowerUnit ??= uid;
-                                break;
-                            default:
-                                continue;
-                        }
-
-                        if (!ringFilled)
-                        {
-                            ringFilled = true;
-                            comp.RingMissing--;
-                        }
-
-                        comp.RingParts.Add(uid);
-                        Claim(core, uid, part);
-                        continue;
-                    }
-
-                    switch (part.Kind)
-                    {
-                        case KamertonPartKind.Synchronizer:
-                            syncTiles.TryAdd(tile, uid);
-                            comp.Synchronizers.Add(uid);
-                            break;
-                        case KamertonPartKind.StableArray:
-                        case KamertonPartKind.UnstableArray:
-                            arrayTiles.Add((tile, uid));
-                            break;
-                        case KamertonPartKind.HeatSink:
-                            // Heat sinks only work at the corners of the block.
-                            if (Math.Abs(dx) == comp.MaxPartRange && Math.Abs(dy) == comp.MaxPartRange)
-                                comp.HeatSinks.Add(uid);
-                            break;
-                        case KamertonPartKind.Radiator:
-                            comp.Radiators.Add(uid);
-                            break;
-                        default:
-                            continue;
-                    }
-
-                    Claim(core, uid, part);
-                }
-            }
+            comp.Slave = true;
+            return;
         }
 
-        // Every array goes to the first synchronizer next to it (N, E, S, W).
-        var offsets = new[] { new Vector2i(0, 1), new Vector2i(1, 0), new Vector2i(0, -1), new Vector2i(-1, 0) };
+        if (group.Nodes.Count > comp.MaxParts)
+        {
+            comp.Oversized = true;
+            return;
+        }
+
+        // Tile -> part for every anchored member of the group on the core's grid.
+        var tiles = new Dictionary<Vector2i, (EntityUid Uid, KamertonReactorPartComponent Part)>();
+        foreach (var node in group.Nodes)
+        {
+            var uid = node.Owner;
+            if (!TryComp<KamertonReactorPartComponent>(uid, out var part))
+                continue;
+
+            var px = Transform(uid);
+            if (!px.Anchored || px.GridUid != gridUid)
+                continue;
+
+            tiles.TryAdd(_map.TileIndicesFor(gridUid, grid, px.Coordinates), (uid, part));
+        }
+
+        var missing = new HashSet<Vector2i>();
+        var syncTiles = new Dictionary<Vector2i, EntityUid>();
+        var arrayTiles = new List<(Vector2i Tile, EntityUid Uid)>();
+
+        foreach (var (tile, (uid, part)) in tiles)
+        {
+            if (!IsShell(part.Kind))
+            {
+                // AME-style surround test over the 3x3 square around the part.
+                for (var dx = -1; dx <= 1; dx++)
+                {
+                    for (var dy = -1; dy <= 1; dy++)
+                    {
+                        var n = tile + new Vector2i(dx, dy);
+                        if (!tiles.ContainsKey(n))
+                            missing.Add(n);
+                    }
+                }
+            }
+
+            switch (part.Kind)
+            {
+                case KamertonPartKind.Core:
+                    // Extra cores are slaves, they are not parts of this reactor.
+                    continue;
+                case KamertonPartKind.Suppressor:
+                    comp.RingParts.Add(uid);
+                    break;
+                case KamertonPartKind.Console:
+                    comp.Console ??= uid;
+                    comp.RingParts.Add(uid);
+                    break;
+                case KamertonPartKind.PowerUnit:
+                    comp.PowerUnit ??= uid;
+                    comp.RingParts.Add(uid);
+                    break;
+                case KamertonPartKind.Synchronizer:
+                    syncTiles.TryAdd(tile, uid);
+                    comp.Synchronizers.Add(uid);
+                    break;
+                case KamertonPartKind.StableArray:
+                case KamertonPartKind.UnstableArray:
+                    arrayTiles.Add((tile, uid));
+                    break;
+                case KamertonPartKind.HeatSink:
+                    comp.HeatSinks.Add(uid);
+                    break;
+                case KamertonPartKind.Radiator:
+                    comp.Radiators.Add(uid);
+                    break;
+            }
+
+            Claim(core, uid, part);
+        }
+
+        comp.RingMissing = missing.Count;
+
+        // Every array goes to the first synchronizer of the group next to it (N, S, E, W).
         foreach (var (tile, uid) in arrayTiles)
         {
             if (!TryComp<KamertonFuelArrayComponent>(uid, out var array))
                 continue;
 
-            foreach (var off in offsets)
+            foreach (var off in Cardinals)
             {
                 if (!syncTiles.TryGetValue(tile + off, out var sync))
                     continue;
@@ -246,6 +280,43 @@ public sealed class KamertonReactorSystem : EntitySystem
         }
     }
 
+    /// <summary>
+    /// Sets the link couplings of every part in the group: a coupling is drawn towards each N/S/E/W neighbour
+    /// that is linked into the same node group, like the AME shielding joins up with its neighbours.
+    /// </summary>
+    public void UpdateLinkVisuals(KamertonNodeGroup group)
+    {
+        var members = new HashSet<EntityUid>();
+        foreach (var node in group.Nodes)
+        {
+            members.Add(node.Owner);
+        }
+
+        foreach (var uid in members)
+        {
+            var flags = 0;
+            var xform = Transform(uid);
+            if (xform.Anchored && xform.GridUid is { } gridUid && TryComp<MapGridComponent>(gridUid, out var grid))
+            {
+                var tile = _map.TileIndicesFor(gridUid, grid, xform.Coordinates);
+                for (var i = 0; i < Cardinals.Length; i++)
+                {
+                    var anchored = _map.GetAnchoredEntitiesEnumerator(gridUid, grid, tile + Cardinals[i]);
+                    while (anchored.MoveNext(out var ent))
+                    {
+                        if (ent is not { } other || !members.Contains(other))
+                            continue;
+
+                        flags |= 1 << i;
+                        break;
+                    }
+                }
+            }
+
+            _appearance.SetData(uid, KamertonReactorVisuals.Links, flags);
+        }
+    }
+
     private void Claim(Entity<KamertonReactorCoreComponent> core, EntityUid uid, KamertonReactorPartComponent part)
     {
         part.Core = core;
@@ -254,7 +325,7 @@ public sealed class KamertonReactorSystem : EntitySystem
 
     public bool IsAssembled(KamertonReactorCoreComponent core)
     {
-        return core.Synchronizers.Count > 0;
+        return !core.Slave && !core.Oversized && core.Synchronizers.Count > 0;
     }
 
     public bool RingComplete(KamertonReactorCoreComponent core)

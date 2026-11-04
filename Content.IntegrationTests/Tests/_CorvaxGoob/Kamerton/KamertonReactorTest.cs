@@ -5,6 +5,7 @@ using System.Numerics;
 using Content.IntegrationTests.Pair;
 using Content.Server._CorvaxGoob.Kamerton;
 using Content.Server._CorvaxGoob.Redspace.Physics;
+using Content.Shared._CorvaxGoob.Kamerton;
 using Content.Server.NodeContainer.EntitySystems;
 using Content.Server.NodeContainer.Nodes;
 using Content.Server.Power.Components;
@@ -23,7 +24,7 @@ using Robust.Shared.Utility;
 namespace Content.IntegrationTests.Tests._CorvaxGoob.Kamerton;
 
 /// <summary>
-/// Kamerton reactor: assembly around the core, synchronizer pairing (50 kW per pair, 4 pairs per synchronizer),
+/// Kamerton reactor: assembly through the AME-like <see cref="KamertonNodeGroup"/> (any shape, broken links), synchronizer pairing (50 kW per pair, 4 pairs per synchronizer),
 /// HV output through the power unit, heat and cooling, the redspace leak through a broken suppressor ring
 /// and the collapse. The reactor is stepped through <see cref="KamertonReactorSystem.Step"/> directly.
 /// </summary>
@@ -305,14 +306,14 @@ public sealed class KamertonReactorTest
     }
 
     [Test]
-    public async Task SynchronizerCapAndHeatSinkCorners()
+    public async Task SynchronizerCapAndLinkedHeatSinks()
     {
         await using var pair = await PoolManager.GetServerClient();
         var server = pair.Server;
         var entMan = server.EntMan;
         var map = await pair.CreateTestMap();
         var sys = server.System<KamertonReactorSystem>();
-        EntityUid core = default, sync = default, sinkCorner = default, sinkEdge = default;
+        EntityUid core = default, sync = default, sinkLinked = default, sinkLoose = default;
 
         await server.WaitPost(() =>
         {
@@ -334,8 +335,9 @@ public sealed class KamertonReactorTest
                     slots.TryInsert(arr, KamertonReactorSystem.SlotId(i), entMan.SpawnEntity(cell, Tile(map, pos.X, pos.Y)), null);
             }
 
-            sinkCorner = entMan.SpawnEntity("KamertonHeatSink", Tile(map, -2, -2));
-            sinkEdge = entMan.SpawnEntity("KamertonHeatSink", Tile(map, -2, 0));
+            // One heat sink linked to the core, one standing apart in its own node group.
+            sinkLinked = entMan.SpawnEntity("KamertonHeatSink", Tile(map, -1, 0));
+            sinkLoose = entMan.SpawnEntity("KamertonHeatSink", Tile(map, -3, 0));
         });
         await pair.RunTicksSync(5);
 
@@ -346,8 +348,9 @@ public sealed class KamertonReactorTest
             sys.Step(c, 1f);
             Assert.That(c.Item2.SyncPairs[sync], Is.EqualTo(4));
             Assert.That(c.Item2.TotalPower, Is.EqualTo(200000f), "200 kW cap per synchronizer");
-            Assert.That(c.Item2.HeatSinks, Is.EquivalentTo(new[] { sinkCorner }), "heat sinks only work in the corners");
-            Assert.That(c.Item2.RingMissing, Is.EqualTo(24));
+            Assert.That(c.Item2.HeatSinks, Is.EquivalentTo(new[] { sinkLinked }), "only linked heat sinks count");
+            Assert.That(sys.GetGroup(sinkLoose), Is.Not.SameAs(sys.GetGroup(core)));
+            Assert.That(c.Item2.RingMissing, Is.EqualTo(18), "every empty tile around the inner parts");
             sys.Stop(c);
         });
 
@@ -372,6 +375,12 @@ public sealed class KamertonReactorTest
             entMan.SpawnEntity("CableHV", Tile(map, 0, -3));
             entMan.SpawnEntity("CableHV", Tile(map, 0, -4));
             consumer = entMan.SpawnEntity("KamertonTestHvConsumer", Tile(map, 0, -4));
+        });
+        // The parts link into one node group on the next node update.
+        await pair.RunTicksSync(3);
+
+        await server.WaitPost(() =>
+        {
             var core = Core(entMan, r);
             Assert.That(sys.TryStart(core, out var reason), Is.True, reason);
             sys.Step(core, 1f);
@@ -506,6 +515,15 @@ public sealed class KamertonReactorTest
                 .First(p => Math.Max(Math.Abs(p.X), Math.Abs(p.Y)) == 3
                             && !r.Ring.Any(e => entMan.GetComponent<TransformComponent>(e).Coordinates.Position.Floored() == p));
             r.Ring.Add(entMan.SpawnEntity("KamertonSuppressor", Tile(map, missing.X, missing.Y)));
+        });
+
+        // The new suppressor joins the node group on the next node update.
+        await pair.RunTicksSync(3);
+
+        await server.WaitAssertion(() =>
+        {
+            var core = Core(entMan, r);
+            float Dmg(EntityUid u) => entMan.GetComponent<DamageableComponent>(u).TotalDamage.Float();
             sys.Step(core, 1f);
             Assert.That(core.Comp.RingMissing, Is.Zero);
             var after = Dmg(near);
@@ -513,6 +531,195 @@ public sealed class KamertonReactorTest
                 sys.Step(core, 1f);
             Assert.That(Dmg(near), Is.EqualTo(after), "complete ring: no leak");
             sys.Stop(core);
+            sys.SetTemperature(core, core.Comp.AmbientTemperature);
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    /// <summary>
+    /// A 3x2 reactor (not the standard 5x5) walled in by a 5x4 shell, rows from y = +1 down to y = 0:
+    /// <c>S Y U</c> over <c>H C R</c>; console at (0,2), power unit at (0,-1).
+    /// </summary>
+    private static Reactor BuildSmall(IEntityManager entMan, TestMapData map)
+    {
+        var r = new Reactor();
+        var slots = entMan.System<ItemSlotsSystem>();
+        foreach (var (pos, id) in new[]
+                 {
+                     (new Vector2i(-1, 1), "KamertonStableFuelArray"),
+                     (new Vector2i(0, 1), "KamertonSynchronizer"),
+                     (new Vector2i(1, 1), "KamertonUnstableFuelArray"),
+                     (new Vector2i(-1, 0), "KamertonHeatSink"),
+                     (new Vector2i(0, 0), "KamertonReactorCore"),
+                     (new Vector2i(1, 0), "KamertonRadiator"),
+                 })
+        {
+            var uid = entMan.SpawnEntity(id, Tile(map, pos.X, pos.Y));
+            r.At[pos] = uid;
+            if (id == "KamertonReactorCore")
+                r.Core = uid;
+
+            var cell = id switch
+            {
+                "KamertonStableFuelArray" => StableFull,
+                "KamertonUnstableFuelArray" => UnstableFull,
+                _ => null,
+            };
+            if (cell == null)
+                continue;
+
+            for (var i = 1; i <= 4; i++)
+                Assert.That(slots.TryInsert(uid, KamertonReactorSystem.SlotId(i), entMan.SpawnEntity(cell, Tile(map, pos.X, pos.Y)), null), Is.True);
+        }
+
+        for (var x = -2; x <= 2; x++)
+        for (var y = -1; y <= 2; y++)
+        {
+            if (x is > -2 and < 2 && y is > -1 and < 2)
+                continue;
+
+            var id = (x, y) switch
+            {
+                (0, 2) => "KamertonControlModule",
+                (0, -1) => "KamertonPowerUnit",
+                _ => "KamertonSuppressor",
+            };
+            var uid = entMan.SpawnEntity(id, Tile(map, x, y));
+            r.At[new Vector2i(x, y)] = uid;
+            r.Ring.Add(uid);
+            if (id == "KamertonControlModule")
+                r.Console = uid;
+            else if (id == "KamertonPowerUnit")
+                r.PowerUnit = uid;
+        }
+
+        return r;
+    }
+
+    private static int Links(IEntityManager entMan, EntityUid uid)
+    {
+        entMan.System<SharedAppearanceSystem>().TryGetData<int>(uid, KamertonReactorVisuals.Links, out var flags);
+        return flags;
+    }
+
+    [Test]
+    public async Task NodeGroupAssemblyAnyShape()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var entMan = server.EntMan;
+        var map = await pair.CreateTestMap();
+        var sys = server.System<KamertonReactorSystem>();
+        Reactor r = default!;
+        EntityUid stray = default;
+
+        await server.WaitPost(() =>
+        {
+            Floor(entMan, map, 6);
+            r = BuildSmall(entMan, map);
+            // A synchronizer two tiles away from the shell is in its own group and never joins.
+            stray = entMan.SpawnEntity("KamertonSynchronizer", Tile(map, 4, 0));
+        });
+        await pair.RunTicksSync(5);
+
+        await server.WaitAssertion(() =>
+        {
+            var core = Core(entMan, r);
+            var group = sys.GetGroup(r.Core);
+            Assert.That(group, Is.Not.Null);
+            Assert.That(group!.MasterCore, Is.EqualTo(r.Core));
+            Assert.That(group.Nodes, Has.Count.EqualTo(20), "6 inner parts + 14 shell parts");
+            foreach (var uid in r.At.Values)
+                Assert.That(sys.GetGroup(uid), Is.SameAs(group));
+            Assert.That(sys.GetGroup(stray), Is.Not.SameAs(group));
+
+            sys.Scan(core);
+            var c = core.Comp;
+            Assert.That(c.Synchronizers, Is.EquivalentTo(new[] { r.At[new Vector2i(0, 1)] }));
+            Assert.That(c.StableArrays, Has.Count.EqualTo(1));
+            Assert.That(c.UnstableArrays, Has.Count.EqualTo(1));
+            Assert.That(c.HeatSinks, Has.Count.EqualTo(1));
+            Assert.That(c.Radiators, Has.Count.EqualTo(1));
+            Assert.That(c.RingParts, Has.Count.EqualTo(14));
+            Assert.That(c.RingMissing, Is.Zero);
+            Assert.That(c.Console, Is.EqualTo(r.Console));
+            Assert.That(c.PowerUnit, Is.EqualTo(r.PowerUnit));
+            Assert.That(sys.IsAssembled(c) && sys.RingComplete(c), Is.True);
+
+            // Link couplings (N=1, S=2, E=4, W=8): the core is linked on all four sides, a shell corner on two.
+            Assert.That(Links(entMan, r.Core), Is.EqualTo(15));
+            Assert.That(Links(entMan, r.At[new Vector2i(-2, 2)]), Is.EqualTo(2 | 4));
+            Assert.That(Links(entMan, stray), Is.Zero);
+
+            Assert.That(sys.TryStart(core, out var reason), Is.True, reason);
+            sys.Step(core, 1f);
+            Assert.That(c.ActivePairs, Is.EqualTo(4));
+            Assert.That(c.TotalPower, Is.EqualTo(200000f));
+            sys.Stop(core);
+            sys.SetTemperature(core, c.AmbientTemperature);
+        });
+
+        await pair.CleanReturnAsync();
+    }
+
+    [Test]
+    public async Task BrokenConnection()
+    {
+        await using var pair = await PoolManager.GetServerClient();
+        var server = pair.Server;
+        var entMan = server.EntMan;
+        var map = await pair.CreateTestMap();
+        var sys = server.System<KamertonReactorSystem>();
+        Reactor r = default!;
+
+        await server.WaitPost(() =>
+        {
+            Floor(entMan, map, 6);
+            r = BuildSmall(entMan, map);
+        });
+        await pair.RunTicksSync(5);
+
+        EntityUid stable = default, sync = default;
+        await server.WaitAssertion(() =>
+        {
+            stable = r.At[new Vector2i(-1, 1)];
+            sync = r.At[new Vector2i(0, 1)];
+            var core = Core(entMan, r);
+            Assert.That(sys.TryStart(core, out var reason), Is.True, reason);
+            sys.Step(core, 1f);
+            Assert.That(core.Comp.TotalPower, Is.EqualTo(200000f));
+
+            // Unanchoring the stable array cuts it out of the node group even though it still stands there.
+            entMan.System<SharedTransformSystem>().Unanchor(stable);
+        });
+        await pair.RunTicksSync(3);
+
+        await server.WaitAssertion(() =>
+        {
+            var core = Core(entMan, r);
+            Assert.That(sys.GetGroup(stable), Is.Not.SameAs(sys.GetGroup(r.Core)));
+            sys.Step(core, 1f);
+            var c = core.Comp;
+            Assert.That(c.StableArrays, Is.Empty);
+            Assert.That(c.RingMissing, Is.EqualTo(1), "the hole the array left");
+            Assert.That(c.ActivePairs, Is.Zero);
+            Assert.That(c.TotalPower, Is.Zero);
+            Assert.That(Links(entMan, stable), Is.Zero);
+            Assert.That(Links(entMan, sync), Is.EqualTo(1 | 2 | 4), "the synchronizer lost its west coupling");
+
+            // Cutting the synchronizer out leaves no synchronizers: not assembled, the reactor stops.
+            entMan.System<SharedTransformSystem>().Unanchor(sync);
+        });
+        await pair.RunTicksSync(3);
+
+        await server.WaitAssertion(() =>
+        {
+            var core = Core(entMan, r);
+            sys.Step(core, 1f);
+            Assert.That(sys.IsAssembled(core.Comp), Is.False);
+            Assert.That(core.Comp.Working, Is.False);
+            Assert.That(core.Comp.RingMissing, Is.EqualTo(2));
             sys.SetTemperature(core, core.Comp.AmbientTemperature);
         });
 

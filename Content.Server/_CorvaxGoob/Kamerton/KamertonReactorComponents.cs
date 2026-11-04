@@ -126,13 +126,9 @@ public sealed partial class KamertonReactorCoreComponent : Component
     [DataField]
     public float WarningTemperature = 1500f;
 
-    /// <summary>Half-size of the suppressor ring square (3 = 7x7 ring around a 5x5 block).</summary>
+    /// <summary>A reactor node group with more parts than this does not run.</summary>
     [DataField]
-    public int RingRadius = 3;
-
-    /// <summary>Max Chebyshev distance of an assembled part from the core.</summary>
-    [DataField]
-    public int MaxPartRange = 2;
+    public int MaxParts = 96;
 
     /// <summary>Range of the weak redspace leak when the ring is broken, tiles.</summary>
     [DataField]
@@ -199,6 +195,12 @@ public sealed partial class KamertonReactorCoreComponent : Component
     [ViewVariables] public int RingMissing;
     [ViewVariables] public EntityUid? Console;
     [ViewVariables] public EntityUid? PowerUnit;
+
+    /// <summary>Another core leads this node group; this one stays idle.</summary>
+    [ViewVariables] public bool Slave;
+
+    /// <summary>The node group has more than <see cref="MaxParts"/> parts.</summary>
+    [ViewVariables] public bool Oversized;
 
     /// <summary>Synchronizer -> pairs it drives this second.</summary>
     [ViewVariables] public readonly Dictionary<EntityUid, int> SyncPairs = new();

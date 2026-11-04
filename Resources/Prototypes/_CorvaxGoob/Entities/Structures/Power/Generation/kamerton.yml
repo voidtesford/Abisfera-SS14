@@ -20,6 +20,10 @@
     - state: panel_open
       map: [ "enum.WiresVisualLayers.MaintenancePanel" ]
       visible: false
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
+      state: link_0
+      map: [ "enum.KamertonReactorVisualLayers.Link" ]
+      visible: false
   - type: Transform
     anchored: true
     noRot: true
@@ -81,3 +85,10 @@
         acts: [ "Destruction" ]
   - type: StaticPrice
     price: 1500
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
+

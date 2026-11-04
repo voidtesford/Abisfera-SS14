@@ -1,11 +1,17 @@
-# Kamerton reactor. Layout (5x5 block around the core, suppressor ring on the 7x7 perimeter):
-#   H  A+ Y  A- H
-#   A- R  R  R  A+
-#   Y  R  C  R  Y
-#   A+ R  R  R  A-
-#   H  A- Y  A+ H
-# C core, Y synchronizer, A+/A- stable/unstable fuel array, H heat sink (corners only), R radiator.
-# The console and the power unit stand in the ring in place of suppressors.
+# Kamerton reactor. Parts link up like the AME shielding: every part has an AdjacentNode on the
+# KamertonReactor node group, so anchored parts side by side (N/E/S/W) form one reactor around its core.
+# Any shape works as long as every inner part (core, arrays, synchronizers, heat sinks, radiators) has all
+# 8 neighbours taken by reactor parts, i.e. the inner parts are walled in by suppressors, the console and
+# the power unit. Each fuel array pairs with a synchronizer next to it. The standard layout:
+#   Q  Q  Q  K  Q  Q  Q
+#   Q  H  A+ Y  A- H  Q
+#   Q  A- R  R  R  A+ Q
+#   Q  Y  R  C  R  Y  Q
+#   Q  A+ R  R  R  A- Q
+#   Q  H  A- Y  A+ H  Q
+#   Q  Q  Q  P  Q  Q  Q
+# C core, Y synchronizer, A+/A- stable/unstable fuel array, H heat sink, R radiator,
+# Q suppressor, K control module, P power unit.
 
 - type: entity
   abstract: true
@@ -60,6 +66,10 @@
       map: [ "enum.KamertonReactorVisualLayers.Heat" ]
       shader: unshaded
       visible: false
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
+      state: link_0
+      map: [ "enum.KamertonReactorVisualLayers.Link" ]
+      visible: false
   - type: GenericVisualizer
     visuals:
       enum.KamertonReactorVisuals.On:
@@ -85,6 +95,12 @@
         Cellular: 0.2
   - type: StaticPrice
     price: 10000
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
 
 - type: entity
   abstract: true
@@ -120,6 +136,10 @@
       map: [ "enum.KamertonReactorVisualLayers.Cells" ]
       shader: unshaded
       visible: false
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
+      state: link_0
+      map: [ "enum.KamertonReactorVisualLayers.Link" ]
+      visible: false
   - type: GenericVisualizer
     visuals:
       enum.KamertonReactorVisuals.Cells:
@@ -143,6 +163,12 @@
     kind: StableArray
   - type: KamertonFuelArray
     kind: Stable
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
 
 - type: entity
   parent: KamertonFuelArrayBase
@@ -156,6 +182,10 @@
     - state: cells_unstable_1
       map: [ "enum.KamertonReactorVisualLayers.Cells" ]
       shader: unshaded
+      visible: false
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
+      state: link_0
+      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: GenericVisualizer
     visuals:
@@ -180,6 +210,12 @@
     kind: UnstableArray
   - type: KamertonFuelArray
     kind: Unstable
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
 
 - type: entity
   parent: KamertonReactorPartBase
@@ -194,6 +230,10 @@
       map: [ "enum.KamertonReactorVisualLayers.On" ]
       shader: unshaded
       visible: false
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
+      state: link_0
+      map: [ "enum.KamertonReactorVisualLayers.Link" ]
+      visible: false
   - type: GenericVisualizer
     visuals:
       enum.KamertonReactorVisuals.On:
@@ -207,12 +247,18 @@
     enabled: false
   - type: KamertonReactorPart
     kind: Synchronizer
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
 
 - type: entity
   parent: KamertonReactorPartBase
   id: KamertonHeatSink
   name: Kamerton heat sink
-  description: Pumps gas from its inlet pipe to its outlet pipe and dumps the reactor heat into it. Works only in a corner of the reactor.
+  description: Pumps gas from its inlet pipe to its outlet pipe and dumps the reactor heat into it. Must be linked into the reactor.
   components:
   - type: Sprite
     noRot: false
@@ -222,6 +268,10 @@
     - state: heatsink_on
       map: [ "enum.KamertonReactorVisualLayers.On" ]
       shader: unshaded
+      visible: false
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
+      state: link_0
+      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: Transform
     noRot: false
@@ -234,6 +284,9 @@
           False: { visible: false }
   - type: NodeContainer
     nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
       inlet:
         !type:PipeNode
         nodeGroupID: Pipe
@@ -245,6 +298,7 @@
   - type: KamertonReactorPart
     kind: HeatSink
   - type: KamertonHeatSink
+  - type: KamertonLinkVisuals
 
 - type: entity
   parent: KamertonReactorPartBase
@@ -261,6 +315,10 @@
       map: [ "enum.KamertonReactorVisualLayers.Heat" ]
       shader: unshaded
       visible: false
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
+      state: link_0
+      map: [ "enum.KamertonReactorVisualLayers.Link" ]
+      visible: false
   - type: Transform
     noRot: false
   - type: Rotatable
@@ -274,6 +332,9 @@
           3: { visible: true, state: radiator_heat_3 }
   - type: NodeContainer
     nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
       pipe:
         !type:PipeNode
         nodeGroupID: Pipe
@@ -281,6 +342,7 @@
   - type: KamertonReactorPart
     kind: Radiator
   - type: KamertonRadiator
+  - type: KamertonLinkVisuals
 
 - type: entity
   parent: KamertonReactorPartBase
@@ -294,6 +356,10 @@
     - state: suppressor_on
       map: [ "enum.KamertonReactorVisualLayers.On" ]
       shader: unshaded
+      visible: false
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
+      state: link_0
+      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: GenericVisualizer
     visuals:
@@ -310,6 +376,12 @@
     kind: Suppressor
   - type: StaticPrice
     price: 500
+  - type: NodeContainer
+    nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
+  - type: KamertonLinkVisuals
 
 - type: entity
   parent: KamertonReactorPartBase
@@ -323,6 +395,10 @@
     - state: powerunit_on
       map: [ "enum.KamertonReactorVisualLayers.On" ]
       shader: unshaded
+      visible: false
+    - sprite: _CorvaxGoob/Structures/Power/Generation/kamerton_link.rsi
+      state: link_0
+      map: [ "enum.KamertonReactorVisualLayers.Link" ]
       visible: false
   - type: GenericVisualizer
     visuals:
@@ -338,6 +414,9 @@
   - type: NodeContainer
     examinable: true
     nodes:
+      kamerton:
+        !type:AdjacentNode
+        nodeGroupID: KamertonReactor
       output:
         !type:CableDeviceNode
         nodeGroupID: HVPower
@@ -356,6 +435,7 @@
   - type: KamertonPowerUnit
 
 # Flatpacks (multitool to unpack, like the AME flatpack).
+  - type: KamertonLinkVisuals
 
 - type: entity
   abstract: true
