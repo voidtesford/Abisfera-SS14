@@ -40,4 +40,5 @@ public sealed partial class BrokenTechFireSpreadComponent : Component
     public TimeSpan NextBlobTileDamage;
     public TimeSpan NextWaterCheck;
     public bool Finished;
+    public bool HasDecal;
 }

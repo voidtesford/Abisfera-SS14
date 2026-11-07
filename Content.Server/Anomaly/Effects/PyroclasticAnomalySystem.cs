@@ -14,6 +14,7 @@ using Content.Server.Atmos.EntitySystems;
 using Content.Shared.Anomaly.Components;
 using Content.Shared.Anomaly.Effects.Components;
 using Robust.Shared.Map;
+using Robust.Shared.Random;
 
 namespace Content.Server.Anomaly.Effects;
 
@@ -24,6 +25,7 @@ public sealed class PyroclasticAnomalySystem : EntitySystem
 {
     [Dependency] private readonly EntityLookupSystem _lookup = default!;
     [Dependency] private readonly FlammableSystem _flammable = default!;
+    [Dependency] private readonly IRobustRandom _random = default!;
 
     /// <inheritdoc/>
     public override void Initialize()
@@ -37,12 +39,25 @@ public sealed class PyroclasticAnomalySystem : EntitySystem
         var xform = Transform(uid);
         var ignitionRadius = component.MaximumIgnitionRadius * args.Stability * args.PowerModifier;
         IgniteNearby(uid, xform.Coordinates, args.Severity, ignitionRadius);
+
+        // 50% шанс спавна огня при импульсе
+        if (_random.Prob(0.5f))
+        {
+            Spawn("FireNRFHELL", xform.Coordinates);
+        }
     }
 
     private void OnSupercritical(EntityUid uid, PyroclasticAnomalyComponent component, ref AnomalySupercriticalEvent args)
     {
         var xform = Transform(uid);
         IgniteNearby(uid, xform.Coordinates, 1, component.MaximumIgnitionRadius * 2 * args.PowerModifier);
+
+        // Спавн 10 огней при взрыве с разбросом в радиусе 3 тайлов
+        for (var i = 0; i < 10; i++)
+        {
+            var offsetCoords = xform.Coordinates.Offset(_random.NextVector2(3f));
+            Spawn("FireNRFHELL", offsetCoords);
+        }
     }
 
     public void IgniteNearby(EntityUid uid, EntityCoordinates coordinates, float severity, float radius)

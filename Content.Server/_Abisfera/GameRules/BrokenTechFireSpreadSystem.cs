@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using Content.Server.Atmos.Components;
-using Content.Server.GameTicking;
 using Content.Server.Atmos.EntitySystems;
+using Content.Server.GameTicking;
+using Content.Server.Power.Components;
 using Content.Server.Decals;
 using Content.Shared.Atmos;
-using Content.Shared.Atmos.Components;
 using Content.Goobstation.Shared.Blob.Components;
 using Content.Shared.Chemistry;
 using Content.Shared.Chemistry.Components;
@@ -32,9 +32,9 @@ public sealed class BrokenTechFireSpreadSystem : EntitySystem
     [Dependency] private readonly SharedSolutionContainerSystem _solutionContainer = default!;
     [Dependency] private readonly DamageableSystem _damageable = default!;
     [Dependency] private readonly FlammableSystem _flammable = default!;
-    [Dependency] private readonly AtmosphereSystem _atmosphere = default!;
-    [Dependency] private readonly DecalSystem _decals = default!; 
+    [Dependency] private readonly DecalSystem _decals = default!;
     [Dependency] private readonly IRobustRandom _random = default!;
+    [Dependency] private readonly AtmosphereSystem _atmosphere = default!;
 
     private const int FireProcessBudget = 64;
     private static readonly TimeSpan WaterCheckInterval = TimeSpan.FromSeconds(1);
@@ -209,24 +209,61 @@ public sealed class BrokenTechFireSpreadSystem : EntitySystem
         UpdateTileIndex(uid, gridUid, tile);
         InitializeOrigin(fire, gridUid, tile);
 
-         var entitiesOnTile = _lookup.GetLocalEntitiesIntersecting(gridUid, tile, flags: LookupFlags.Uncontained);
+        var entitiesOnTile = _lookup.GetLocalEntitiesIntersecting(gridUid, tile, flags: LookupFlags.Uncontained);
         foreach (var ent in entitiesOnTile)
         {
-            // ЗАЩИТА: не бьем сам огонь и другие огни
             if (ent == uid || HasComp<BrokenTechFireSpreadComponent>(ent))
+                continue;
+
+            // Защита от проводов
+            if (HasComp<CableComponent>(ent))
                 continue;
 
             if (TryComp<FlammableComponent>(ent, out var flammable))
             {
                 _flammable.AdjustFireStacks(ent, 0.6f, flammable, ignite: true);
-				
-				_flammable.Ignite(ent, uid, flammable);
+                _flammable.Ignite(ent, uid, flammable);
             }
+            // Урон по лежачим и мебели
             if (TryComp<DamageableComponent>(ent, out var damageable))
             {
-                _damageable.TryChangeDamage(ent, new DamageSpecifier { DamageDict = { { "Heat", 10 } } }, interruptsDoAfters: false);
+                _damageable.TryChangeDamage(ent, new DamageSpecifier { DamageDict = { { "Heat", 2 } } }, interruptsDoAfters: false);
             }
         }
+
+// Сажа (1 раз за всё время горения на этом тайле)
+        if (!fire.HasDecal)
+        {
+            if (_random.Prob(0.3f)) // 30% шанс
+            {
+                fire.HasDecal = true; // Запоминаем, что сажа уже есть
+                _decals.TryAddDecal("random_zacha_4_fire", xform.Coordinates, out _, cleanable: true);
+            }
+        }
+
+ // --- НАГРЕВ И ВЫЖИГАНИЕ КИСЛОРОДА ---
+        var mixture = _atmosphere.GetTileMixture(gridUid, null, tile, true);
+        
+        // 1. Жесткая проверка: если кислорода нет — тушим
+        if (mixture == null || mixture.GetMoles(Gas.Oxygen) < 0.1f) 
+        {
+            RemoveTileIndex(uid);
+            QueueDel(uid);
+            return; 
+        }
+
+        // 2. Если кислород есть — греем и выжигаем
+        if (mixture.Temperature < 400f)
+            mixture.Temperature = 400f;
+            
+        mixture.Temperature += 25f; 
+        if (mixture.Temperature > 1173f)
+            mixture.Temperature = 1173f;
+
+        var oxygen = mixture.GetMoles(Gas.Oxygen);
+        var toBurn = oxygen * 0.02f; // Сжигаем 2% кислорода за тик
+        mixture.AdjustMoles(Gas.Oxygen, -toBurn);
+        mixture.AdjustMoles(Gas.CarbonDioxide, toBurn); // Выделяем CO2
 
         if (fire.Finished)
         {
@@ -237,21 +274,11 @@ public sealed class BrokenTechFireSpreadSystem : EntitySystem
                     QueueDel(uid);
                     return;
                 }
-
                 fire.NextWaterCheck = curTime + DormantCheckInterval;
             }
-
             DamageBlobTiles(fire, gridUid, grid, tile);
             ScheduleNext(uid, fire);
             return;
-        }
-		
-		if (fire.Distance > 0 || curTime > fire.NextSpread) // Условие, чтобы не спавнить в первую секунду
-        {
-            if (_random.Prob(0.3f)) // 30% шанс появления сажи
-            {
-                _decals.TryAddDecal("random_zacha_4_fire", xform.Coordinates, out _, cleanable: true);
-            }
         }
 
         if (curTime >= fire.NextWaterCheck)
@@ -261,7 +288,6 @@ public sealed class BrokenTechFireSpreadSystem : EntitySystem
                 QueueDel(uid);
                 return;
             }
-
             fire.NextWaterCheck = curTime + WaterCheckInterval;
         }
 
@@ -277,7 +303,6 @@ public sealed class BrokenTechFireSpreadSystem : EntitySystem
         if (curTime >= fire.NextSpread)
         {
             fire.NextSpread = curTime + TimeSpan.FromSeconds(fire.SpreadDelay);
-
             if (!TrySpread(uid, fire, gridUid, grid, tile))
                 fire.Finished = true;
         }
@@ -480,3 +505,4 @@ public sealed class BrokenTechFireSpreadSystem : EntitySystem
         EntityUid GridUid,
         Vector2i Tile);
 }
+

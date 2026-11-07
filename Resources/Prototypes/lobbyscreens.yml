@@ -1,18 +1,5 @@
 # SPDX-FileCopyrightText: 2022 Moony <moonheart08@users.noreply.github.com>
 
-
- - type: lobbyBackground
-   id: dog
-   background: /Textures/LobbyScreens/dog.webp
-   name: Dog
-   artist: Calamity
-
- - type: lobbyBackground
-   id: infernum
-   background: /Textures/LobbyScreens/infernum.webp
-   name: infernum
-   artist: Calamity
-
  - type: lobbyBackground
    id: warden
    background: /Textures/LobbyScreens/warden.webp

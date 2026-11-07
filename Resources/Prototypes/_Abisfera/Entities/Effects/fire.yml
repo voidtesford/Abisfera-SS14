@@ -36,17 +36,6 @@
     color: "#FF8C00"
     radius: 2.0
     energy: 2.0
-  - type: Projectile
-    deleteOnCollide: false
-    damage:
-      types:
-        Heat: 5
-    soundHit:
-      path: "/Audio/Weapons/Guns/Hits/energy_meat1.ogg"
-  - type: IgniteOnCollide
-    fireStacks: 0.6
-    count: 90
-    fixtureId: fix1
   - type: Transform
     anchored: true
   - type: IgnitionSource
@@ -62,6 +51,10 @@
       behaviors:
       - !type:DoActsBehavior
         acts: [ "Destruction" ]
+  - type: DamageContacts
+    damage:
+      types:
+        Heat: 5
   - type: Reactive
     groups:
       Flammable: [Touch]
@@ -74,10 +67,6 @@
         damage:
           types:
             Heat: 5
-  - type: DamageContacts
-    damage:
-      types:
-        Heat: 10
   - type: AmbientSound
     volume: -2
     range: 4

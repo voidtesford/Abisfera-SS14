@@ -1842,6 +1842,22 @@
   metamorphicMaxFillLevels: 5
   metamorphicFillBaseName: fill-
   metamorphicChangeColor: false
+  metabolisms:
+    Drink:
+      effects:
+      - !type:SatiateThirst
+        factor: 2
+      - !type:AdjustReagent
+        reagent: Ethanol
+        amount: 0.5
+      - !type:GenericStatusEffect
+        key: SpawnGravityWell
+        component: SpawnGravityWell
+        time: 10
+        type: Add
+        conditions:
+        - !type:ReagentThreshold
+          min: 15
 
 - type: reagent
   id: SnowWhite
