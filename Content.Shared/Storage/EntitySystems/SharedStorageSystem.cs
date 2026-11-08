@@ -1436,9 +1436,11 @@ public abstract class SharedStorageSystem : EntitySystem
         var itemShape = ItemSystem.GetItemShape(itemEnt);
         var fastAngles = itemShape.Count == 1;
 
-        if (itemShape.Count == 1 && itemShape[0].Contains(Vector2i.Zero))
+        if (itemShape.Count == 1 
+            && itemShape[0].Contains(Vector2i.Zero) 
+            && itemShape[0].Width == 1 
+            && itemShape[0].Height == 1)
             fastPath = true;
-
         var chunkEnumerator = new ChunkIndicesEnumerator(storageBounding, StorageComponent.ChunkSize);
         var angles = new ValueList<Angle>();
 
